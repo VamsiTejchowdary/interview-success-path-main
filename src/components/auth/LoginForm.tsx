@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, Users, GraduationCap, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import ForgotPasswordDialog from "@/components/auth/ForgotPasswordDialog";
 
 type UserRole = 'admin' | 'recruiter' | 'user';
 
@@ -19,6 +20,7 @@ const LoginForm = ({ onLogin, onSwitchToRegister }: LoginFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<UserRole>('user');
   const { signIn } = useAuth();
@@ -156,6 +158,16 @@ const LoginForm = ({ onLogin, onSwitchToRegister }: LoginFormProps) => {
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  <div className="text-right mt-1">
+                    <button
+                      type="button"
+                      className="text-xs text-blue-600 hover:underline"
+                      onClick={() => setShowForgotPassword(true)}
+                      disabled={isLoading}
+                    >
+                      Forgot Password?
+                    </button>
+                  </div>
                 </div>
                 <Button 
                   onClick={() => handleSubmit(role.id)}
@@ -186,6 +198,7 @@ const LoginForm = ({ onLogin, onSwitchToRegister }: LoginFormProps) => {
           </button>
         </div>
       </CardContent>
+      <ForgotPasswordDialog open={showForgotPassword} onClose={() => setShowForgotPassword(false)} />
     </Card>
   );
 };

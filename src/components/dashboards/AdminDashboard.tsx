@@ -452,55 +452,26 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                           <TableCell className="text-slate-300 hidden lg:table-cell">
                             {new Date(recruiter.created_at).toLocaleDateString()}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              {recruiter.status === 'pending' && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleRecruiterStatusUpdate(recruiter.recruiter_id, 'approved')}
-                                    disabled={updating === recruiter.recruiter_id}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 shadow-sm transition-colors"
-                                  >
-                                    {updating === recruiter.recruiter_id ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <CheckCircle className="w-3 h-3" />
-                                    )}
-                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleRecruiterStatusUpdate(recruiter.recruiter_id, 'rejected')}
-                                    disabled={updating === recruiter.recruiter_id}
-                                    className="bg-red-600 hover:bg-red-700 text-white border-0 shadow-sm transition-colors"
-                                  >
-                                    {updating === recruiter.recruiter_id ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <XCircle className="w-3 h-3" />
-                                    )}
-                  </Button>
-                                </>
-                              )}
-                              {recruiter.status !== 'pending' && (
-                                <Select
-                                  value={recruiter.status}
-                                  onValueChange={(value: 'pending' | 'approved' | 'rejected') => 
-                                    handleRecruiterStatusUpdate(recruiter.recruiter_id, value)
-                                  }
-                                  disabled={updating === recruiter.recruiter_id}
-                                >
-                                  <SelectTrigger className="w-32 bg-slate-700 border-slate-600 text-white">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent className="bg-slate-800 border-slate-600">
-                                    <SelectItem value="pending" className="text-white hover:bg-slate-700">Pending</SelectItem>
-                                    <SelectItem value="approved" className="text-white hover:bg-slate-700">Approved</SelectItem>
-                                    <SelectItem value="rejected" className="text-white hover:bg-slate-700">Rejected</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              )}
-                            </div>
+                          <TableCell className="text-right">
+                            {updating === recruiter.recruiter_id ? (
+                              <div className="flex justify-end pr-4">
+                                <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                              </div>
+                            ) : (
+                              <Select
+                                value={recruiter.status}
+                                onValueChange={(value) => handleRecruiterStatusUpdate(recruiter.recruiter_id, value as 'pending' | 'approved' | 'rejected')}
+                              >
+                                <SelectTrigger className="w-32 bg-slate-700 border-slate-600 text-white text-xs h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-800 border-slate-600 text-white">
+                                  <SelectItem value="approved" className="cursor-pointer text-slate-200 focus:bg-slate-700 focus:text-white">Approved</SelectItem>
+                                  <SelectItem value="pending" className="cursor-pointer text-slate-200 focus:bg-slate-700 focus:text-white">Pending</SelectItem>
+                                  <SelectItem value="rejected" className="cursor-pointer text-slate-200 focus:bg-slate-700 focus:text-white">Rejected</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -542,93 +513,54 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                           <TableCell className="text-slate-300 hidden lg:table-cell">
                             {new Date(user.created_at).toLocaleDateString()}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              {user.status === 'pending' && (
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleUserStatusUpdate(user.user_id, 'approved')}
-                                    disabled={updating === user.user_id}
-                                    className="bg-emerald-600 hover:bg-emerald-700 text-white border-0 shadow-sm transition-colors"
-                                  >
-                                    {updating === user.user_id ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <CheckCircle className="w-3 h-3" />
-                                    )}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleUserStatusUpdate(user.user_id, 'rejected')}
-                                    disabled={updating === user.user_id}
-                                    className="bg-red-600 hover:bg-red-700 text-white border-0 shadow-sm transition-colors"
-                                  >
-                                    {updating === user.user_id ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <XCircle className="w-3 h-3" />
-                                    )}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleUserStatusUpdate(user.user_id, 'on_hold')}
-                                    disabled={updating === user.user_id}
-                                    className="bg-orange-600 hover:bg-orange-700 text-white border-0 shadow-sm transition-colors"
-                                  >
-                                    {updating === user.user_id ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <Pause className="w-3 h-3" />
-                                    )}
-                                  </Button>
-                  </div>
-                              )}
-                              {user.status !== 'pending' && (
-                                <div className="flex gap-2">
-                                  <Select
-                                    value={user.status}
-                                    onValueChange={(value: 'pending' | 'approved' | 'rejected' | 'on_hold') => 
-                                      handleUserStatusUpdate(user.user_id, value)
-                                    }
-                                    disabled={updating === user.user_id}
-                                  >
-                                    <SelectTrigger className="w-32 bg-slate-700 border-slate-600 text-white">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-slate-800 border-slate-600">
-                                      <SelectItem value="pending" className="text-white hover:bg-slate-700">Pending</SelectItem>
-                                      <SelectItem value="approved" className="text-white hover:bg-slate-700">Approved</SelectItem>
-                                      <SelectItem value="rejected" className="text-white hover:bg-slate-700">Rejected</SelectItem>
-                                      <SelectItem value="on_hold" className="text-white hover:bg-slate-700">On Hold</SelectItem>
-                                    </SelectContent>
-                                  </Select>
+                          <TableCell className="text-right">
+                            {updating === user.user_id ? (
+                              <div className="flex justify-end pr-4">
+                                <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                              </div>
+                            ) : (
+                              <div className="flex gap-2 justify-end">
+                                <Select
+                                  value={user.status}
+                                  onValueChange={(value) => handleUserStatusUpdate(user.user_id, value as any)}
+                                >
+                                  <SelectTrigger className="w-32 bg-slate-700 border-slate-600 text-white text-xs h-8">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="bg-slate-800 border-slate-600 text-white">
+                                    <SelectItem value="approved" className="cursor-pointer text-slate-200 focus:bg-slate-700 focus:text-white">Approved</SelectItem>
+                                    <SelectItem value="pending" className="cursor-pointer text-slate-200 focus:bg-slate-700 focus:text-white">Pending</SelectItem>
+                                    <SelectItem value="rejected" className="cursor-pointer text-slate-200 focus:bg-slate-700 focus:text-white">Rejected</SelectItem>
+                                    <SelectItem value="on_hold" className="cursor-pointer text-slate-200 focus:bg-slate-700 focus:text-white">On Hold</SelectItem>
+                                  </SelectContent>
+                                </Select>
+
+                                {user.status === 'approved' && (
                                   <Select
                                     value={user.recruiter_id || "unassigned"}
-                                    onValueChange={(value) => 
-                                      value !== "unassigned" && handleAssignRecruiter(user.user_id, value)
-                                    }
-                                    disabled={updating === user.user_id || user.status !== "approved"}
+                                    onValueChange={(value) => {
+                                      if (value === "unassigned") {
+                                        handleUserStatusUpdate(user.user_id, 'pending');
+                                      } else {
+                                        handleAssignRecruiter(user.user_id, value);
+                                      }
+                                    }}
                                   >
-                                    <SelectTrigger className="w-40 bg-slate-700 border-slate-600 text-white">
-                                      <SelectValue placeholder="Assign Recruiter" />
+                                    <SelectTrigger className="w-40 bg-slate-700 border-slate-600 text-white text-xs h-8">
+                                      <SelectValue placeholder="Assign..." />
                                     </SelectTrigger>
-                                    <SelectContent className="bg-slate-800 border-slate-600">
-                                      <SelectItem value="unassigned" className="text-white hover:bg-slate-700">Unassigned</SelectItem>
-                                      {approvedRecruiters.map((recruiter) => (
-                                        <SelectItem 
-                                          key={recruiter.recruiter_id} 
-                                          value={recruiter.recruiter_id}
-                                          className="text-white hover:bg-slate-700"
-                                        >
-                                          {recruiter.name}
+                                    <SelectContent className="bg-slate-800 border-slate-600 text-white">
+                                      <SelectItem value="unassigned" className="cursor-pointer text-slate-200 focus:bg-slate-700 focus:text-white">Unassign</SelectItem>
+                                      {approvedRecruiters.map(r => (
+                                        <SelectItem key={r.recruiter_id} value={r.recruiter_id} className="cursor-pointer text-slate-200 focus:bg-slate-700 focus:text-white">
+                                          {r.name}
                                         </SelectItem>
                                       ))}
                                     </SelectContent>
                                   </Select>
-                  </div>
-                              )}
-                  </div>
+                                )}
+                              </div>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}

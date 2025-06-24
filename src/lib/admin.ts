@@ -177,20 +177,40 @@ export const updateUserStatus = async (
   status: 'pending' | 'approved' | 'rejected' | 'on_hold'
 ): Promise<void> => {
   try {
+    // First, get the user's current status
+    const { data: currentUser, error: fetchError } = await supabase
+      .from('users')
+      .select('status')
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    const updatePayload: {
+      status: string;
+      approved_at?: string | null;
+      recruiter_id?: string | null;
+    } = {
+      status,
+      approved_at: status === 'approved' ? new Date().toISOString() : null
+    };
+
+    // If user is being moved FROM 'approved' to another status, un-assign recruiter
+    if (currentUser.status === 'approved' && status !== 'approved') {
+      updatePayload.recruiter_id = null;
+    }
+
     const { error } = await supabase
       .from('users')
-      .update({ 
-        status,
-        approved_at: status === 'approved' ? new Date().toISOString() : null
-      })
-      .eq('user_id', userId)
+      .update(updatePayload)
+      .eq('user_id', userId);
 
-    if (error) throw error
+    if (error) throw error;
   } catch (error) {
-    console.error('Error updating user status:', error)
-    throw error
+    console.error('Error updating user status:', error);
+    throw error;
   }
-}
+};
 
 export const assignRecruiterToUser = async (
   userId: string, 

@@ -1,4 +1,4 @@
-
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,15 +16,227 @@ import {
   Upload,
   LogOut,
   Plus,
-  BarChart3
+  BarChart3,
+  ChevronDown,
+  ChevronUp,
+  ArrowRight
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface AgentDashboardProps {
   onLogout: () => void;
 }
 
+function RecruiterOverviewCards({ recruiterId }: { recruiterId: string }) {
+  const [assignedStudents, setAssignedStudents] = useState(0);
+  const [jobsApplied, setJobsApplied] = useState(0);
+  const [resumesEdited, setResumesEdited] = useState(0);
+  const [interviews, setInterviews] = useState(0); // Placeholder, keep as is
+
+  useEffect(() => {
+    async function fetchCounts() {
+      // Assigned Students
+      const { count: studentsCount } = await supabase
+        .from('users')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('recruiter_id', recruiterId);
+      setAssignedStudents(studentsCount || 0);
+
+      // Jobs Applied
+      const { count: jobsCount } = await supabase
+        .from('job_applications')
+        .select('application_id', { count: 'exact', head: true })
+        .eq('recruiter_id', recruiterId);
+      setJobsApplied(jobsCount || 0);
+
+      // Resumes Edited
+      const { count: resumesCount } = await supabase
+        .from('resumes')
+        .select('resume_id', { count: 'exact', head: true })
+        .eq('recruiter_id', recruiterId);
+      setResumesEdited(resumesCount || 0);
+
+      // Interviews: keep as is for now (set to 0 or fetch if you have a table)
+      setInterviews(0);
+    }
+    if (recruiterId) fetchCounts();
+  }, [recruiterId]);
+
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+      <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Assigned Students</CardTitle>
+          <Users className="h-4 w-4 text-blue-400" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{assignedStudents}</div>
+          <p className="text-xs text-blue-200">Assigned students</p>
+        </CardContent>
+      </Card>
+      <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Jobs Applied</CardTitle>
+          <Briefcase className="h-4 w-4 text-green-400" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{jobsApplied}</div>
+          <p className="text-xs text-green-200">Total applications</p>
+        </CardContent>
+      </Card>
+      <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Resumes Edited</CardTitle>
+          <FileText className="h-4 w-4 text-purple-400" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{resumesEdited}</div>
+          <p className="text-xs text-purple-200">Total resumes</p>
+        </CardContent>
+      </Card>
+      <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Interviews</CardTitle>
+          <Calendar className="h-4 w-4 text-yellow-400" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{interviews}</div>
+          <p className="text-xs text-yellow-200">Scheduled this month</p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+const MyStudentsTab = ({ recruiterId }: { recruiterId: string }) => {
+  const [students, setStudents] = useState<any[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchStudents() {
+      setLoading(true);
+      // Fetch students assigned to this recruiter
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('user_id, name, email, phone, address, status')
+        .eq('recruiter_id', recruiterId);
+      if (error) {
+        setStudents([]);
+        setLoading(false);
+        return;
+      }
+      // For each student, fetch their job applications count
+      const studentsWithCounts = await Promise.all((users || []).map(async (student: any) => {
+        const { count: applicationsCount } = await supabase
+          .from('job_applications')
+          .select('application_id', { count: 'exact', head: true })
+          .eq('user_id', student.user_id);
+        // Placeholder for interviews
+        return {
+          ...student,
+          applicationsCount: applicationsCount || 0,
+          interviewsCount: 0,
+        };
+      }));
+      setStudents(studentsWithCounts);
+      setLoading(false);
+    }
+    if (recruiterId) fetchStudents();
+  }, [recruiterId]);
+
+  if (loading) return <div className="text-center text-white py-8">Loading students...</div>;
+  if (!students.length) return <div className="text-center text-slate-400 py-8">No students assigned yet.</div>;
+
+  return (
+    <div className="space-y-4">
+      {students.map(student => (
+        <div key={student.user_id} className="bg-white/10 border border-white/20 rounded-xl p-4 text-white shadow-lg">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <div>
+              <div className="font-semibold text-lg">{student.name}</div>
+              <div className="text-sm text-blue-200">{student.email}</div>
+              <div className="text-sm text-blue-200">{student.phone || 'N/A'}</div>
+            </div>
+            <div className="flex flex-row gap-6 items-center mt-2 md:mt-0">
+              <div className="text-center">
+                <div className="text-xl font-bold">{student.applicationsCount}</div>
+                <div className="text-xs text-blue-200">Applications</div>
+              </div>
+              <div className="text-center">
+                <div className="text-xl font-bold">{student.interviewsCount}</div>
+                <div className="text-xs text-yellow-200">Interviews</div>
+              </div>
+              <button
+                className="ml-4 flex items-center gap-1 px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors"
+                onClick={() => setExpanded(expanded === student.user_id ? null : student.user_id)}
+              >
+                Profile View
+                {expanded === student.user_id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          {expanded === student.user_id && (
+            <div className="mt-4 bg-black/20 rounded-lg p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm text-slate-300">Name</div>
+                  <div className="font-medium">{student.name}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-slate-300">Email</div>
+                  <div className="font-medium">{student.email}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-slate-300">Phone</div>
+                  <div className="font-medium">{student.phone || 'N/A'}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-slate-300">Address</div>
+                  <div className="font-medium">{student.address || 'N/A'}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-slate-300">Status</div>
+                  <div className="font-medium">{student.status}</div>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button className="flex items-center gap-1 px-4 py-2 rounded bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium transition-colors">
+                  View All Applications <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const AgentDashboard = ({ onLogout }: AgentDashboardProps) => {
+  const { user } = useAuth();
+  const [recruiterId, setRecruiterId] = useState<string>("");
+
+  useEffect(() => {
+    async function fetchRecruiterId() {
+      if (user?.email) {
+        const { data, error } = await supabase
+          .from('recruiters')
+          .select('recruiter_id')
+          .eq('email', user.email)
+          .single();
+        if (data?.recruiter_id) {
+          setRecruiterId(data.recruiter_id);
+        } else {
+          setRecruiterId("");
+        }
+      }
+    }
+    fetchRecruiterId();
+  }, [user?.email]);
+
   // Mock data
   const weeklyApplications = [
     { day: 'Mon', applications: 12 },
@@ -55,14 +267,11 @@ const AgentDashboard = ({ onLogout }: AgentDashboardProps) => {
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-black/20 border-b border-white/10">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-white">Agent Dashboard</h1>
+            <h1 className="text-2xl font-bold text-white">Recruiter Dashboard</h1>
             <p className="text-blue-200">Student Management & Job Applications</p>
           </div>
           <div className="flex items-center gap-4">
-            <Badge variant="outline" className="border-blue-300 text-blue-200">
-              Senior Agent
-            </Badge>
-            <Button variant="outline" onClick={onLogout} className="border-white/20 text-white hover:bg-white/10">
+            <Button onClick={onLogout} className="bg-blue-600 hover:bg-blue-700 text-white">
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>
@@ -80,89 +289,7 @@ const AgentDashboard = ({ onLogout }: AgentDashboardProps) => {
           </TabsList>
 
           <TabsContent value="overview">
-            {/* Key Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
-              <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Assigned Students</CardTitle>
-                  <Users className="h-4 w-4 text-blue-400" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">24</div>
-                  <p className="text-xs text-blue-200">Active students</p>
-                </CardContent>
-              </Card>
-
-              <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Jobs Applied</CardTitle>
-                  <Briefcase className="h-4 w-4 text-green-400" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">94</div>
-                  <p className="text-xs text-green-200">This week</p>
-                </CardContent>
-              </Card>
-
-              <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Resumes Edited</CardTitle>
-                  <FileText className="h-4 w-4 text-purple-400" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">18</div>
-                  <p className="text-xs text-purple-200">This month</p>
-                </CardContent>
-              </Card>
-
-              <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Interviews</CardTitle>
-                  <Calendar className="h-4 w-4 text-yellow-400" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">32</div>
-                  <p className="text-xs text-yellow-200">Scheduled this month</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Additional Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Inactive Students</CardTitle>
-                  <Clock className="h-4 w-4 text-red-400" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">3</div>
-                  <p className="text-xs text-red-200">No activity &gt; 5 days</p>
-                </CardContent>
-              </Card>
-
-              <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Tasks Completed</CardTitle>
-                  <CheckCircle className="h-4 w-4 text-emerald-400" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">47</div>
-                  <p className="text-xs text-emerald-200">This week</p>
-                </CardContent>
-              </Card>
-
-              <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Messages</CardTitle>
-                  <MessageSquare className="h-4 w-4 text-indigo-400" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">128</div>
-                  <p className="text-xs text-indigo-200">Student communications</p>
-                </CardContent>
-              </Card>
-            </div>
-
+            {recruiterId && <RecruiterOverviewCards recruiterId={recruiterId} />}
             {/* Charts */}
             <div className="grid lg:grid-cols-2 gap-8">
               <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
@@ -207,7 +334,7 @@ const AgentDashboard = ({ onLogout }: AgentDashboardProps) => {
                         </div>
                         <div className="text-right">
                           <p className="text-sm">{interview.time}</p>
-                          <Badge variant="outline" className="text-xs">{interview.type}</Badge>
+                          <Badge variant="outline" className="border-blue-300 text-blue-200">Scheduled</Badge>
                         </div>
                       </div>
                     ))}
@@ -218,75 +345,7 @@ const AgentDashboard = ({ onLogout }: AgentDashboardProps) => {
           </TabsContent>
 
           <TabsContent value="students">
-            <div className="grid lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2">
-                <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
-                  <CardHeader>
-                    <CardTitle>Student Progress Overview</CardTitle>
-                    <CardDescription className="text-blue-200">Track your assigned students&apos; application progress</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      {studentProgress.map((student, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 rounded-lg bg-black/20">
-                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white font-semibold">
-                              {student.name.split(' ').map(n => n[0]).join('')}
-                            </div>
-                            <div>
-                              <p className="font-medium">{student.name}</p>
-                              <p className="text-sm text-blue-200">{student.applications} applications • {student.interviews} interviews</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                            <Badge 
-                              variant={student.status === 'active' ? 'default' : student.status === 'placed' ? 'default' : 'secondary'}
-                              className={
-                                student.status === 'active' ? 'bg-green-600' :
-                                student.status === 'placed' ? 'bg-purple-600' :
-                                'bg-red-600'
-                              }
-                            >
-                              {student.status}
-                            </Badge>
-                            <Button size="sm" variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                              View Profile
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div>
-                <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
-                  <CardHeader>
-                    <CardTitle>Quick Actions</CardTitle>
-                    <CardDescription className="text-blue-200">Common student management tasks</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Button className="w-full justify-start bg-blue-600 hover:bg-blue-700">
-                      <Upload className="w-4 h-4 mr-2" />
-                      Upload Resume
-                    </Button>
-                    <Button className="w-full justify-start bg-green-600 hover:bg-green-700">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Job Application
-                    </Button>
-                    <Button className="w-full justify-start bg-purple-600 hover:bg-purple-700">
-                      <Calendar className="w-4 h-4 mr-2" />
-                      Schedule Interview
-                    </Button>
-                    <Button className="w-full justify-start bg-orange-600 hover:bg-orange-700">
-                      <MessageSquare className="w-4 h-4 mr-2" />
-                      Send Message
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+            {recruiterId && <MyStudentsTab recruiterId={recruiterId} />}
           </TabsContent>
 
           <TabsContent value="jobs">

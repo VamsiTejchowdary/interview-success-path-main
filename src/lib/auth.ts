@@ -7,6 +7,18 @@ export interface AuthUser {
   email: string
   role: UserRole
   name: string
+  status?: string
+  phone?: string
+  address?: string
+  recruiter_id?: string
+}
+
+export interface SignupData {
+  email: string
+  name: string
+  phone?: string
+  address?: string
+  recruiter_id?: string
 }
 
 export const signInWithEmail = async (email: string, password: string): Promise<AuthUser | null> => {
@@ -22,14 +34,23 @@ export const signInWithEmail = async (email: string, password: string): Promise<
     }
 
     if (data.user) {
-      // Check user role in our custom tables
-      const role = await getUserRole(data.user.email!)
-      if (role) {
+      // Check user role and status in our custom tables
+      const userInfo = await getUserInfo(data.user.email!)
+      if (userInfo) {
+        // Check if user is approved (for recruiters and users)
+        if (userInfo.role !== 'admin' && userInfo.status === 'pending') {
+          throw new Error('Account pending approval. Please wait for admin approval.')
+        }
+        
         return {
           id: data.user.id,
           email: data.user.email!,
-          role,
-          name: await getUserName(data.user.email!, role)
+          role: userInfo.role,
+          name: userInfo.name,
+          status: userInfo.status,
+          phone: userInfo.phone,
+          address: userInfo.address,
+          recruiter_id: userInfo.recruiter_id
         }
       }
     }
@@ -37,12 +58,26 @@ export const signInWithEmail = async (email: string, password: string): Promise<
     return null
   } catch (error) {
     console.error('Authentication error:', error)
-    return null
+    throw error
   }
 }
 
-export const signUpWithEmail = async (email: string, password: string, name: string, role: 'recruiter' | 'user'): Promise<AuthUser | null> => {
+export const signUpWithEmail = async (
+  email: string, 
+  password: string, 
+  signupData: SignupData,
+  role: 'admin' | 'recruiter' | 'user',
+  adminKey?: string
+): Promise<{ success: boolean; user?: AuthUser }> => {
   try {
+    // Validate admin key if signing up as admin
+    if (role === 'admin') {
+      const envAdminKey = import.meta.env.VITE_ADMIN_KEY
+      if (!adminKey || adminKey !== envAdminKey) {
+        throw new Error('Invalid admin key')
+      }
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -50,25 +85,41 @@ export const signUpWithEmail = async (email: string, password: string, name: str
 
     if (error) {
       console.error('Sign up error:', error)
-      return null
+      throw error
     }
 
     if (data.user) {
       // Insert user into appropriate table based on role
-      if (role === 'recruiter') {
+      if (role === 'admin') {
+        const { error: insertError } = await supabase
+          .from('admins')
+          .insert([
+            {
+              email: email,
+              name: signupData.name
+            }
+          ])
+        
+        if (insertError) {
+          console.error('Error inserting admin:', insertError)
+          throw insertError
+        }
+      } else if (role === 'recruiter') {
         const { error: insertError } = await supabase
           .from('recruiters')
           .insert([
             {
               email: email,
-              name: name,
+              name: signupData.name,
+              phone: signupData.phone,
+              address: signupData.address,
               status: 'pending'
             }
           ])
         
         if (insertError) {
           console.error('Error inserting recruiter:', insertError)
-          return null
+          throw insertError
         }
       } else {
         const { error: insertError } = await supabase
@@ -76,29 +127,40 @@ export const signUpWithEmail = async (email: string, password: string, name: str
           .insert([
             {
               email: email,
-              name: name,
+              name: signupData.name,
+              phone: signupData.phone,
+              address: signupData.address,
+              recruiter_id: signupData.recruiter_id,
               status: 'pending'
             }
           ])
         
         if (insertError) {
           console.error('Error inserting user:', insertError)
-          return null
+          throw insertError
         }
       }
 
+      // Return success but don't automatically log in
       return {
-        id: data.user.id,
-        email: data.user.email!,
-        role,
-        name
+        success: true,
+        user: {
+          id: data.user.id,
+          email: data.user.email!,
+          role,
+          name: signupData.name,
+          status: role === 'admin' ? 'active' : 'pending',
+          phone: signupData.phone,
+          address: signupData.address,
+          recruiter_id: signupData.recruiter_id
+        }
       }
     }
 
-    return null
+    return { success: false }
   } catch (error) {
     console.error('Registration error:', error)
-    return null
+    throw error
   }
 }
 
@@ -118,13 +180,17 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (user) {
-      const role = await getUserRole(user.email!)
-      if (role) {
+      const userInfo = await getUserInfo(user.email!)
+      if (userInfo) {
         return {
           id: user.id,
           email: user.email!,
-          role,
-          name: await getUserName(user.email!, role)
+          role: userInfo.role,
+          name: userInfo.name,
+          status: userInfo.status,
+          phone: userInfo.phone,
+          address: userInfo.address,
+          recruiter_id: userInfo.recruiter_id
         }
       }
     }
@@ -136,80 +202,74 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
   }
 }
 
-const getUserRole = async (email: string): Promise<UserRole> => {
+const getUserInfo = async (email: string): Promise<{ 
+  role: UserRole; 
+  name: string; 
+  status?: string;
+  phone?: string;
+  address?: string;
+  recruiter_id?: string;
+} | null> => {
   try {
     // Check admins table
     const { data: adminData } = await supabase
       .from('admins')
-      .select('admin_id')
+      .select('admin_id, name')
       .eq('email', email)
       .single()
 
     if (adminData) {
-      return 'admin'
+      return { role: 'admin', name: adminData.name }
     }
 
     // Check recruiters table
     const { data: recruiterData } = await supabase
       .from('recruiters')
-      .select('recruiter_id')
+      .select('recruiter_id, name, status, phone, address')
       .eq('email', email)
       .single()
 
     if (recruiterData) {
-      return 'recruiter'
+      return { 
+        role: 'recruiter', 
+        name: recruiterData.name, 
+        status: recruiterData.status,
+        phone: recruiterData.phone,
+        address: recruiterData.address
+      }
     }
 
     // Check users table
     const { data: userData } = await supabase
       .from('users')
-      .select('user_id')
+      .select('user_id, name, status, phone, address, recruiter_id')
       .eq('email', email)
       .single()
 
     if (userData) {
-      return 'user'
+      return { 
+        role: 'user', 
+        name: userData.name, 
+        status: userData.status,
+        phone: userData.phone,
+        address: userData.address,
+        recruiter_id: userData.recruiter_id
+      }
     }
 
     return null
   } catch (error) {
-    console.error('Error getting user role:', error)
+    console.error('Error getting user info:', error)
     return null
   }
 }
 
+const getUserRole = async (email: string): Promise<UserRole> => {
+  const userInfo = await getUserInfo(email)
+  return userInfo?.role || null
+}
+
 const getUserName = async (email: string, role: UserRole): Promise<string> => {
-  try {
-    if (role === 'admin') {
-      const { data } = await supabase
-        .from('admins')
-        .select('name')
-        .eq('email', email)
-        .single()
-      return data?.name || ''
-    }
-
-    if (role === 'recruiter') {
-      const { data } = await supabase
-        .from('recruiters')
-        .select('name')
-        .eq('email', email)
-        .single()
-      return data?.name || ''
-    }
-
-    if (role === 'user') {
-      const { data } = await supabase
-        .from('users')
-        .select('name')
-        .eq('email', email)
-        .single()
-      return data?.name || ''
-    }
-
-    return ''
-  } catch (error) {
-    console.error('Error getting user name:', error)
-    return ''
-  }
+  const userInfo = await getUserInfo(email)
+  return userInfo?.name || ''
 } 

@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { AuthUser, UserRole, signInWithEmail, signUpWithEmail, signOut, getCurrentUser } from '@/lib/auth'
+import { AuthUser, UserRole, signInWithEmail, signUpWithEmail, signOut, getCurrentUser, SignupData } from '@/lib/auth'
 
 interface AuthContextType {
   user: AuthUser | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<boolean>
-  signUp: (email: string, password: string, name: string, role: 'recruiter' | 'user') => Promise<boolean>
+  signUp: (email: string, password: string, signupData: SignupData, role: 'admin' | 'recruiter' | 'user', adminKey?: string) => Promise<{ success: boolean; user?: AuthUser }>
   logout: () => Promise<void>
 }
 
@@ -53,21 +53,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return false
     } catch (error) {
       console.error('Sign in error:', error)
-      return false
+      throw error
     }
   }
 
-  const signUp = async (email: string, password: string, name: string, role: 'recruiter' | 'user'): Promise<boolean> => {
+  const signUp = async (email: string, password: string, signupData: SignupData, role: 'admin' | 'recruiter' | 'user', adminKey?: string): Promise<{ success: boolean; user?: AuthUser }> => {
     try {
-      const authUser = await signUpWithEmail(email, password, name, role)
-      if (authUser) {
-        setUser(authUser)
-        return true
-      }
-      return false
+      const result = await signUpWithEmail(email, password, signupData, role, adminKey)
+      // Don't automatically set user - let the success page handle it
+      return result
     } catch (error) {
       console.error('Sign up error:', error)
-      return false
+      throw error
     }
   }
 

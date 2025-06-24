@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Shield, Users, GraduationCap, Loader2 } from "lucide-react";
+import { Shield, Users, GraduationCap, Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -18,6 +18,7 @@ interface LoginFormProps {
 const LoginForm = ({ onLogin, onSwitchToRegister }: LoginFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<UserRole>('user');
   const { signIn } = useAuth();
@@ -42,17 +43,25 @@ const LoginForm = ({ onLogin, onSwitchToRegister }: LoginFormProps) => {
           description: "Successfully signed in!",
         });
         // The AuthContext will handle the user state, so we don't need to call onLogin here
-      } else {
-        toast({
-          title: "Error",
-          description: "Invalid email or password",
-          variant: "destructive",
-        });
       }
-    } catch (error) {
+    } catch (error: any) {
+      let errorMessage = "An error occurred during sign in";
+      
+      if (error.message) {
+        if (error.message.includes('pending approval')) {
+          errorMessage = "Your account is pending admin approval. Please wait for approval before signing in.";
+        } else if (error.message.includes('Invalid login credentials')) {
+          errorMessage = "Invalid email or password. Please check your credentials.";
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = "Please verify your email address before signing in.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Error",
-        description: "An error occurred during sign in",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -128,15 +137,25 @@ const LoginForm = ({ onLogin, onSwitchToRegister }: LoginFormProps) => {
                 </div>
                 <div>
                   <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-white/50"
-                    disabled={isLoading}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="bg-white/50 pr-10"
+                      disabled={isLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                      disabled={isLoading}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
                 <Button 
                   onClick={() => handleSubmit(role.id)}

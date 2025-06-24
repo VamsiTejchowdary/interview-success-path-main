@@ -5,25 +5,34 @@ import { Badge } from "@/components/ui/badge";
 import { Users, UserCheck, Building2, TrendingUp, MessageSquare, Calendar, Loader2 } from "lucide-react";
 import LoginForm from "@/components/auth/LoginForm";
 import RegisterForm from "@/components/auth/RegisterForm";
+import SignupSuccess from "@/components/auth/SignupSuccess";
 import AdminDashboard from "@/components/dashboards/AdminDashboard";
 import AgentDashboard from "@/components/dashboards/AgentDashboard";
 import StudentDashboard from "@/components/dashboards/StudentDashboard";
 import { useAuth } from "@/contexts/AuthContext";
 
+type AuthView = 'login' | 'register' | 'success';
+
 const Index = () => {
   const { user, loading, logout } = useAuth();
-  const [showRegister, setShowRegister] = useState(false);
+  const [authView, setAuthView] = useState<AuthView>('login');
+  const [signupData, setSignupData] = useState<{ email: string; role: string } | null>(null);
 
   const handleLogout = async () => {
     await logout();
   };
 
   const handleSwitchToRegister = () => {
-    setShowRegister(true);
+    setAuthView('register');
   };
 
   const handleSwitchToLogin = () => {
-    setShowRegister(false);
+    setAuthView('login');
+  };
+
+  const handleSignupSuccess = (email: string, role: string) => {
+    setSignupData({ email, role });
+    setAuthView('success');
   };
 
   // Show loading spinner while checking authentication
@@ -52,7 +61,18 @@ const Index = () => {
     }
   }
 
-  // If not authenticated, show login page
+  // Show signup success page
+  if (authView === 'success' && signupData) {
+    return (
+      <SignupSuccess 
+        email={signupData.email} 
+        role={signupData.role} 
+        onBackToLogin={handleSwitchToLogin} 
+      />
+    );
+  }
+
+  // If not authenticated, show auth pages
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100">
       {/* Hero Section */}
@@ -100,8 +120,11 @@ const Index = () => {
 
           {/* Auth Section */}
           <div className="max-w-md mx-auto">
-            {showRegister ? (
-              <RegisterForm onSwitchToLogin={handleSwitchToLogin} />
+            {authView === 'register' ? (
+              <RegisterForm 
+                onSwitchToLogin={handleSwitchToLogin} 
+                onSignupSuccess={handleSignupSuccess}
+              />
             ) : (
               <LoginForm onLogin={() => {}} onSwitchToRegister={handleSwitchToRegister} />
             )}

@@ -24,6 +24,10 @@ import {
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import OverviewTab from "./agent/OverviewTab";
+import MyStudentsTab from "./agent/MyStudentsTab";
+import JobsTab from "./agent/JobsTab";
+import InterviewsTab from "./agent/InterviewsTab";
 
 interface AgentDashboardProps {
   onLogout: () => void;
@@ -110,111 +114,6 @@ function RecruiterOverviewCards({ recruiterId }: { recruiterId: string }) {
   );
 }
 
-const MyStudentsTab = ({ recruiterId }: { recruiterId: string }) => {
-  const [students, setStudents] = useState<any[]>([]);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function fetchStudents() {
-      setLoading(true);
-      // Fetch students assigned to this recruiter
-      const { data: users, error } = await supabase
-        .from('users')
-        .select('user_id, name, email, phone, address, status')
-        .eq('recruiter_id', recruiterId);
-      if (error) {
-        setStudents([]);
-        setLoading(false);
-        return;
-      }
-      // For each student, fetch their job applications count
-      const studentsWithCounts = await Promise.all((users || []).map(async (student: any) => {
-        const { count: applicationsCount } = await supabase
-          .from('job_applications')
-          .select('application_id', { count: 'exact', head: true })
-          .eq('user_id', student.user_id);
-        // Placeholder for interviews
-        return {
-          ...student,
-          applicationsCount: applicationsCount || 0,
-          interviewsCount: 0,
-        };
-      }));
-      setStudents(studentsWithCounts);
-      setLoading(false);
-    }
-    if (recruiterId) fetchStudents();
-  }, [recruiterId]);
-
-  if (loading) return <div className="text-center text-white py-8">Loading students...</div>;
-  if (!students.length) return <div className="text-center text-slate-400 py-8">No students assigned yet.</div>;
-
-  return (
-    <div className="space-y-4">
-      {students.map(student => (
-        <div key={student.user_id} className="bg-white/10 border border-white/20 rounded-xl p-4 text-white shadow-lg">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-            <div>
-              <div className="font-semibold text-lg">{student.name}</div>
-              <div className="text-sm text-blue-200">{student.email}</div>
-              <div className="text-sm text-blue-200">{student.phone || 'N/A'}</div>
-            </div>
-            <div className="flex flex-row gap-6 items-center mt-2 md:mt-0">
-              <div className="text-center">
-                <div className="text-xl font-bold">{student.applicationsCount}</div>
-                <div className="text-xs text-blue-200">Applications</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xl font-bold">{student.interviewsCount}</div>
-                <div className="text-xs text-yellow-200">Interviews</div>
-              </div>
-              <button
-                className="ml-4 flex items-center gap-1 px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors"
-                onClick={() => setExpanded(expanded === student.user_id ? null : student.user_id)}
-              >
-                Profile View
-                {expanded === student.user_id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-          {expanded === student.user_id && (
-            <div className="mt-4 bg-black/20 rounded-lg p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <div className="text-sm text-slate-300">Name</div>
-                  <div className="font-medium">{student.name}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-slate-300">Email</div>
-                  <div className="font-medium">{student.email}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-slate-300">Phone</div>
-                  <div className="font-medium">{student.phone || 'N/A'}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-slate-300">Address</div>
-                  <div className="font-medium">{student.address || 'N/A'}</div>
-                </div>
-                <div>
-                  <div className="text-sm text-slate-300">Status</div>
-                  <div className="font-medium">{student.status}</div>
-                </div>
-              </div>
-              <div className="mt-4 flex justify-end">
-                <button className="flex items-center gap-1 px-4 py-2 rounded bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium transition-colors">
-                  View All Applications <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-};
-
 const AgentDashboard = ({ onLogout }: AgentDashboardProps) => {
   const { user } = useAuth();
   const [recruiterId, setRecruiterId] = useState<string>("");
@@ -289,7 +188,7 @@ const AgentDashboard = ({ onLogout }: AgentDashboardProps) => {
           </TabsList>
 
           <TabsContent value="overview">
-            {recruiterId && <RecruiterOverviewCards recruiterId={recruiterId} />}
+            {recruiterId && <OverviewTab recruiterId={recruiterId} />}
             {/* Charts */}
             <div className="grid lg:grid-cols-2 gap-8">
               <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
@@ -349,78 +248,11 @@ const AgentDashboard = ({ onLogout }: AgentDashboardProps) => {
           </TabsContent>
 
           <TabsContent value="jobs">
-            <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
-              <CardHeader>
-                <CardTitle>Add New Job Application</CardTitle>
-                <CardDescription className="text-blue-200">Record a new job application for a student</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-blue-200">Student Name</label>
-                    <Input placeholder="Select student" className="bg-black/20 border-white/20 text-white" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-blue-200">Company Name</label>
-                    <Input placeholder="Enter company name" className="bg-black/20 border-white/20 text-white" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-blue-200">Job Title</label>
-                    <Input placeholder="Enter job title" className="bg-black/20 border-white/20 text-white" />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-blue-200">Job URL</label>
-                    <Input placeholder="Paste job posting URL" className="bg-black/20 border-white/20 text-white" />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-blue-200">Notes</label>
-                  <Textarea placeholder="Add any notes about this application..." className="bg-black/20 border-white/20 text-white" />
-                </div>
-                <Button className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Application
-                </Button>
-              </CardContent>
-            </Card>
+            <JobsTab recruiterId={recruiterId} />
           </TabsContent>
 
           <TabsContent value="interviews">
-            <Card className="backdrop-blur-xl bg-white/10 border-white/20 text-white">
-              <CardHeader>
-                <CardTitle>Interview Management</CardTitle>
-                <CardDescription className="text-blue-200">Track and manage student interviews</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  {upcomingInterviews.map((interview, index) => (
-                    <div key={index} className="p-4 rounded-lg bg-black/20 border border-white/10">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <h3 className="font-semibold text-lg">{interview.student}</h3>
-                          <p className="text-blue-200">{interview.company} - {interview.type}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-medium">{interview.time}</p>
-                          <Badge variant="outline" className="border-blue-300 text-blue-200">Scheduled</Badge>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                          Mark Complete
-                        </Button>
-                        <Button size="sm" variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                          Reschedule
-                        </Button>
-                        <Button size="sm" variant="outline" className="border-white/20 text-white hover:bg-white/10">
-                          Add Notes
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <InterviewsTab />
           </TabsContent>
         </Tabs>
       </div>

@@ -36,8 +36,10 @@ CREATE TABLE IF NOT EXISTS job_applications (
   application_id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES users(user_id),
   recruiter_id UUID REFERENCES recruiters(recruiter_id),
+  resume_id UUID REFERENCES resumes(resume_id),
   job_title TEXT NOT NULL,
   job_link TEXT,
+  status TEXT DEFAULT 'applied',
   applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -47,7 +49,6 @@ CREATE TABLE IF NOT EXISTS resumes (
   user_id UUID REFERENCES users(user_id),
   recruiter_id UUID REFERENCES recruiters(recruiter_id),
   storage_key TEXT NOT NULL,
-  job_application_id UUID REFERENCES job_applications(application_id),
   name TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 ); 

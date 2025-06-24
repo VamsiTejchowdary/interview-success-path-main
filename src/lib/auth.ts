@@ -30,7 +30,16 @@ export const signInWithEmail = async (email: string, password: string): Promise<
 
     if (error) {
       console.error('Sign in error:', error)
-      return null
+      // Provide specific error messages based on the error type
+      if (error.message === 'Invalid login credentials') {
+        throw new Error('Invalid email or password. Please check your credentials and try again.')
+      } else if (error.message === 'Email not confirmed') {
+        throw new Error('Please verify your email address before signing in.')
+      } else if (error.message.includes('Too many requests')) {
+        throw new Error('Too many login attempts. Please try again later.')
+      } else {
+        throw new Error(error.message || 'An error occurred during sign in')
+      }
     }
 
     if (data.user) {
@@ -39,7 +48,7 @@ export const signInWithEmail = async (email: string, password: string): Promise<
       if (userInfo) {
         // Check if user is approved (for recruiters and users)
         if (userInfo.role !== 'admin' && userInfo.status === 'pending') {
-          throw new Error('Account pending approval. Please wait for admin approval.')
+          throw new Error('Your account is pending admin approval. Please wait for approval before signing in.')
         }
         
         return {
@@ -52,6 +61,8 @@ export const signInWithEmail = async (email: string, password: string): Promise<
           address: userInfo.address,
           recruiter_id: userInfo.recruiter_id
         }
+      } else {
+        throw new Error('User profile not found. Please contact support.')
       }
     }
 

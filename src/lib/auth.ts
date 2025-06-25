@@ -6,19 +6,28 @@ export interface AuthUser {
   id: string
   email: string
   role: UserRole
-  name: string
+  first_name: string
+  last_name: string
   status?: string
   phone?: string
   address?: string
   recruiter_id?: string
+  resume_url: string
+  linkedin_url?: string
+  subscription_fee: number
 }
 
 export interface SignupData {
   email: string
-  name: string
-  phone?: string
-  address?: string
+  first_name: string
+  last_name: string
+  phone: string
+  address: string
   recruiter_id?: string
+  resume_url: string
+  linkedin_url?: string
+  subscription_fee?: number
+  name?: string
 }
 
 export const signInWithEmail = async (email: string, password: string): Promise<AuthUser | null> => {
@@ -55,11 +64,15 @@ export const signInWithEmail = async (email: string, password: string): Promise<
           id: data.user.id,
           email: data.user.email!,
           role: userInfo.role,
-          name: userInfo.name,
+          first_name: userInfo.first_name,
+          last_name: userInfo.last_name,
           status: userInfo.status,
           phone: userInfo.phone,
           address: userInfo.address,
-          recruiter_id: userInfo.recruiter_id
+          recruiter_id: userInfo.recruiter_id,
+          resume_url: userInfo.resume_url,
+          linkedin_url: userInfo.linkedin_url,
+          subscription_fee: userInfo.subscription_fee
         }
       } else {
         throw new Error('User profile not found. Please contact support.')
@@ -116,7 +129,6 @@ export const signUpWithEmail = async (
               name: signupData.name
             }
           ])
-        
         if (insertError) {
           console.error('Error inserting admin:', insertError)
           throw insertError
@@ -133,7 +145,6 @@ export const signUpWithEmail = async (
               status: 'pending'
             }
           ])
-        
         if (insertError) {
           console.error('Error inserting recruiter:', insertError)
           throw insertError
@@ -144,14 +155,17 @@ export const signUpWithEmail = async (
           .insert([
             {
               email: email,
-              name: signupData.name,
+              first_name: signupData.first_name,
+              last_name: signupData.last_name,
               phone: signupData.phone,
               address: signupData.address,
               recruiter_id: signupData.recruiter_id,
+              resume_url: signupData.resume_url,
+              linkedin_url: signupData.linkedin_url,
+              subscription_fee: signupData.subscription_fee ?? 100,
               status: 'pending'
             }
           ])
-        
         if (insertError) {
           console.error('Error inserting user:', insertError)
           throw insertError
@@ -165,11 +179,15 @@ export const signUpWithEmail = async (
           id: data.user.id,
           email: data.user.email!,
           role,
-          name: signupData.name,
+          first_name: role === 'admin' ? (signupData.name || '') : signupData.first_name,
+          last_name: role === 'admin' ? '' : signupData.last_name,
           status: role === 'admin' ? 'active' : 'pending',
           phone: signupData.phone,
           address: signupData.address,
-          recruiter_id: signupData.recruiter_id
+          recruiter_id: signupData.recruiter_id,
+          resume_url: signupData.resume_url,
+          linkedin_url: signupData.linkedin_url,
+          subscription_fee: signupData.subscription_fee ?? 100
         }
       }
     }
@@ -210,11 +228,15 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
           id: user.id,
           email: user.email!,
           role: userInfo.role,
-          name: userInfo.name,
+          first_name: userInfo.first_name,
+          last_name: userInfo.last_name,
           status: userInfo.status,
           phone: userInfo.phone,
           address: userInfo.address,
-          recruiter_id: userInfo.recruiter_id
+          recruiter_id: userInfo.recruiter_id,
+          resume_url: userInfo.resume_url,
+          linkedin_url: userInfo.linkedin_url,
+          subscription_fee: userInfo.subscription_fee
         }
       }
     }
@@ -228,11 +250,15 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
 
 export const getUserInfo = async (email: string): Promise<{ 
   role: UserRole; 
-  name: string; 
+  first_name: string; 
+  last_name: string; 
   status?: string;
   phone?: string;
   address?: string;
   recruiter_id?: string;
+  resume_url: string;
+  linkedin_url?: string;
+  subscription_fee: number;
 } | null> => {
   try {
     // Check admins table
@@ -243,7 +269,7 @@ export const getUserInfo = async (email: string): Promise<{
       .single()
 
     if (adminData) {
-      return { role: 'admin', name: adminData.name }
+      return { role: 'admin', first_name: adminData.name, last_name: '', resume_url: '', subscription_fee: 0 }
     }
 
     // Check recruiters table
@@ -256,28 +282,35 @@ export const getUserInfo = async (email: string): Promise<{
     if (recruiterData) {
       return { 
         role: 'recruiter', 
-        name: recruiterData.name, 
+        first_name: recruiterData.name, 
+        last_name: '', 
         status: recruiterData.status,
         phone: recruiterData.phone,
-        address: recruiterData.address
+        address: recruiterData.address,
+        resume_url: '',
+        subscription_fee: 0
       }
     }
 
     // Check users table
     const { data: userData } = await supabase
       .from('users')
-      .select('user_id, name, status, phone, address, recruiter_id')
+      .select('user_id, first_name, last_name, status, phone, address, recruiter_id, resume_url, linkedin_url, subscription_fee')
       .eq('email', email)
       .single()
 
     if (userData) {
       return { 
         role: 'user', 
-        name: userData.name, 
+        first_name: userData.first_name, 
+        last_name: userData.last_name, 
         status: userData.status,
         phone: userData.phone,
         address: userData.address,
-        recruiter_id: userData.recruiter_id
+        recruiter_id: userData.recruiter_id,
+        resume_url: userData.resume_url,
+        linkedin_url: userData.linkedin_url,
+        subscription_fee: userData.subscription_fee
       }
     }
 
@@ -295,5 +328,5 @@ const getUserRole = async (email: string): Promise<UserRole> => {
 
 const getUserName = async (email: string, role: UserRole): Promise<string> => {
   const userInfo = await getUserInfo(email)
-  return userInfo?.name || ''
+  return userInfo?.first_name || ''
 } 

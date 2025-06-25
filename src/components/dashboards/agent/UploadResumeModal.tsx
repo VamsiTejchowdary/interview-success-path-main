@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { DialogTitle, DialogDescription } from "@radix-ui/react-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
@@ -19,7 +20,7 @@ export default function UploadResumeModal({ open, onClose, recruiterId, onUpload
     if (open) {
       supabase
         .from("users")
-        .select("user_id, name")
+        .select("user_id, first_name, last_name")
         .eq("recruiter_id", recruiterId)
         .then(({ data }) => setUsers(data || []));
     }
@@ -36,7 +37,8 @@ export default function UploadResumeModal({ open, onClose, recruiterId, onUpload
     }
     setUploading(true);
     try {
-      const { url } = await put(file.name, file, {
+      const uniqueResumeName = `${Date.now()}_${file.name}`;
+      const { url } = await put(uniqueResumeName, file, {
         access: "public",
         token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN,
       });
@@ -72,6 +74,8 @@ export default function UploadResumeModal({ open, onClose, recruiterId, onUpload
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl bg-transparent p-0 border-0 shadow-none">
+        <DialogTitle className="sr-only">Upload Resume</DialogTitle>
+        <DialogDescription className="sr-only">Add a new resume for your student. Select a student, provide a resume name, and upload a PDF file.</DialogDescription>
         <div className="relative bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden shadow-2xl">
           {/* Header */}
           <div className="bg-gradient-to-r from-white/10 to-white/5 p-6 border-b border-white/10">
@@ -104,7 +108,7 @@ export default function UploadResumeModal({ open, onClose, recruiterId, onUpload
                 >
                   <option value="" className="bg-gray-800 text-white">Choose a student...</option>
                   {users.map(u => (
-                    <option key={u.user_id} value={u.user_id} className="bg-gray-800 text-white">{u.name}</option>
+                    <option key={u.user_id} value={u.user_id} className="bg-gray-800 text-white">{u.first_name} {u.last_name}</option>
                   ))}
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">

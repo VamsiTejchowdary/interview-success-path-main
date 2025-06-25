@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,11 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Users, GraduationCap, Shield, Loader2, Eye, EyeOff } from "lucide-react";
+import { Users, GraduationCap, Shield, Loader2, Eye, EyeOff, Upload } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { getApprovedRecruiters, Recruiter } from "@/lib/recruiters";
 import { SignupData } from "@/lib/auth";
+import { put } from "@vercel/blob";
 
 type UserRole = 'admin' | 'recruiter' | 'user';
 
@@ -22,61 +23,119 @@ interface RegisterFormProps {
 const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [linkedin, setLinkedin] = useState("");
   const [adminKey, setAdminKey] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<UserRole>('user');
   const { signUp } = useAuth();
   const { toast } = useToast();
+  const [name, setName] = useState("");
 
   const handleSubmit = async (role: UserRole) => {
-    if (!email || !password || !name) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
+    if (role === 'admin') {
+      if (!email || !name || !password || !adminKey) {
+        toast({
+          title: "Error",
+          description: "Please fill in all required fields (admin)",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (password.length < 6) {
+        toast({
+          title: "Error",
+          description: "Password must be at least 6 characters long",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (role === 'recruiter') {
+      if (!email || !name || !password || !phone || !address) {
+        toast({
+          title: "Error",
+          description: "Please fill in all required fields (recruiter)",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (password.length < 6) {
+        toast({
+          title: "Error",
+          description: "Password must be at least 6 characters long",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else {
+      // user/student
+      if (!email || !password || !firstName || !lastName || !phone || !address || !resumeFile) {
+        toast({
+          title: "Error",
+          description: "Please fill in all required fields (including resume)",
+          variant: "destructive",
+        });
+        return;
+      }
+      if (password.length < 6) {
+        toast({
+          title: "Error",
+          description: "Password must be at least 6 characters long",
+          variant: "destructive",
+        });
+        return;
+      }
     }
-
-    if (password.length < 6) {
-      toast({
-        title: "Error",
-        description: "Password must be at least 6 characters long",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (role === 'admin' && !adminKey) {
-      toast({
-        title: "Error",
-        description: "Admin key is required for admin registration",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsLoading(true);
     try {
-      const signupData: SignupData = {
+      let signupData: any = {};
+      if (role === 'admin') {
+        signupData = {
+          email,
+          name,
+        };
+      } else if (role === 'recruiter') {
+        signupData = {
+          email,
+          name,
+          phone,
+          address,
+        };
+      } else {
+        // user/student
+        const uniqueResumeName = `${Date.now()}_${resumeFile.name}`;
+        const { url: resumeUrl } = await put(uniqueResumeName, resumeFile, {
+          access: "public",
+          token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN,
+        });
+        signupData = {
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          phone,
+          address,
+          resume_url: resumeUrl,
+          linkedin_url: linkedin || undefined,
+          subscription_fee: 100,
+        };
+      }
+      const result = await signUp(
         email,
-        name,
-        phone: phone || undefined,
-        address: address || undefined,
-        // recruiter_id will be assigned by admin later
-      };
-
-      const result = await signUp(email, password, signupData, role, role === 'admin' ? adminKey : undefined);
+        password,
+        signupData,
+        role,
+        role === 'admin' ? adminKey : undefined
+      );
       if (result.success) {
         onSignupSuccess(email, role);
       }
     } catch (error: any) {
       let errorMessage = "An error occurred during registration";
-      
       if (error.message) {
         if (error.message.includes('Invalid admin key')) {
           errorMessage = "Invalid admin key. Please check your admin key and try again.";
@@ -88,7 +147,6 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
           errorMessage = error.message;
         }
       }
-      
       toast({
         title: "Error",
         description: errorMessage,
@@ -167,125 +225,279 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Full Name *</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="Enter your full name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="bg-white/50"
-                    disabled={isLoading}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email *</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-white/50"
-                    disabled={isLoading}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="password">Password *</Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password (min 6 characters)"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="bg-white/50 pr-10"
-                      disabled={isLoading}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                      disabled={isLoading}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                
-                {role.showPhone && (
-                  <div>
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="Enter your phone number"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="bg-white/50"
-                      disabled={isLoading}
-                    />
-                  </div>
+                {/* Admin fields */}
+                {role.id === 'admin' && (
+                  <>
+                    <div>
+                      <Label htmlFor="name">Name *</Label>
+                      <Input
+                        id="name"
+                        type="text"
+                        placeholder="Enter your name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email">Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="password">Password *</Label>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Enter your password (min 6 characters)"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="bg-white/50 pr-10"
+                          disabled={isLoading}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                          disabled={isLoading}
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="adminKey">Admin Key *</Label>
+                      <Input
+                        id="adminKey"
+                        type="text"
+                        placeholder="Enter admin key"
+                        value={adminKey}
+                        onChange={(e) => setAdminKey(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </>
                 )}
-                
-                {role.showAddress && (
-                  <div>
-                    <Label htmlFor="address">Address</Label>
-                    <Textarea
-                      id="address"
-                      placeholder="Enter your address"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      className="bg-white/50 min-h-[80px]"
-                      disabled={isLoading}
-                    />
-                  </div>
+                {/* Recruiter fields */}
+                {role.id === 'recruiter' && (
+                  <>
+                    <div>
+                      <Label htmlFor="name">Name *</Label>
+                      <Input
+                        id="name"
+                        type="text"
+                        placeholder="Enter your name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email">Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="phone">Phone *</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="Enter your phone number"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="address">Address *</Label>
+                      <Input
+                        id="address"
+                        type="text"
+                        placeholder="Enter your address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="password">Password *</Label>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Enter your password (min 6 characters)"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="bg-white/50 pr-10"
+                          disabled={isLoading}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                          disabled={isLoading}
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
-                
-                {role.requiresKey && (
-                  <div>
-                    <Label htmlFor="adminKey">Admin Key *</Label>
-                    <Input
-                      id="adminKey"
-                      type="password"
-                      placeholder="Enter admin key"
-                      value={adminKey}
-                      onChange={(e) => setAdminKey(e.target.value)}
-                      className="bg-white/50"
-                      disabled={isLoading}
-                    />
-                  </div>
+                {/* Student fields */}
+                {role.id === 'user' && (
+                  <>
+                    <div>
+                      <Label htmlFor="firstName">First Name *</Label>
+                      <Input
+                        id="firstName"
+                        type="text"
+                        placeholder="Enter your first name"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="lastName">Last Name *</Label>
+                      <Input
+                        id="lastName"
+                        type="text"
+                        placeholder="Enter your last name"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email">Email *</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="phone">Phone *</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="Enter your phone number"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="address">Address *</Label>
+                      <Input
+                        id="address"
+                        type="text"
+                        placeholder="Enter your address"
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="resume">Resume (PDF) *</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="resume"
+                          type="file"
+                          accept="application/pdf"
+                          onChange={e => setResumeFile(e.target.files?.[0] || null)}
+                          className="bg-white/50"
+                          disabled={isLoading}
+                        />
+                        {resumeFile && <span className="text-xs text-gray-600">{resumeFile.name}</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="linkedin">LinkedIn (optional)</Label>
+                      <Input
+                        id="linkedin"
+                        type="url"
+                        placeholder="LinkedIn profile URL (optional)"
+                        value={linkedin}
+                        onChange={(e) => setLinkedin(e.target.value)}
+                        className="bg-white/50"
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="password">Password *</Label>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Enter your password (min 6 characters)"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="bg-white/50 pr-10"
+                          disabled={isLoading}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                          disabled={isLoading}
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </>
                 )}
-                
-                <Button 
+                <Button
                   onClick={() => handleSubmit(role.id)}
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                   disabled={isLoading}
+                  className="mt-4 w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                 >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating Account...
-                    </>
-                  ) : (
-                    `Create ${role.title} Account`
-                  )}
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Create Account
                 </Button>
+                <div className="text-center mt-2">
+                  <button
+                    type="button"
+                    className="text-xs text-blue-600 hover:underline"
+                    onClick={onSwitchToLogin}
+                    disabled={isLoading}
+                  >
+                    Already have an account? Sign in
+                  </button>
+                </div>
               </div>
             </TabsContent>
           ))}
         </Tabs>
-
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Already have an account? </p>
-          <button
-            onClick={onSwitchToLogin}
-            className="text-purple-600 hover:text-purple-700 font-medium"
-          >
-            Sign in here
-          </button>
-        </div>
       </CardContent>
     </Card>
   );

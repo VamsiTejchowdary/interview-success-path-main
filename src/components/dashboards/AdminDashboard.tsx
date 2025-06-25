@@ -429,6 +429,9 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                 </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
+                  {recruiters.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400">No recruiters found.</div>
+                  ) : (
                   <Table>
                     <TableHeader>
                       <TableRow className="border-slate-700">
@@ -477,6 +480,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                       ))}
                     </TableBody>
                   </Table>
+                  )}
                 </div>
                 </CardContent>
               </Card>
@@ -490,6 +494,9 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                 </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
+                  {users.length === 0 ? (
+                    <div className="py-12 text-center text-slate-400">No users found.</div>
+                  ) : (
                   <Table>
                     <TableHeader>
                       <TableRow className="border-slate-700">
@@ -505,7 +512,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                     <TableBody>
                       {users.map((user) => (
                         <TableRow key={user.user_id} className="border-slate-700 hover:bg-slate-700/20">
-                          <TableCell className="text-white font-medium">{user.name}</TableCell>
+                          <TableCell className="text-white font-medium">{user.first_name} {user.last_name}</TableCell>
                           <TableCell className="text-slate-300">{user.email}</TableCell>
                           <TableCell className="text-slate-300 hidden sm:table-cell">{user.phone || 'N/A'}</TableCell>
                           <TableCell>{getStatusBadge(user.status)}</TableCell>
@@ -566,7 +573,8 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
                       ))}
                     </TableBody>
                   </Table>
-                  </div>
+                  )}
+                </div>
                 </CardContent>
               </Card>
           </TabsContent>

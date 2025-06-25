@@ -20,7 +20,7 @@ export default function JobsTab({ recruiterId }) {
   useEffect(() => {
     supabase
       .from("users")
-      .select("user_id, name")
+      .select("user_id, first_name, last_name")
       .eq("recruiter_id", recruiterId)
       .then(({ data }) => setUsers(data || []));
   }, [recruiterId]);
@@ -127,7 +127,7 @@ export default function JobsTab({ recruiterId }) {
                 >
                   <option value="" className="bg-gray-800 text-white">Choose a student...</option>
                   {users.map(u => (
-                    <option key={u.user_id} value={u.user_id} className="bg-gray-800 text-white">{u.name}</option>
+                    <option key={u.user_id} value={u.user_id} className="bg-gray-800 text-white">{u.first_name} {u.last_name}</option>
                   ))}
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { ChevronDown, ChevronUp, ArrowRight, User, Mail, Phone, MapPin, Activity, Briefcase, Calendar } from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowRight, User, Mail, Phone, MapPin, Activity, Briefcase, Calendar, Eye, X } from "lucide-react";
 import StudentApplicationsPage from "./StudentApplicationsPage";
 
 export default function MyStudentsTab({ recruiterId }: { recruiterId: string }) {
@@ -9,14 +9,16 @@ export default function MyStudentsTab({ recruiterId }: { recruiterId: string }) 
   const [loading, setLoading] = useState(true);
   const [showApplicationsPage, setShowApplicationsPage] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [resumeModalUrl, setResumeModalUrl] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchStudents() {
       setLoading(true);
       const { data: users, error } = await supabase
         .from('users')
-        .select('user_id, name, email, phone, address, status')
-        .eq('recruiter_id', recruiterId);
+        .select('user_id, email, first_name, last_name, address, resume_url, phone, linkedin_url, status')
+        .eq('recruiter_id', recruiterId)
+        .order('created_at', { ascending: false });
       if (error) {
         setStudents([]);
         setLoading(false);
@@ -53,7 +55,7 @@ export default function MyStudentsTab({ recruiterId }: { recruiterId: string }) 
     return (
       <StudentApplicationsPage
         studentId={selectedStudent.user_id}
-        studentName={selectedStudent.name}
+        studentName={selectedStudent.first_name + ' ' + selectedStudent.last_name}
         recruiterId={recruiterId}
         onBack={handleBackFromApplications}
       />
@@ -113,7 +115,7 @@ export default function MyStudentsTab({ recruiterId }: { recruiterId: string }) 
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-xl font-bold text-white truncate">{student.name}</h3>
+                        <h3 className="text-xl font-bold text-white truncate">{student.first_name} {student.last_name}</h3>
                         <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                           student.status === 'Active' 
                             ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
@@ -183,7 +185,7 @@ export default function MyStudentsTab({ recruiterId }: { recruiterId: string }) 
                             <span>Full Name</span>
                           </div>
                           <div className="text-white font-medium bg-white/5 rounded-lg p-3">
-                            {student.name}
+                            {student.first_name} {student.last_name}
                           </div>
                         </div>
                         
@@ -231,6 +233,40 @@ export default function MyStudentsTab({ recruiterId }: { recruiterId: string }) 
                           </div>
                         </div>
                       </div>
+                      {/* Add LinkedIn and Resume Viewer */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        {student.linkedin_url && (
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2 text-white/60 text-sm">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-10h3v10zm-1.5-11.268c-.966 0-1.75-.784-1.75-1.75s.784-1.75 1.75-1.75 1.75.784 1.75 1.75-.784 1.75-1.75 1.75zm15.5 11.268h-3v-5.604c0-1.337-.025-3.063-1.868-3.063-1.868 0-2.154 1.459-2.154 2.967v5.7h-3v-10h2.881v1.367h.041c.401-.761 1.379-1.563 2.838-1.563 3.034 0 3.595 1.997 3.595 4.594v5.602z"/></svg>
+                              <span>LinkedIn</span>
+                            </div>
+                            <a
+                              href={student.linkedin_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
+                            >
+                              View LinkedIn Profile
+                            </a>
+                          </div>
+                        )}
+                        {student.resume_url && (
+                          <div className="space-y-2 md:col-span-1">
+                            <div className="flex items-center space-x-2 text-white/60 text-sm">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                              <span>Resume</span>
+                              <button
+                                className="ml-2 p-1 rounded hover:bg-white/10 transition"
+                                title="View Resume"
+                                onClick={() => setResumeModalUrl(student.resume_url)}
+                              >
+                                <Eye className="w-5 h-5 text-blue-400" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       
                       <div className="flex justify-end">
                         <button 
@@ -249,6 +285,29 @@ export default function MyStudentsTab({ recruiterId }: { recruiterId: string }) 
           </div>
         ))}
       </div>
+
+      {/* Resume Modal */}
+      {resumeModalUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-3xl mx-4 p-4">
+            <button
+              className="absolute top-2 right-2 p-2 rounded-full hover:bg-gray-200 text-gray-700"
+              onClick={() => setResumeModalUrl(null)}
+              title="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <iframe
+              src={resumeModalUrl}
+              title="Resume PDF"
+              width="100%"
+              height="600px"
+              className="rounded-lg border border-gray-200"
+              style={{ background: 'white' }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

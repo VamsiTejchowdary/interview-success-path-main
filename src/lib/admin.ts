@@ -23,7 +23,8 @@ export interface RecruiterData {
 
 export interface UserData {
   user_id: string
-  name: string
+  first_name: string
+  last_name: string
   email: string
   phone: string | null
   address: string | null
@@ -32,6 +33,9 @@ export interface UserData {
   created_at: string
   recruiter_id: string | null
   recruiter_name: string | null
+  resume_url: string
+  linkedin_url?: string
+  subscription_fee: number
 }
 
 export const getDashboardStats = async (): Promise<DashboardStats> => {
@@ -84,16 +88,7 @@ export const getRecruitersList = async (): Promise<RecruiterData[]> => {
   try {
     const { data, error } = await supabase
       .from('recruiters')
-      .select(`
-        recruiter_id,
-        name,
-        email,
-        phone,
-        address,
-        status,
-        approved_at,
-        created_at
-      `)
+      .select('recruiter_id, name, email, phone, address, status, approved_at, created_at')
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -111,7 +106,10 @@ export const getRecruitersList = async (): Promise<RecruiterData[]> => {
           return { ...recruiter, user_count: 0 }
         }
 
-        return { ...recruiter, user_count: userCount?.length || 0 }
+        return { 
+          ...recruiter, 
+          user_count: userCount?.length || 0 
+        }
       })
     )
 
@@ -128,7 +126,8 @@ export const getUsersList = async (): Promise<UserData[]> => {
       .from('users')
       .select(`
         user_id,
-        name,
+        first_name,
+        last_name,
         email,
         phone,
         address,
@@ -136,16 +135,29 @@ export const getUsersList = async (): Promise<UserData[]> => {
         approved_at,
         created_at,
         recruiter_id,
+        resume_url,
+        linkedin_url,
+        subscription_fee,
         recruiters(name)
       `)
       .order('created_at', { ascending: false })
 
     if (error) throw error
 
-    return (data || []).map(user => ({
-      ...user,
-      recruiter_name: (user.recruiters as any)?.name || null
-    }))
+    return (data || []).map(user => {
+      let recruiter = null;
+      if (user.recruiters && Array.isArray(user.recruiters) && user.recruiters.length > 0) {
+        recruiter = user.recruiters[0];
+      } else if (user.recruiters && !Array.isArray(user.recruiters)) {
+        recruiter = user.recruiters;
+      }
+      return {
+        ...user,
+        recruiter_name: recruiter && recruiter.name
+          ? recruiter.name.trim()
+          : null
+      };
+    })
   } catch (error) {
     console.error('Error fetching users:', error)
     throw error
@@ -238,7 +250,10 @@ export const getApprovedRecruiters = async (): Promise<{ recruiter_id: string; n
       .order('name')
 
     if (error) throw error
-    return data || []
+    return (data || []).map(r => ({
+      recruiter_id: r.recruiter_id,
+      name: r.name
+    }));
   } catch (error) {
     console.error('Error fetching approved recruiters:', error)
     throw error

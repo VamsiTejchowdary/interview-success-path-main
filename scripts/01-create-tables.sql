@@ -20,15 +20,18 @@ CREATE TABLE IF NOT EXISTS recruiters (
 
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
-  user_id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  phone TEXT,
-  address TEXT,
-  status TEXT DEFAULT 'pending',
-  approved_at TIMESTAMP WITH TIME ZONE,
-  recruiter_id UUID REFERENCES recruiters(recruiter_id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  user_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  first_name VARCHAR(100) NOT NULL,
+  last_name VARCHAR(100) NOT NULL,
+  phone VARCHAR(20) NOT NULL,
+  address VARCHAR(255) NOT NULL,
+  resume_url TEXT NOT NULL,
+  linkedin_url TEXT,
+  subscription_fee NUMERIC DEFAULT 100 NOT NULL,
+  recruiter_id uuid REFERENCES recruiters(recruiter_id),
+  status VARCHAR(20) DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- Job Applications table
@@ -51,4 +54,4 @@ CREATE TABLE IF NOT EXISTS resumes (
   storage_key TEXT NOT NULL,
   name TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-); 
+);

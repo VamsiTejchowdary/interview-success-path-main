@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import { getUserInfo } from "@/lib/auth";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -58,17 +59,56 @@ export default function ResetPassword() {
       setLoading(false);
       return;
     }
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    if (updateError) {
+
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      
+      if (updateError) {
         setMessage(updateError.message);
         setLoading(false);
-    } else {
-        setMessage("Password updated! You will be redirected to the login page.");
-        // Redirect to login page after a short delay
-        setTimeout(() => {
-            navigate('/');
-        }, 2000);
+        return;
+      }
+
+      // Check user approval status after password update
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const userInfo = await getUserInfo(user.email!);
+        
+        if (userInfo) {
+          if (userInfo.role === 'admin') {
+            // Admin users are automatically approved
+            setMessage("Password updated successfully! You can now sign in.");
+          } else if (userInfo.status === 'pending') {
+            // Non-admin users need approval
+            setMessage("Password updated! However, your account is pending admin approval. You will be notified once approved.");
+            // Sign out the user to prevent automatic login
+            await supabase.auth.signOut();
+          } else if (userInfo.status === 'active') {
+            // Already approved users
+            setMessage("Password updated successfully! You can now sign in.");
+          } else {
+            // Rejected or other status
+            setMessage("Password updated, but your account has been rejected. Please contact support.");
+            await supabase.auth.signOut();
+          }
+        } else {
+          setMessage("Password updated, but user profile not found. Please contact support.");
+          await supabase.auth.signOut();
+        }
+      }
+
+      // Redirect to login page after a delay
+      setTimeout(() => {
+        navigate('/');
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Password reset error:', error);
+      setMessage("An unexpected error occurred. Please try again.");
     }
+    
+    setLoading(false);
   };
 
   const passwordsMatch = password === confirmPassword && password.length > 0;

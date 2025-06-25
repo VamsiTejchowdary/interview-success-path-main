@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
+import { getUserInfo } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, Clock } from 'lucide-react';
 
 export default function AuthCallback() {
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [status, setStatus] = useState<'loading' | 'success' | 'pending' | 'error'>('loading');
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
@@ -23,13 +24,39 @@ export default function AuthCallback() {
         }
 
         if (data.session) {
-          setStatus('success');
-          setMessage('Email verified successfully! You can now sign in.');
+          // Check user approval status
+          const userInfo = await getUserInfo(data.session.user.email!);
           
-          // Redirect to login after a short delay
+          if (userInfo) {
+            if (userInfo.role === 'admin') {
+              // Admin users are automatically approved
+              setStatus('success');
+              setMessage('Email verified successfully! You can now sign in.');
+            } else if (userInfo.status === 'pending') {
+              // Non-admin users need approval
+              setStatus('pending');
+              setMessage('Email verified! Your account is pending admin approval. You will be notified once approved.');
+            } else if (userInfo.status === 'approved') {
+              // Already approved users
+              setStatus('success');
+              setMessage('Email verified successfully! You can now sign in.');
+            } else {
+              // Rejected or other status
+              setStatus('error');
+              setMessage('Your account has been rejected. Please contact support.');
+            }
+          } else {
+            setStatus('error');
+            setMessage('User profile not found. Please contact support.');
+          }
+          
+          // Sign out the user to prevent automatic login
+          await supabase.auth.signOut();
+          
+          // Redirect to login after a delay
           setTimeout(() => {
             navigate('/');
-          }, 3000);
+          }, 5000);
         } else {
           setStatus('error');
           setMessage('Invalid or expired verification link.');
@@ -68,6 +95,12 @@ export default function AuthCallback() {
               <div className="flex flex-col items-center space-y-4">
                 <CheckCircle className="h-12 w-12 text-green-600" />
                 <p className="text-green-600 font-medium">{message}</p>
+              </div>
+            )}
+            {status === 'pending' && (
+              <div className="flex flex-col items-center space-y-4">
+                <Clock className="h-12 w-12 text-amber-600" />
+                <p className="text-amber-600 font-medium">{message}</p>
               </div>
             )}
             {status === 'error' && (

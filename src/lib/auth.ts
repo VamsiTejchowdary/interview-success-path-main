@@ -219,7 +219,7 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
   }
 }
 
-const getUserInfo = async (email: string): Promise<{ 
+export const getUserInfo = async (email: string): Promise<{ 
   role: UserRole; 
   name: string; 
   status?: string;

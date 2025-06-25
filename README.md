@@ -15,9 +15,14 @@ This project uses Supabase for authentication and database management. To set up
 ```env
 VITE_SUPABASE_URL=your_supabase_project_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_ADMIN_KEY=your_admin_key_here
+VITE_AUTH_REDIRECT_URL=https://yourdomain.com
+VITE_BLOB_READ_WRITE_TOKEN=your_vercel_blob_token
 ```
 
 You can find these values in your Supabase project settings under API.
+
+**Important**: For production deployment, make sure to set `VITE_AUTH_REDIRECT_URL` to your actual domain (e.g., `https://yourdomain.com`) to ensure email verification and password reset links work correctly.
 
 ## How can I edit this code?
 

@@ -89,9 +89,15 @@ export const signUpWithEmail = async (
       }
     }
 
+    // Get the redirect URL from environment variables
+    const redirectUrl = import.meta.env.VITE_AUTH_REDIRECT_URL || window.location.origin
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: `${redirectUrl}/auth/callback`
+      }
     })
 
     if (error) {

@@ -53,6 +53,9 @@ export default function AuthCallback() {
           // Sign out the user to prevent automatic login
           await supabase.auth.signOut();
           
+          // Add a small delay to ensure sign out is complete
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
           // Redirect to login after a delay
           setTimeout(() => {
             navigate('/');

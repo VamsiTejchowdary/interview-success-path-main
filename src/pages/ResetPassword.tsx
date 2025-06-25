@@ -84,6 +84,8 @@ export default function ResetPassword() {
             setMessage("Password updated! However, your account is pending admin approval. You will be notified once approved.");
             // Sign out the user to prevent automatic login
             await supabase.auth.signOut();
+            // Add a small delay to ensure sign out is complete
+            await new Promise(resolve => setTimeout(resolve, 1000));
           } else if (userInfo.status === 'active') {
             // Already approved users
             setMessage("Password updated successfully! You can now sign in.");
@@ -91,10 +93,14 @@ export default function ResetPassword() {
             // Rejected or other status
             setMessage("Password updated, but your account has been rejected. Please contact support.");
             await supabase.auth.signOut();
+            // Add a small delay to ensure sign out is complete
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
         } else {
           setMessage("Password updated, but user profile not found. Please contact support.");
           await supabase.auth.signOut();
+          // Add a small delay to ensure sign out is complete
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 

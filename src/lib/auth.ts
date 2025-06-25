@@ -199,6 +199,13 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
     if (user) {
       const userInfo = await getUserInfo(user.email!)
       if (userInfo) {
+        // Check if user is approved (for recruiters and users)
+        if (userInfo.role !== 'admin' && userInfo.status === 'pending') {
+          // Sign out pending users to prevent automatic login
+          await supabase.auth.signOut()
+          return null
+        }
+        
         return {
           id: user.id,
           email: user.email!,

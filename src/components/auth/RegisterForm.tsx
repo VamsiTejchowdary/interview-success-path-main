@@ -143,6 +143,8 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
           errorMessage = "An account with this email already exists. Please sign in instead.";
         } else if (error.message.includes('invalid email')) {
           errorMessage = "Please enter a valid email address.";
+        } else if (error.message.includes('duplicate key value violates unique constraint')) {
+          errorMessage = "An account with this email already exists. Please sign in instead.";
         } else {
           errorMessage = error.message;
         }

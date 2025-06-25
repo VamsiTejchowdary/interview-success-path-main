@@ -102,6 +102,16 @@ export const signUpWithEmail = async (
       }
     }
 
+    // Check if email exists in any table
+    const { data: emailExists, error: emailCheckError } = await supabase.rpc('check_email_exists_across_tables', { check_email: email });
+    if (emailCheckError) {
+      console.error('Error checking email existence:', emailCheckError)
+      throw emailCheckError
+    }
+    if (emailExists && emailExists.length > 0) {
+      throw new Error('already registered')
+    }
+
     // Get the redirect URL from environment variables
     const redirectUrl = import.meta.env.VITE_AUTH_REDIRECT_URL || window.location.origin
 

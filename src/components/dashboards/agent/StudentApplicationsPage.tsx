@@ -22,6 +22,7 @@ import {
   Edit3
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Dialog as ResumeDialog, DialogContent as ResumeDialogContent } from "@/components/ui/dialog";
 
 interface JobApplication {
   application_id: string;
@@ -45,11 +46,11 @@ interface StudentApplicationsPageProps {
 
 const ITEMS_PER_PAGE = 10;
 const STATUS_OPTIONS = [
-  { value: 'applied', label: 'Applied', icon: Clock, color: 'orange' },
-  { value: 'on_hold', label: 'On Hold', icon: Pause, color: 'purple' },
+  { value: 'applied', label: 'Applied', icon: Clock, color: 'amber' },
+  { value: 'on_hold', label: 'On Hold', icon: Pause, color: 'indigo' },
   { value: 'interviewed', label: 'Interviewed', icon: TrendingUp, color: 'teal' },
-  { value: 'hired', label: 'Hired', icon: CheckCircle, color: 'green' },
-  { value: 'rejected', label: 'Rejected', icon: X, color: 'red' },
+  { value: 'hired', label: 'Hired', icon: CheckCircle, color: 'emerald' },
+  { value: 'rejected', label: 'Rejected', icon: X, color: 'rose' },
 ];
 
 export default function StudentApplicationsPage({ 
@@ -71,6 +72,7 @@ export default function StudentApplicationsPage({
     rejected: 0,
   });
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+  const [selectedResume, setSelectedResume] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -83,7 +85,6 @@ export default function StudentApplicationsPage({
   const fetchApplications = async () => {
     setLoading(true);
     try {
-      // Get total count first
       const { count } = await supabase
         .from('job_applications')
         .select('application_id', { count: 'exact', head: true })
@@ -93,7 +94,6 @@ export default function StudentApplicationsPage({
       setTotalApplications(count || 0);
       setTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
 
-      // Get paginated data
       const from = (currentPage - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
 
@@ -176,7 +176,6 @@ export default function StudentApplicationsPage({
 
       if (error) throw error;
 
-      // Update local state
       setApplications(prev => 
         prev.map(app => 
           app.application_id === applicationId 
@@ -185,7 +184,6 @@ export default function StudentApplicationsPage({
         )
       );
 
-      // Refresh status counts
       fetchStatusCounts();
 
       toast({
@@ -228,11 +226,11 @@ export default function StudentApplicationsPage({
     const statusOption = STATUS_OPTIONS.find(option => option.value === status);
     if (statusOption) {
       const colorMap = {
-        orange: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-        purple: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+        amber: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+        indigo: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
         teal: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
-        green: 'bg-green-500/20 text-green-300 border-green-500/30',
-        red: 'bg-red-500/20 text-red-300 border-red-500/30',
+        emerald: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+        rose: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
       };
       return colorMap[statusOption.color as keyof typeof colorMap];
     }
@@ -241,28 +239,28 @@ export default function StudentApplicationsPage({
 
   const getCardTheme = (status: string) => {
     const colorMap = {
-      applied: 'bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:from-orange-100 hover:to-orange-150 group',
-      on_hold: 'bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:from-purple-100 hover:to-purple-150 group',
+      applied: 'bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:from-amber-100 hover:to-amber-150 group',
+      on_hold: 'bg-gradient-to-br from-indigo-50 to-indigo-100 border border-indigo-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:from-indigo-100 hover:to-indigo-150 group',
       interviewed: 'bg-gradient-to-br from-teal-50 to-teal-100 border border-teal-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:from-teal-100 hover:to-teal-150 group',
-      hired: 'bg-gradient-to-br from-green-50 to-green-100 border border-green-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:from-green-100 hover:to-green-150 group',
-      rejected: 'bg-gradient-to-br from-red-50 to-red-100 border border-red-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:from-red-100 hover:to-red-150 group',
+      hired: 'bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:from-emerald-100 hover:to-emerald-150 group',
+      rejected: 'bg-gradient-to-br from-rose-50 to-rose-100 border border-rose-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:from-rose-100 hover:to-rose-150 group',
     };
     return colorMap[status as keyof typeof colorMap] || 'bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 hover:from-gray-100 hover:to-gray-150 group';
   };
 
   const getCardColors = (status: string) => {
     const colorMap = {
-      applied: { text: 'text-orange-800', icon: 'bg-orange-200 border border-orange-300 group-hover:bg-orange-300', iconColor: 'text-orange-700', number: 'text-orange-900', subtitle: 'text-orange-700' },
-      on_hold: { text: 'text-purple-800', icon: 'bg-purple-200 border border-purple-300 group-hover:bg-purple-300', iconColor: 'text-purple-700', number: 'text-purple-900', subtitle: 'text-purple-700' },
+      applied: { text: 'text-amber-800', icon: 'bg-amber-200 border border-amber-300 group-hover:bg-amber-300', iconColor: 'text-amber-700', number: 'text-amber-900', subtitle: 'text-amber-700' },
+      on_hold: { text: 'text-indigo-800', icon: 'bg-indigo-200 border border-indigo-300 group-hover:bg-indigo-300', iconColor: 'text-indigo-700', number: 'text-indigo-900', subtitle: 'text-indigo-700' },
       interviewed: { text: 'text-teal-800', icon: 'bg-teal-200 border border-teal-300 group-hover:bg-teal-300', iconColor: 'text-teal-700', number: 'text-teal-900', subtitle: 'text-teal-700' },
-      hired: { text: 'text-green-800', icon: 'bg-green-200 border border-green-300 group-hover:bg-green-300', iconColor: 'text-green-700', number: 'text-green-900', subtitle: 'text-green-700' },
-      rejected: { text: 'text-red-800', icon: 'bg-red-200 border border-red-300 group-hover:bg-red-300', iconColor: 'text-red-700', number: 'text-red-900', subtitle: 'text-red-700' },
+      hired: { text: 'text-emerald-800', icon: 'bg-emerald-200 border border-emerald-300 group-hover:bg-emerald-300', iconColor: 'text-emerald-700', number: 'text-emerald-900', subtitle: 'text-emerald-700' },
+      rejected: { text: 'text-rose-800', icon: 'bg-rose-200 border border-rose-300 group-hover:bg-rose-300', iconColor: 'text-rose-700', number: 'text-rose-900', subtitle: 'text-rose-700' },
     };
     return colorMap[status as keyof typeof colorMap] || { text: 'text-gray-800', icon: 'bg-gray-200 border border-gray-300 group-hover:bg-gray-300', iconColor: 'text-gray-700', number: 'text-gray-900', subtitle: 'text-gray-700' };
   };
 
   const handleResumeView = (storageKey: string) => {
-    window.open(storageKey, '_blank');
+    setSelectedResume(storageKey);
   };
 
   const handleResumeDownload = async (storageKey: string, fileName: string) => {
@@ -288,31 +286,31 @@ export default function StudentApplicationsPage({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 backdrop-blur-sm rounded-2xl p-6 border border-blue-200 shadow-lg">
+        <div className="bg-gradient-to-r from-gray-800/80 to-gray-700/60 backdrop-blur-md rounded-2xl p-6 border border-gray-700/40 shadow-xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <Button
                 variant="ghost"
                 onClick={onBack}
-                className="text-blue-800 hover:bg-blue-100 border border-blue-200"
+                className="text-gray-200 hover:bg-gray-700/50 border border-gray-600/40"
               >
                 <ArrowLeft className="w-5 h-5 mr-2" />
                 Back
               </Button>
-              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full p-3 shadow-lg">
+              <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full p-3 shadow-lg">
                 <User className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-blue-900">{studentName}</h1>
-                <p className="text-blue-700">Job Applications Overview</p>
+                <h1 className="text-2xl font-bold text-gray-100">{studentName}</h1>
+                <p className="text-gray-300">Job Applications Overview</p>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-3xl font-bold text-blue-900">{totalApplications}</div>
-              <div className="text-sm text-blue-600">Total Applications</div>
+              <div className="text-3xl font-bold text-gray-100">{totalApplications}</div>
+              <div className="text-sm text-gray-400">Total Applications</div>
             </div>
           </div>
         </div>
@@ -342,45 +340,45 @@ export default function StudentApplicationsPage({
         </div>
 
         {/* Applications List */}
-        <div className="bg-white/95 backdrop-blur-sm border border-gray-200 rounded-2xl overflow-hidden shadow-xl">
+        <div className="bg-gradient-to-br from-gray-800/80 via-gray-900/60 to-slate-900/80 backdrop-blur-md border border-gray-700/40 rounded-2xl overflow-hidden shadow-xl">
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <div className="flex flex-col items-center space-y-4">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                <p className="text-gray-700 text-lg font-medium">Loading applications...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <p className="text-gray-400 text-lg font-medium">Loading applications...</p>
               </div>
             </div>
           ) : applications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <div className="bg-gray-50 backdrop-blur-sm rounded-2xl p-8 border border-gray-200">
-                <Briefcase className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-800 mb-2">No Applications Yet</h3>
-                <p className="text-gray-600 max-w-md">This student hasn't applied to any jobs yet.</p>
+              <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-8 border border-gray-700">
+                <Briefcase className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-200 mb-2">No Applications Yet</h3>
+                <p className="text-gray-400 max-w-md">This student hasn't applied to any jobs yet.</p>
               </div>
             </div>
           ) : (
             <>
               <div className="p-6">
-                <h2 className="text-xl font-bold text-gray-800 mb-4">Job Applications</h2>
+                <h2 className="text-xl font-bold text-gray-100 mb-4">Job Applications</h2>
                 <div className="space-y-4">
                   {applications.map((application) => (
                     <div
                       key={application.application_id}
-                      className="bg-gradient-to-br from-gray-50 to-white backdrop-blur-sm border border-gray-200 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:border-gray-300"
+                      className="bg-gradient-to-br from-gray-900/60 via-gray-800/60 to-slate-900/80 border border-gray-700/40 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:border-indigo-500"
                     >
                       <div className="p-6">
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                           {/* Job Info */}
                           <div className="flex-1">
                             <div className="flex items-center space-x-3 mb-3">
-                              <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg p-2 shadow-md">
+                              <div className="bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg p-2 shadow-md">
                                 <Briefcase className="w-5 h-5 text-white" />
                               </div>
                               <div className="flex-1">
-                                <h3 className="text-lg font-bold text-gray-800 mb-1">
+                                <h3 className="text-lg font-bold text-gray-100 mb-1">
                                   {application.job_title}
                                 </h3>
-                                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                                <div className="flex items-center space-x-4 text-sm text-gray-400">
                                   <div className="flex items-center space-x-2">
                                     <Calendar className="w-4 h-4" />
                                     <span>{formatDate(application.applied_at)}</span>
@@ -399,10 +397,10 @@ export default function StudentApplicationsPage({
                           {/* Resume Info */}
                           <div className="flex items-center space-x-4">
                             {application.resume && (
-                              <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 backdrop-blur-sm rounded-lg p-3 border border-emerald-200 shadow-sm">
+                              <div className="bg-gradient-to-br from-emerald-50/80 to-emerald-100/80 backdrop-blur-sm rounded-lg p-3 border border-emerald-200/60 shadow-sm">
                                 <div className="flex items-center space-x-2">
-                                  <FileText className="w-4 h-4 text-emerald-600" />
-                                  <span className="text-sm text-emerald-700 font-medium">
+                                  <FileText className="w-4 h-4 text-emerald-300" />
+                                  <span className="text-sm text-emerald-200 font-medium">
                                     {application.resume.name}
                                   </span>
                                 </div>
@@ -417,10 +415,10 @@ export default function StudentApplicationsPage({
                               value={application.status}
                               onChange={(e) => updateApplicationStatus(application.application_id, e.target.value)}
                               disabled={updatingStatus === application.application_id}
-                              className="px-3 py-2 rounded-lg bg-white border border-gray-300 text-gray-700 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 shadow-sm"
+                              className="px-3 py-2 rounded-lg bg-gray-700/50 border border-gray-600 text-gray-200 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:opacity-50 shadow-sm"
                             >
                               {STATUS_OPTIONS.map((status) => (
-                                <option key={status.value} value={status.value} className="bg-white text-gray-800">
+                                <option key={status.value} value={status.value} className="bg-gray-800 text-gray-200">
                                   {status.label}
                                 </option>
                               ))}
@@ -431,7 +429,7 @@ export default function StudentApplicationsPage({
                                 variant="outline"
                                 size="sm"
                                 onClick={() => window.open(application.job_link, '_blank')}
-                                className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white shadow-sm"
+                                className="border-gray-600 text-gray-300 hover:bg-gray-700/50 bg-gray-800/40 shadow-sm"
                               >
                                 <ExternalLink className="w-4 h-4" />
                               </Button>
@@ -442,7 +440,7 @@ export default function StudentApplicationsPage({
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleResumeView(application.resume!.storage_key)}
-                                  className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white shadow-sm"
+                                  className="border-indigo-500/50 text-indigo-200 hover:bg-indigo-800/40 bg-gray-800/40 shadow-sm"
                                 >
                                   <Eye className="w-4 h-4" />
                                 </Button>
@@ -450,7 +448,7 @@ export default function StudentApplicationsPage({
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleResumeDownload(application.resume!.storage_key, application.resume!.name)}
-                                  className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white shadow-sm"
+                                  className="border-gray-600 text-gray-300 hover:bg-gray-700/50 bg-gray-800/40 shadow-sm"
                                 >
                                   <Download className="w-4 h-4" />
                                 </Button>
@@ -466,9 +464,9 @@ export default function StudentApplicationsPage({
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="p-6 border-t border-gray-200">
+                <div className="p-6 border-t border-gray-700/40">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-500">
                       Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, totalApplications)} of {totalApplications} applications
                     </div>
                     <div className="flex items-center space-x-2">
@@ -477,7 +475,7 @@ export default function StudentApplicationsPage({
                         size="sm"
                         onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                         disabled={currentPage === 1}
-                        className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white"
+                        className="border-gray-600 text-gray-300 hover:bg-gray-700/50 bg-gray-800/40"
                       >
                         <ChevronLeft className="w-4 h-4" />
                         Previous
@@ -492,8 +490,8 @@ export default function StudentApplicationsPage({
                               size="sm"
                               onClick={() => setCurrentPage(page)}
                               className={currentPage === page 
-                                ? "bg-blue-600 hover:bg-blue-700 text-white" 
-                                : "border-gray-300 text-gray-700 hover:bg-gray-50 bg-white"
+                                ? "bg-indigo-600 hover:bg-indigo-700 text-white" 
+                                : "border-gray-600 text-gray-300 hover:bg-gray-700/50 bg-gray-800/40"
                               }
                             >
                               {page}
@@ -506,7 +504,7 @@ export default function StudentApplicationsPage({
                         size="sm"
                         onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                         disabled={currentPage === totalPages}
-                        className="border-gray-300 text-gray-700 hover:bg-gray-50 bg-white"
+                        className="border-gray-600 text-gray-300 hover:bg-gray-700/50 bg-gray-800/40"
                       >
                         Next
                         <ChevronRight className="w-4 h-4" />
@@ -518,6 +516,27 @@ export default function StudentApplicationsPage({
             </>
           )}
         </div>
+
+        {/* Resume Viewer Modal */}
+        <ResumeDialog open={!!selectedResume} onOpenChange={() => setSelectedResume(null)}>
+          <ResumeDialogContent className="max-w-3xl bg-gray-900/95 p-0 border-0 shadow-xl flex flex-col items-center justify-center">
+            <button
+              onClick={() => setSelectedResume(null)}
+              className="absolute top-4 right-4 z-10 text-gray-400 hover:text-rose-500 bg-gray-800/80 rounded-full p-2 shadow"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            {selectedResume && (
+              <iframe
+                src={selectedResume}
+                title="Resume PDF"
+                className="w-full h-[80vh] rounded-xl border border-gray-700 shadow-lg"
+                style={{ minHeight: 500 }}
+              />
+            )}
+          </ResumeDialogContent>
+        </ResumeDialog>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog as ResumeDialog, DialogContent as ResumeDialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { 
@@ -150,7 +151,6 @@ export default function StudentApplicationsModal({
 
   const handleResumeView = (storageKey: string) => {
     setSelectedResume(storageKey);
-    window.open(storageKey, '_blank');
   };
 
   const handleResumeDownload = async (storageKey: string, fileName: string) => {
@@ -173,7 +173,7 @@ export default function StudentApplicationsModal({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-6xl bg-transparent p-0 border-0 shadow-none">
-        <div className="relative bg-gradient-to-br from-white/15 via-white/10 to-white/5 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden shadow-2xl">
+        <div className="relative bg-gradient-to-br from-blue-50 via-slate-100 to-blue-100/80 backdrop-blur-xl border border-blue-200 rounded-2xl overflow-hidden shadow-2xl">
           {/* Header */}
           <div className="bg-gradient-to-r from-white/10 to-white/5 p-6 border-b border-white/10">
             <div className="flex items-center justify-between">
@@ -202,13 +202,13 @@ export default function StudentApplicationsModal({
             {loading ? (
               <div className="flex items-center justify-center py-16">
                 <div className="flex flex-col items-center space-y-4">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white/80"></div>
-                  <p className="text-white/80 text-lg font-medium">Loading applications...</p>
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
+                  <p className="text-blue-700 text-lg font-medium">Loading applications...</p>
                 </div>
               </div>
             ) : applications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-8 border border-white/10">
+                <div className="bg-gradient-to-br from-blue-100/60 via-slate-100/60 to-blue-50/80 backdrop-blur-sm rounded-2xl p-8 border border-blue-200">
                   <Briefcase className="w-16 h-16 text-white/40 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-white mb-2">No Applications Yet</h3>
                   <p className="text-white/60 max-w-md">This student hasn't applied to any jobs yet.</p>
@@ -267,7 +267,7 @@ export default function StudentApplicationsModal({
                   {applications.map((application) => (
                     <div
                       key={application.application_id}
-                      className="bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-sm border border-white/20 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:border-white/30"
+                      className="bg-gradient-to-br from-blue-100/60 via-slate-100/60 to-blue-50/80 backdrop-blur-sm border border-blue-200 rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:border-blue-300"
                     >
                       <div className="p-6">
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -354,6 +354,26 @@ export default function StudentApplicationsModal({
           </div>
         </div>
       </DialogContent>
+      {/* Resume Viewer Modal */}
+      <ResumeDialog open={!!selectedResume} onOpenChange={() => setSelectedResume(null)}>
+        <ResumeDialogContent className="max-w-3xl bg-white/95 p-0 border-0 shadow-xl flex flex-col items-center justify-center">
+          <button
+            onClick={() => setSelectedResume(null)}
+            className="absolute top-4 right-4 z-10 text-gray-700 hover:text-red-500 bg-white/80 rounded-full p-2 shadow"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          {selectedResume && (
+            <iframe
+              src={selectedResume}
+              title="Resume PDF"
+              className="w-full h-[80vh] rounded-xl border border-gray-200 shadow-lg"
+              style={{ minHeight: 500 }}
+            />
+          )}
+        </ResumeDialogContent>
+      </ResumeDialog>
     </Dialog>
   );
 } 

@@ -55,11 +55,26 @@ export const signInWithEmail = async (email: string, password: string): Promise<
       // Check user role and status in our custom tables
       const userInfo = await getUserInfo(data.user.email!)
       if (userInfo) {
-        // Check if user is approved (for recruiters and users)
-        if (userInfo.role !== 'admin' && userInfo.status === 'pending') {
-          throw new Error('Your account is pending admin approval. Please wait for approval before signing in.')
+        // Block sign-in for users/recruiters with status 'pending' or 'rejected'
+        if (userInfo.role === 'recruiter') {
+          if (userInfo.status !== 'approved') {
+            if (userInfo.status === 'pending') {
+              throw new Error('Your recruiter account is pending admin approval. Please wait for approval before signing in.')
+            } else if (userInfo.status === 'rejected') {
+              throw new Error('Your recruiter account has been rejected. Please contact support for more information.')
+            } else {
+              throw new Error('Your recruiter account is not active. Please contact support.')
+            }
+          }
+        } else if (userInfo.role === 'user') {
+          if (userInfo.status === 'pending') {
+            throw new Error('Your account is pending admin approval. Please wait for approval before signing in.')
+          } else if (userInfo.status === 'rejected') {
+            throw new Error('Your account has been rejected. Please contact support for more information.')
+          } else if (userInfo.status !== 'approved' && userInfo.status !== 'on_hold') {
+            throw new Error('Your account is not active. Please contact support.')
+          }
         }
-        
         return {
           id: data.user.id,
           email: data.user.email!,

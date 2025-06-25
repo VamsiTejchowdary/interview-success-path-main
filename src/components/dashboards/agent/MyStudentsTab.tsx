@@ -29,16 +29,23 @@ export default function MyStudentsTab({ recruiterId }: { recruiterId: string }) 
           .from('job_applications')
           .select('application_id', { count: 'exact', head: true })
           .eq('user_id', student.user_id);
+        const { count: interviewsCount } = await supabase
+          .from('job_applications')
+          .select('application_id', { count: 'exact', head: true })
+          .eq('user_id', student.user_id)
+          .eq('status', 'interviewed');
         return {
           ...student,
           applicationsCount: applicationsCount || 0,
-          interviewsCount: 0,
+          interviewsCount: interviewsCount || 0,
         };
       }));
       setStudents(studentsWithCounts);
       setLoading(false);
     }
     if (recruiterId) fetchStudents();
+    // Expose fetchStudents for manual refresh
+    (window as any).fetchStudents = fetchStudents;
   }, [recruiterId]);
 
   const handleViewApplications = (student: any) => {
@@ -49,6 +56,10 @@ export default function MyStudentsTab({ recruiterId }: { recruiterId: string }) 
   const handleBackFromApplications = () => {
     setShowApplicationsPage(false);
     setSelectedStudent(null);
+    // Refresh students list after returning from applications page
+    if (typeof (window as any).fetchStudents === 'function') {
+      (window as any).fetchStudents();
+    }
   };
 
   if (showApplicationsPage && selectedStudent) {

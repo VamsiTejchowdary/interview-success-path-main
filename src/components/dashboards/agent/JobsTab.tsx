@@ -15,6 +15,7 @@ export default function JobsTab({ recruiterId }) {
   const [jobLink, setJobLink] = useState("");
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [companyName, setCompanyName] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -38,7 +39,7 @@ export default function JobsTab({ recruiterId }) {
   }, [userId, showResumeModal]);
 
   const handleSubmit = async () => {
-    if (!userId || !recruiterId || !jobTitle || !resumeId || !jobLink) {
+    if (!userId || !recruiterId || !companyName.trim() || !jobTitle || !resumeId || !jobLink) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -52,6 +53,7 @@ export default function JobsTab({ recruiterId }) {
         {
           user_id: userId,
           recruiter_id: recruiterId,
+          company_name: companyName.trim(),
           job_title: jobTitle,
           job_link: jobLink,
           resume_id: resumeId,
@@ -61,6 +63,7 @@ export default function JobsTab({ recruiterId }) {
       if (dbError) throw dbError;
       setUserId("");
       setResumeId("");
+      setCompanyName("");
       setJobTitle("");
       setJobLink("");
       toast({
@@ -117,7 +120,7 @@ export default function JobsTab({ recruiterId }) {
             <div className="space-y-3">
               <label className="flex items-center space-x-2 text-white/80 font-medium">
                 <User className="w-4 h-4" />
-                <span>Select Student</span>
+                <span>Select Student <span className="text-red-400">*</span></span>
               </label>
               <div className="relative">
                 <select
@@ -142,7 +145,7 @@ export default function JobsTab({ recruiterId }) {
             <div className="space-y-3">
               <label className="flex items-center space-x-2 text-white/80 font-medium">
                 <FileText className="w-4 h-4" />
-                <span>Select Resume</span>
+                <span>Select Resume <span className="text-red-400">*</span></span>
               </label>
               <div className="relative">
                 <select
@@ -170,11 +173,26 @@ export default function JobsTab({ recruiterId }) {
               </div>
             </div>
 
+            {/* Company Name */}
+            <div className="space-y-3">
+              <label className="flex items-center space-x-2 text-white/80 font-medium">
+                <Building2 className="w-4 h-4" />
+                <span>Company Name <span className="text-red-400">*</span></span>
+              </label>
+              <Input
+                value={companyName}
+                onChange={e => setCompanyName(e.target.value)}
+                placeholder="e.g. Google, Microsoft, Infosys..."
+                className="p-4 rounded-xl bg-white/10 border-white/20 text-white placeholder-white/50 backdrop-blur-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 transition-all duration-200 hover:bg-white/15"
+                required
+              />
+            </div>
+
             {/* Job Title */}
             <div className="space-y-3">
               <label className="flex items-center space-x-2 text-white/80 font-medium">
                 <Briefcase className="w-4 h-4" />
-                <span>Job Title</span>
+                <span>Job Title <span className="text-red-400">*</span></span>
               </label>
               <Input 
                 value={jobTitle} 
@@ -188,7 +206,7 @@ export default function JobsTab({ recruiterId }) {
             <div className="space-y-3">
               <label className="flex items-center space-x-2 text-white/80 font-medium">
                 <Link className="w-4 h-4" />
-                <span>Job Link </span>
+                <span>Job Link <span className="text-red-400">*</span></span>
               </label>
               <Input 
                 value={jobLink} 

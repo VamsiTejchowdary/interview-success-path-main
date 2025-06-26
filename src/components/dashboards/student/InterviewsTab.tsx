@@ -1,58 +1,428 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ChevronDown, ChevronUp, ExternalLink, FileText, User, Calendar, Loader2, Building2, Clock, Edit3 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { Tooltip } from "@/components/ui/tooltip";
+import { CSSTransition, TransitionGroup } from "react-transition-group";
+import "./interview-card-animations.css";
 
-const upcomingInterviews = [
-  { company: 'TechCorp Solutions', position: 'Frontend Developer', date: 'Today', time: '2:00 PM', type: 'Technical' },
-  { company: 'Innovation Labs', position: 'Full Stack Engineer', date: 'Tomorrow', time: '10:30 AM', type: 'HR Screening' },
-  { company: 'StartupXYZ', position: 'React Developer', date: 'Friday', time: '3:00 PM', type: 'Culture Fit' },
+const PAGE_SIZE = 10;
+
+const STATUS_OPTIONS = [
+  { value: "applied", label: "Applied", color: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
+  { value: "on_hold", label: "On Hold", color: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
+  { value: "interviewed", label: "Interviewed", color: "bg-purple-50 text-purple-700 border-purple-200", dot: "bg-purple-500" },
+  { value: "hired", label: "Hired", color: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
+  { value: "rejected", label: "Rejected", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" },
 ];
 
-const InterviewsTab = () => (
-  <Card className="backdrop-blur-xl bg-white/60 border-white/20 shadow-lg">
-    <CardHeader>
-      <CardTitle>Upcoming Interviews</CardTitle>
-      <CardDescription className="text-gray-600">Your scheduled interviews and preparation status</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-6">
-        {upcomingInterviews.map((interview, index) => (
-          <div key={index} className="p-6 rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200/50">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-semibold text-lg text-gray-800">{interview.company}</h3>
-                <p className="text-gray-600">{interview.position}</p>
-              </div>
-              <div className="text-right">
-                <p className="font-medium text-gray-800">{interview.date}</p>
-                <p className="text-sm text-gray-600">{interview.time}</p>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <Badge 
-                variant="outline" 
-                className={`border-blue-300 text-blue-700 ${
-                  interview.type === 'Technical' ? 'bg-blue-50' :
-                  interview.type === 'HR Screening' ? 'bg-green-50' :
-                  'bg-purple-50'
-                }`}
-              >
-                {interview.type}
-              </Badge>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="border-blue-300 text-blue-700 hover:bg-blue-50">
-                  Prep Materials
-                </Button>
-                <Button size="sm" className="bg-blue-500 hover:bg-blue-600 text-white">
-                  Join Interview
-                </Button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </CardContent>
-  </Card>
-);
+function getStatusStyle(status) {
+  const statusConfig = STATUS_OPTIONS.find(opt => opt.value === status);
+  return statusConfig || { color: "bg-gray-50 text-gray-700 border-gray-200", dot: "bg-gray-500" };
+}
 
-export default InterviewsTab; 
+export default function InterviewsTab() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const searchTimeout = useRef();
+  const [refreshing, setRefreshing] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(null);
+
+  // Debounce search input
+  useEffect(() => {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 1250);
+    return () => clearTimeout(searchTimeout.current);
+  }, [search]);
+
+  const fetchApplications = useCallback(async () => {
+    setRefreshing(true);
+    setLoading(true);
+    if (!user?.email) {
+      setApplications([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    // Get user_id for current user
+    const { data: userData } = await supabase
+      .from("users")
+      .select("user_id")
+      .eq("email", user.email)
+      .single();
+    if (!userData?.user_id) {
+      setApplications([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    // Build query
+    let query = supabase
+      .from("job_applications")
+      .select("*, company_name, resumes(*), recruiters(name)", { count: "exact" })
+      .eq("user_id", userData.user_id)
+      .eq("status", "interviewed")
+      .order("applied_at", { ascending: false });
+    if (debouncedSearch.trim()) {
+      query = query.ilike("company_name", `%${debouncedSearch.trim()}%`);
+    }
+    // Get total count
+    const { count: totalCount } = await query;
+    setTotal(totalCount || 0);
+    // Fetch paginated applications
+    const { data: apps, error } = await query
+      .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+    if (error) {
+      setApplications([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    // Enrich with recruiter name and resume info
+    const enriched = await Promise.all((apps || []).map(async (app) => {
+      let recruiterName = "-";
+      if (app.recruiter_id) {
+        const { data: recruiter } = await supabase
+          .from("recruiters")
+          .select("name")
+          .eq("recruiter_id", app.recruiter_id)
+          .single();
+        recruiterName = recruiter?.name || "-";
+      }
+      let resumeUrl = "";
+      let resumeName = "Resume";
+      if (app.resume_id) {
+        const { data: resume } = await supabase
+          .from("resumes")
+          .select("storage_key, name")
+          .eq("resume_id", app.resume_id)
+          .single();
+        resumeUrl = resume?.storage_key || "";
+        resumeName = resume?.name || "Resume";
+      }
+      return {
+        ...app,
+        recruiterName,
+        resumeUrl,
+        resumeName,
+      };
+    }));
+    setApplications(enriched);
+    setLoading(false);
+    setRefreshing(false);
+  }, [user?.email, page, debouncedSearch]);
+
+  useEffect(() => {
+    fetchApplications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchApplications]);
+
+  // Status update handler (copied from ApplicationsTab)
+  const handleStatusChange = async (applicationId, newStatus) => {
+    setUpdatingStatus(applicationId);
+    await supabase
+      .from("job_applications")
+      .update({ status: newStatus })
+      .eq("application_id", applicationId);
+    // Animate out if status is no longer 'interviewed'
+    if (newStatus !== "interviewed") {
+      setApplications(applications => applications.filter(app => app.application_id !== applicationId));
+    } else {
+      setApplications(applications => applications.map(app =>
+        app.application_id === applicationId ? { ...app, status: newStatus } : app
+      ));
+    }
+    setUpdatingStatus(null);
+    toast({
+      title: "Success",
+      description: "Application status updated successfully.",
+      className: "bg-green-600/90 text-white border-green-700 shadow-lg",
+    });
+  };
+
+  return (
+    <div className="space-y-4 max-w-4xl mx-auto px-4 sm:px-0">
+      {/* Search Bar */}
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex items-center w-full max-w-md mx-auto">
+          <Input
+            type="text"
+            placeholder="Search by company name..."
+            value={search}
+            onChange={e => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+          />
+          <Tooltip content="Refresh interviews">
+            <Button
+              variant="ghost"
+              onClick={fetchApplications}
+              className="ml-2 p-2 h-10 w-10 flex items-center justify-center border border-gray-200 text-gray-700 hover:bg-gray-100"
+              disabled={refreshing || loading}
+              aria-label="Refresh interviews"
+            >
+              {refreshing ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582M20 20v-5h-.581M5.582 9A7.003 7.003 0 0112 5c3.314 0 6.13 2.165 6.818 5M18.418 15A7.003 7.003 0 0112 19c-3.314 0-6.13-2.165-6.818-5" /></svg>
+              )}
+            </Button>
+          </Tooltip>
+        </div>
+      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="text-center">
+            <Loader2 className="animate-spin w-8 h-8 text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">Loading your interviews...</p>
+          </div>
+        </div>
+      ) : !applications.length ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 max-w-md mx-auto">
+            <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
+              <FileText className="w-8 h-8 text-blue-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-3">No Interviews Yet</h3>
+            <p className="text-gray-600 leading-relaxed">You have no interviews scheduled. Once your application status changes to "interviewed", it will appear here.</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            <TransitionGroup>
+              {applications.map(app => {
+                const isExpanded = expanded === app.application_id;
+                return (
+                  <CSSTransition
+                    key={app.application_id}
+                    timeout={300}
+                    classNames="fade-slide"
+                  >
+                    <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+                      <CardContent className="p-0">
+                        {/* Main Content */}
+                        <div 
+                          className="p-4 sm:p-6 cursor-pointer"
+                          onClick={() => setExpanded(isExpanded ? null : app.application_id)}
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex-1 min-w-0">
+                              {/* Job Title & Company */}
+                              <div className="flex items-start justify-between mb-3">
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate mb-1">
+                                    {app.job_title}
+                                  </h3>
+                                  <div className="flex items-center gap-2 text-sm text-gray-700 mb-1">
+                                    <Building2 className="w-4 h-4 text-blue-500" />
+                                    <span className="truncate font-medium">
+                                      {app.company_name ? app.company_name : 'Company Name Not Provided'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                                    <Clock className="w-4 h-4" />
+                                    <span>Applied {app.applied_at ? new Date(app.applied_at).toLocaleDateString('en-US', { 
+                                      month: 'short', 
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    }) : '-'}</span>
+                                  </div>
+                                </div>
+                                <div className="sm:hidden">
+                                  {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                                </div>
+                              </div>
+
+                              {/* Status & Actions Row */}
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <Badge className="bg-purple-50 text-purple-700 border-purple-200 border font-medium px-3 py-1">
+                                    <div className="w-2 h-2 rounded-full bg-purple-500 mr-2"></div>
+                                    Interviewed
+                                  </Badge>
+                                  <div className="flex items-center gap-2">
+                                    {app.job_link && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-8 px-3"
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          window.open(app.job_link, '_blank');
+                                        }}
+                                      >
+                                        <ExternalLink className="w-4 h-4 mr-1" />
+                                        <span className="hidden sm:inline">View Job</span>
+                                      </Button>
+                                    )}
+                                    {app.resumeUrl && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 h-8 px-3"
+                                        onClick={e => {
+                                          e.stopPropagation();
+                                          window.open(app.resumeUrl, '_blank');
+                                        }}
+                                      >
+                                        <FileText className="w-4 h-4 mr-1" />
+                                        <span className="hidden sm:inline">Resume</span>
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="hidden sm:block">
+                                  {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Expanded Details */}
+                        {isExpanded && (
+                          <div className="border-t border-gray-100 bg-gray-50/50">
+                            <div className="p-4 sm:p-6 space-y-6">
+                              {/* Details Grid */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                      <User className="w-4 h-4 text-blue-600" />
+                                    </div>
+                                    <div>
+                                      <p className="text-sm text-gray-600">Recruiter</p>
+                                      <p className="font-medium text-gray-900">{app.recruiterName}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                      <Calendar className="w-4 h-4 text-green-600" />
+                                    </div>
+                                    <div>
+                                      <p className="text-sm text-gray-600">Application Date</p>
+                                      <p className="font-medium text-gray-900">
+                                        {app.applied_at ? new Date(app.applied_at).toLocaleDateString('en-US', { 
+                                          weekday: 'long',
+                                          year: 'numeric',
+                                          month: 'long',
+                                          day: 'numeric'
+                                        }) : '-'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {/* Resume Info - Integrated here */}
+                                  {app.resumeUrl && (
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                                        <FileText className="w-4 h-4 text-purple-600" />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm text-gray-600">Resume</p>
+                                        <p className="font-medium text-gray-900 truncate">{app.resumeName}</p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                                {/* Status Update Section */}
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <Edit3 className="w-4 h-4 text-gray-600" />
+                                    <span className="text-sm font-medium text-gray-700">Update Status</span>
+                                  </div>
+                                  <div className="space-y-2">
+                                    {STATUS_OPTIONS.map(option => (
+                                      <button
+                                        key={option.value}
+                                        onClick={() => handleStatusChange(app.application_id, option.value)}
+                                        disabled={updatingStatus === app.application_id}
+                                        className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
+                                          app.status === option.value 
+                                            ? `${option.color} border-2`
+                                            : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                                        } ${updatingStatus === app.application_id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <div className={`w-3 h-3 rounded-full ${option.dot} ${app.status === option.value ? '' : 'opacity-30'}`}></div>
+                                          <span className="font-medium">{option.label}</span>
+                                          {updatingStatus === app.application_id && app.status === option.value && (
+                                            <Loader2 className="w-4 h-4 animate-spin ml-auto" />
+                                          )}
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Resume Preview */}
+                              {app.resumeUrl && app.resumeUrl.endsWith('.pdf') && (
+                                <div className="mt-4 w-full">
+                                  <div className="rounded-lg overflow-hidden border border-purple-200 bg-white shadow-sm">
+                                    <iframe
+                                      src={app.resumeUrl}
+                                      title="Resume Preview"
+                                      className="w-full"
+                                      style={{ minHeight: 400, maxHeight: 600 }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </CSSTransition>
+                );
+              })}
+            </TransitionGroup>
+          </div>
+          {/* Pagination Controls */}
+          {total > PAGE_SIZE && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6">
+              <p className="text-sm text-gray-600">
+                Showing {((page - 1) * PAGE_SIZE) + 1} to {Math.min(page * PAGE_SIZE, total)} of {total} interviews
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  disabled={page === 1}
+                  onClick={() => setPage(page - 1)}
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Previous
+                </Button>
+                <span className="text-sm text-gray-600 px-3">Page {page} of {Math.ceil(total / PAGE_SIZE) || 1}</span>
+                <Button
+                  variant="outline"
+                  disabled={page * PAGE_SIZE >= total}
+                  onClick={() => setPage(page + 1)}
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+} 

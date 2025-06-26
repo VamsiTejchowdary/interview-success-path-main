@@ -35,6 +35,7 @@ interface JobApplication {
     name: string;
     storage_key: string;
   } | null;
+  company_name?: string;
 }
 
 interface StudentApplicationsPageProps {
@@ -102,6 +103,7 @@ export default function StudentApplicationsPage({
         .select(`
           application_id,
           job_title,
+          company_name,
           job_link,
           applied_at,
           status,
@@ -378,6 +380,9 @@ export default function StudentApplicationsPage({
                                 <h3 className="text-lg font-bold text-gray-100 mb-1">
                                   {application.job_title}
                                 </h3>
+                                <p className="text-sm text-gray-300 mb-1">
+                                  {application.company_name ? application.company_name : 'Company Name Not Provided'}
+                                </p>
                                 <div className="flex items-center space-x-4 text-sm text-gray-400">
                                   <div className="flex items-center space-x-2">
                                     <Calendar className="w-4 h-4" />
@@ -397,10 +402,10 @@ export default function StudentApplicationsPage({
                           {/* Resume Info */}
                           <div className="flex items-center space-x-4">
                             {application.resume && (
-                              <div className="bg-gradient-to-br from-emerald-50/80 to-emerald-100/80 backdrop-blur-sm rounded-lg p-3 border border-emerald-200/60 shadow-sm">
+                              <div className="bg-slate-800/80 rounded-lg p-3 border border-indigo-400/30 shadow-sm">
                                 <div className="flex items-center space-x-2">
-                                  <FileText className="w-4 h-4 text-emerald-300" />
-                                  <span className="text-sm text-emerald-200 font-medium">
+                                  <FileText className="w-4 h-4 text-white" />
+                                  <span className="text-sm text-white font-semibold">
                                     {application.resume.name}
                                   </span>
                                 </div>

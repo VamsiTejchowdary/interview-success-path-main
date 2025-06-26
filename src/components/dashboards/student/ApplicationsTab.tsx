@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,8 @@ import { ChevronDown, ChevronUp, ExternalLink, FileText, User, Calendar, Loader2
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { Tooltip } from "@/components/ui/tooltip";
 
 const STATUS_OPTIONS = [
   { value: "applied", label: "Applied", color: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
@@ -24,6 +26,7 @@ const PAGE_SIZE = 10;
 
 export default function ApplicationsTab() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
@@ -34,122 +37,139 @@ export default function ApplicationsTab() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const searchTimeout = useRef();
+  const [refreshing, setRefreshing] = useState(false);
 
   // Debounce search input
   useEffect(() => {
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => {
       setDebouncedSearch(search);
-    }, 2000); // 2 seconds
+    }, 1250); // 2 seconds
     return () => clearTimeout(searchTimeout.current);
   }, [search]);
 
-  useEffect(() => {
-    if (!user?.email) return;
-    let isMounted = true;
-    async function fetchApplications() {
-      setLoading(true);
-      // Get user_id for current user
-      const { data: userData } = await supabase
-        .from("users")
-        .select("user_id")
-        .eq("email", user.email)
-        .single();
-      if (!userData?.user_id) {
-        setApplications([]);
-        setLoading(false);
-        setStatusCounts({});
-        return;
-      }
-      // Build query
-      let query = supabase
-        .from("job_applications")
-        .select("*, resumes(*), recruiters(name)", { count: "exact" })
-        .eq("user_id", userData.user_id)
-        .order("applied_at", { ascending: false });
-      if (debouncedSearch.trim()) {
-        query = query.ilike("job_title", `%${debouncedSearch.trim()}%`);
-      }
-      // Get total count
-      const { count: totalCount } = await query;
-      setTotal(totalCount || 0);
-      // Fetch paginated applications
-      const { data: apps, error } = await query
-        .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-      if (error) {
-        setApplications([]);
-        setLoading(false);
-        setStatusCounts({});
-        return;
-      }
-      // Enrich with recruiter name and resume info
-      const enriched = await Promise.all((apps || []).map(async (app) => {
-        let recruiterName = "-";
-        if (app.recruiter_id) {
-          const { data: recruiter } = await supabase
-            .from("recruiters")
-            .select("name")
-            .eq("recruiter_id", app.recruiter_id)
-            .single();
-          recruiterName = recruiter?.name || "-";
-        }
-        let resumeUrl = "";
-        let resumeName = "Resume";
-        if (app.resume_id) {
-          const { data: resume } = await supabase
-            .from("resumes")
-            .select("storage_key, name")
-            .eq("resume_id", app.resume_id)
-            .single();
-          resumeUrl = resume?.storage_key || "";
-          resumeName = resume?.name || "Resume";
-        }
-        return {
-          ...app,
-          recruiterName,
-          resumeUrl,
-          resumeName,
-        };
-      }));
-      if (isMounted) {
-        setApplications(enriched);
-        setLoading(false);
-      }
+  // Use useCallback to memoize fetchApplications
+  const fetchApplications = useCallback(async () => {
+    setRefreshing(true);
+    setLoading(true);
+    if (!user?.email) {
+      setApplications([]);
+      setLoading(false);
+      setStatusCounts({});
+      setRefreshing(false);
+      return;
     }
-    fetchApplications();
-    return () => { isMounted = false; };
+    // Get user_id for current user
+    const { data: userData } = await supabase
+      .from("users")
+      .select("user_id")
+      .eq("email", user.email)
+      .single();
+    if (!userData?.user_id) {
+      setApplications([]);
+      setLoading(false);
+      setStatusCounts({});
+      setRefreshing(false);
+      return;
+    }
+    // Build query
+    let query = supabase
+      .from("job_applications")
+      .select("*, company_name, resumes(*), recruiters(name)", { count: "exact" })
+      .eq("user_id", userData.user_id)
+      .order("applied_at", { ascending: false });
+    if (debouncedSearch.trim()) {
+      query = query.ilike("company_name", `%${debouncedSearch.trim()}%`);
+    }
+    // Get total count
+    const { count: totalCount } = await query;
+    setTotal(totalCount || 0);
+    // Fetch paginated applications
+    const { data: apps, error } = await query
+      .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
+    if (error) {
+      setApplications([]);
+      setLoading(false);
+      setStatusCounts({});
+      setRefreshing(false);
+      return;
+    }
+    // Enrich with recruiter name and resume info
+    const enriched = await Promise.all((apps || []).map(async (app) => {
+      let recruiterName = "-";
+      if (app.recruiter_id) {
+        const { data: recruiter } = await supabase
+          .from("recruiters")
+          .select("name")
+          .eq("recruiter_id", app.recruiter_id)
+          .single();
+        recruiterName = recruiter?.name || "-";
+      }
+      let resumeUrl = "";
+      let resumeName = "Resume";
+      if (app.resume_id) {
+        const { data: resume } = await supabase
+          .from("resumes")
+          .select("storage_key, name")
+          .eq("resume_id", app.resume_id)
+          .single();
+        resumeUrl = resume?.storage_key || "";
+        resumeName = resume?.name || "Resume";
+      }
+      return {
+        ...app,
+        recruiterName,
+        resumeUrl,
+        resumeName,
+      };
+    }));
+    setApplications(enriched);
+    setLoading(false);
+    setRefreshing(false);
   }, [user?.email, page, debouncedSearch]);
 
-  // Fetch status counts for all applications (not just current page, and NOT filtered by search)
+  // Update useEffect to use fetchApplications
   useEffect(() => {
+    fetchApplications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchApplications]);
+
+  // Fetch status counts for all applications (not just current page, and NOT filtered by search)
+  const fetchStatusCounts = useCallback(async () => {
     if (!user?.email) return;
-    let isMounted = true;
-    async function fetchStatusCounts() {
-      // Get user_id for current user
-      const { data: userData } = await supabase
-        .from("users")
-        .select("user_id")
-        .eq("email", user.email)
-        .single();
-      if (!userData?.user_id) {
-        setStatusCounts({});
-        return;
-      }
-      // Fetch counts for each status (unfiltered)
-      const counts = {};
-      for (const status of STATUS_OPTIONS) {
-        const { count } = await supabase
-          .from("job_applications")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", userData.user_id)
-          .eq("status", status.value);
-        counts[status.value] = count || 0;
-      }
-      if (isMounted) setStatusCounts(counts);
+    // Get user_id for current user
+    const { data: userData } = await supabase
+      .from("users")
+      .select("user_id")
+      .eq("email", user.email)
+      .single();
+    if (!userData?.user_id) {
+      setStatusCounts({});
+      return;
     }
-    fetchStatusCounts();
-    return () => { isMounted = false; };
+    // For 'applied', count all applications (no status filter)
+    const { count: totalCount } = await supabase
+      .from("job_applications")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userData.user_id);
+    const counts = { applied: totalCount || 0 };
+    // For other statuses, count by status
+    for (const status of STATUS_OPTIONS) {
+      if (status.value === "applied") continue;
+      let query = supabase
+        .from("job_applications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userData.user_id)
+        .eq("status", status.value);
+      const { count } = await query;
+      counts[status.value] = count || 0;
+    }
+    setStatusCounts(counts);
   }, [user?.email]);
+
+  useEffect(() => {
+    fetchStatusCounts();
+  }, [fetchStatusCounts]);
 
   const handleStatusChange = async (applicationId, newStatus) => {
     setUpdatingStatus(applicationId);
@@ -161,22 +181,45 @@ export default function ApplicationsTab() {
       app.application_id === applicationId ? { ...app, status: newStatus } : app
     ));
     setUpdatingStatus(null);
+    await fetchStatusCounts();
+    toast({
+      title: "Success",
+      description: "Application status updated successfully.",
+      className: "bg-green-600/90 text-white border-green-700 shadow-lg",
+    });
   };
 
   return (
     <div className="space-y-4 max-w-4xl mx-auto px-4 sm:px-0">
       {/* Search Bar */}
-      <div className="mb-4">
-        <Input
-          type="text"
-          placeholder="Search by job title..."
-          value={search}
-          onChange={e => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="w-full max-w-md mx-auto bg-white border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
-        />
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex items-center w-full max-w-md mx-auto">
+          <Input
+            type="text"
+            placeholder="Search by company name..."
+            value={search}
+            onChange={e => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
+          />
+          <Tooltip content="Refresh applications">
+            <Button
+              variant="ghost"
+              onClick={fetchApplications}
+              className="ml-2 p-2 h-10 w-10 flex items-center justify-center border border-gray-200 text-gray-700 hover:bg-gray-100"
+              disabled={refreshing || loading}
+              aria-label="Refresh applications"
+            >
+              {refreshing ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582M20 20v-5h-.581M5.582 9A7.003 7.003 0 0112 5c3.314 0 6.13 2.165 6.818 5M18.418 15A7.003 7.003 0 0112 19c-3.314 0-6.13-2.165-6.818-5" /></svg>
+              )}
+            </Button>
+          </Tooltip>
+        </div>
       </div>
 
       {/* Header Stats */}
@@ -210,8 +253,17 @@ export default function ApplicationsTab() {
             <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
               <FileText className="w-8 h-8 text-blue-600" />
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-3">No Applications Yet</h3>
-            <p className="text-gray-600 leading-relaxed">Start tracking your job applications to stay organized during your job search journey.</p>
+            {search.trim() ? (
+              <>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">No Matching Company</h3>
+                <p className="text-gray-600 leading-relaxed">Please contact your recruiter if you have any doubt.</p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">No Applications Yet</h3>
+                <p className="text-gray-600 leading-relaxed">Start tracking your job applications to stay organized during your job search journey.</p>
+              </>
+            )}
           </div>
         </div>
       ) : (
@@ -234,10 +286,16 @@ export default function ApplicationsTab() {
                           {/* Job Title & Company */}
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex-1 min-w-0">
-                              <h3 className="text-lg font-semibold text-gray-900 truncate mb-1">
+                              <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate mb-1">
                                 {app.job_title}
                               </h3>
-                              <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <div className="flex items-center gap-2 text-sm text-gray-700 mb-1">
+                                <Building2 className="w-4 h-4 text-blue-500" />
+                                <span className="truncate font-medium">
+                                  {app.company_name ? app.company_name : 'Company Name Not Provided'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-gray-500">
                                 <Clock className="w-4 h-4" />
                                 <span>Applied {app.applied_at ? new Date(app.applied_at).toLocaleDateString('en-US', { 
                                   month: 'short', 

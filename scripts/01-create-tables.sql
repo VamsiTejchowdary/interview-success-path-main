@@ -43,10 +43,14 @@ CREATE TABLE IF NOT EXISTS job_applications (
   recruiter_id UUID REFERENCES recruiters(recruiter_id),
   resume_id UUID REFERENCES resumes(resume_id),
   job_title TEXT NOT NULL,
+  company_name TEXT,
   job_link TEXT,
   status TEXT DEFAULT 'applied',
   applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- To add company_name to an existing table in Supabase, run:
+-- ALTER TABLE job_applications ADD COLUMN company_name TEXT;
 
 -- Resumes table
 CREATE TABLE IF NOT EXISTS resumes (

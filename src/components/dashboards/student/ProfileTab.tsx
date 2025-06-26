@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser, AuthUser, getUserInfo } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { Linkedin } from "lucide-react";
+import { Linkedin, CheckCircle, Shield, Check, Crown } from "lucide-react";
 
 const ProfileTab = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -158,7 +158,18 @@ const ProfileTab = () => {
                 />
               </div>
             ) : (
-              <p className="text-gray-800 font-medium break-words">{user.first_name} {user.last_name}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-gray-800 font-medium break-words">{user.first_name} {user.last_name}</p>
+                <div className="group relative">
+                  <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 text-white shadow-lg border border-slate-300 hover:shadow-xl transition-all duration-200">
+                    <Crown className="w-4 h-4 stroke-[2] fill-current" />
+                  </div>
+                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10 shadow-lg">
+                    Platinum Verified
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
           <div>

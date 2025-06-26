@@ -64,13 +64,10 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-purple-200/50 shadow-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Student Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-800">User Dashboard</h1>
             <p className="text-purple-600">Track Your Career Progress</p>
           </div>
           <div className="flex items-center gap-4">
-            <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
-              Premium Plan
-            </Badge>
             <Button variant="outline" onClick={onLogout} className="border-purple-200 text-purple-700 hover:bg-purple-50">
               <LogOut className="w-4 h-4 mr-2" />
               Logout

@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { Calendar } from "lucide-react"; // for date icon
 
 export interface DashboardStats {
   activeStudents: number
@@ -30,6 +31,8 @@ export interface UserData {
   address: string | null
   status: 'pending' | 'approved' | 'rejected' | 'on_hold'
   approved_at: string | null
+  next_billing_at: string | null
+  is_paid: boolean
   created_at: string
   recruiter_id: string | null
   recruiter_name: string | null
@@ -133,6 +136,8 @@ export const getUsersList = async (): Promise<UserData[]> => {
         address,
         status,
         approved_at,
+        next_billing_at,
+        is_paid,
         created_at,
         recruiter_id,
         resume_url,
@@ -189,27 +194,24 @@ export const updateUserStatus = async (
   status: 'pending' | 'approved' | 'rejected' | 'on_hold'
 ): Promise<void> => {
   try {
-    // First, get the user's current status
-    const { data: currentUser, error: fetchError } = await supabase
-      .from('users')
-      .select('status')
-      .eq('user_id', userId)
-      .single();
+    let updatePayload: any = { status };
 
-    if (fetchError) throw fetchError;
-
-    const updatePayload: {
-      status: string;
-      approved_at?: string | null;
-      recruiter_id?: string | null;
-    } = {
-      status,
-      approved_at: status === 'approved' ? new Date().toISOString() : null
-    };
-
-    // If user is being moved FROM 'approved' to another status, un-assign recruiter
-    if (currentUser.status === 'approved' && status !== 'approved') {
-      updatePayload.recruiter_id = null;
+    if (status === 'approved') {
+      const now = new Date();
+      const nextBilling = new Date(now);
+      nextBilling.setMonth(now.getMonth() + 1);
+      updatePayload = {
+        ...updatePayload,
+        approved_at: now.toISOString(),
+        next_billing_at: nextBilling.toISOString(),
+        is_paid: true
+      };
+    } else {
+      updatePayload = {
+        ...updatePayload,
+        next_billing_at: null,
+        is_paid: false
+      };
     }
 
     const { error } = await supabase
@@ -258,4 +260,20 @@ export const getApprovedRecruiters = async (): Promise<{ recruiter_id: string; n
     console.error('Error fetching approved recruiters:', error)
     throw error
   }
-} 
+}
+
+export const updateUserPaid = async (userId: string, isPaid: boolean) => {
+  const { error } = await supabase
+    .from('users')
+    .update({ is_paid: isPaid })
+    .eq('user_id', userId);
+  if (error) throw error;
+};
+
+export const updateUserNextBilling = async (userId: string, nextBillingAt: string) => {
+  const { error } = await supabase
+    .from('users')
+    .update({ next_billing_at: nextBillingAt })
+    .eq('user_id', userId);
+  if (error) throw error;
+}; 

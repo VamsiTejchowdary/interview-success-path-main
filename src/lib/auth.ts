@@ -274,6 +274,7 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
 }
 
 export const getUserInfo = async (email: string): Promise<{ 
+  user_id?: string;
   role: UserRole; 
   first_name: string; 
   last_name: string; 
@@ -326,6 +327,7 @@ export const getUserInfo = async (email: string): Promise<{
 
     if (userData) {
       return { 
+        user_id: userData.user_id,
         role: 'user', 
         first_name: userData.first_name, 
         last_name: userData.last_name, 

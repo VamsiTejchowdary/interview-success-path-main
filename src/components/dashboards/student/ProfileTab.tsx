@@ -8,6 +8,7 @@ import { Linkedin } from "lucide-react";
 
 const ProfileTab = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [userDb, setUserDb] = useState<any>(null);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({
     first_name: "",
@@ -37,6 +38,14 @@ const ProfileTab = () => {
           address: u.address || "",
           linkedin_url: u.linkedin_url || "",
         });
+        if (user_id) {
+          const { data } = await supabase
+            .from("users")
+            .select("next_billing_at, is_paid, status")
+            .eq("user_id", user_id)
+            .single();
+          setUserDb(data);
+        }
       }
     });
   }, []);
@@ -84,6 +93,37 @@ const ProfileTab = () => {
     const updatedUser = { ...user, ...form };
     setUser(updatedUser);
     setEditMode(false);
+  };
+
+  const isOverdue = userDb && userDb.next_billing_at && new Date(userDb.next_billing_at) <= new Date();
+
+  const getFeeBadge = () => {
+    if (!userDb) return null;
+    if (userDb.is_paid && !isOverdue) {
+      return <Badge className="bg-green-500 text-white">Paid</Badge>;
+    }
+    if (!userDb.is_paid || isOverdue) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-xs font-semibold shadow animate-pulse">
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+          Overdue
+        </span>
+      );
+    }
+    return null;
+  };
+
+  const getPlanBadge = () => {
+    if (!userDb) return null;
+    if (userDb.status === "approved") {
+      return <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">Active</Badge>;
+    }
+    if (userDb.status === "on_hold") {
+      return <Badge className="bg-yellow-500 text-white">On Hold</Badge>;
+    }
+    return null;
   };
 
   if (!user) {
@@ -234,7 +274,7 @@ const ProfileTab = () => {
                 <h3 className="font-semibold text-gray-800">Premium Plan</h3>
                 <p className="text-sm text-gray-600">Unlimited applications & priority support</p>
               </div>
-              <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">Active</Badge>
+              {getPlanBadge()}
             </div>
           </div>
           <div className="space-y-2">
@@ -244,11 +284,17 @@ const ProfileTab = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Next Billing</span>
-              <span className="font-medium text-gray-800">July 15, 2024</span>
+              <span className="font-medium text-gray-800">
+                {userDb && userDb.next_billing_at ? (
+                  new Date(userDb.next_billing_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
+                ) : (
+                  <span className="text-gray-400">—</span>
+                )}
+              </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Applications Remaining</span>
-              <span className="font-medium text-gray-800">Unlimited</span>
+              <span className="text-gray-600">Fee Paid</span>
+              <span>{getFeeBadge()}</span>
             </div>
           </div>
           <div className="flex gap-2">

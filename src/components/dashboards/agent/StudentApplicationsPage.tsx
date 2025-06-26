@@ -428,7 +428,13 @@ export default function StudentApplicationsPage({
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => window.open(application.job_link, '_blank')}
+                                onClick={() => {
+                                  let url = application.job_link;
+                                  if (!/^https?:\/\//i.test(url)) {
+                                    url = 'https://' + url;
+                                  }
+                                  window.open(url, '_blank');
+                                }}
                                 className="border-gray-600 text-gray-300 hover:bg-gray-700/50 bg-gray-800/40 shadow-sm"
                               >
                                 <ExternalLink className="w-4 h-4" />

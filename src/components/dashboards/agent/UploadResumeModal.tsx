@@ -20,9 +20,9 @@ export default function UploadResumeModal({ open, onClose, recruiterId, onUpload
     if (open) {
       supabase
         .from("users")
-        .select("user_id, first_name, last_name")
+        .select("user_id, first_name, last_name,status")
         .eq("recruiter_id", recruiterId)
-        .then(({ data }) => setUsers(data || []));
+        .then(({ data }) => setUsers((data || []).filter(u => u.status === 'approved')));
     }
   }, [open, recruiterId]);
 

@@ -40,7 +40,8 @@ export default function MyStudentsTab({ recruiterId }: { recruiterId: string }) 
           interviewsCount: interviewsCount || 0,
         };
       }));
-      setStudents(studentsWithCounts);
+      // Only include students with status 'approved'
+      setStudents(studentsWithCounts.filter(s => s.status === 'approved'));
       setLoading(false);
     }
     if (recruiterId) fetchStudents();
@@ -114,7 +115,7 @@ export default function MyStudentsTab({ recruiterId }: { recruiterId: string }) 
 
       {/* Students List */}
       <div className="grid gap-4">
-        {students.map(student => (
+        {students.map(student => ( 
           <div key={student.user_id} className="group">
             <div className="bg-gradient-to-br from-white/10 via-white/5 to-transparent backdrop-blur-sm border border-white/20 rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 hover:border-white/30">
               <div className="p-6">

@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS users (
   recruiter_id uuid REFERENCES recruiters(recruiter_id),
   status VARCHAR(20) DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT NOW(),
-  next_billing_at TIMESTAMP,
+  next_billing_at TIMESTAMP DEFAULT NULL,
   is_paid bool DEFAULT 'false'
 );
 

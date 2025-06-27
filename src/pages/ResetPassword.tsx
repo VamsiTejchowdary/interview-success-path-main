@@ -86,7 +86,7 @@ export default function ResetPassword() {
             await supabase.auth.signOut();
             // Add a small delay to ensure sign out is complete
             await new Promise(resolve => setTimeout(resolve, 1000));
-          } else if (userInfo.status === 'active') {
+          } else if (userInfo.status === 'approved') {
             // Already approved users
             setMessage("Password updated successfully! You can now sign in.");
           } else {

@@ -5,11 +5,44 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import ResetPassword from "./pages/ResetPassword";
 import AuthCallback from "./pages/AuthCallback";
+import AdminSignup from "./pages/AdminSignup";
+import SignupSuccessPage from "./pages/SignupSuccessPage";
+import StudentDashboard from "@/components/dashboards/StudentDashboard";
+import AdminDashboard from "@/components/dashboards/AdminDashboard";
+import AgentDashboard from "@/components/dashboards/AgentDashboard";
+import { useNavigate } from "react-router-dom";
+import RegisterForm from "@/components/auth/RegisterForm"
 
 const queryClient = new QueryClient();
+
+function AppRoutes() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  // Common logout handler for all dashboards
+  const handleDashboardLogout = async () => {
+    await logout();
+    navigate("/");
+  };
+
+  return (
+    <Routes>
+      <Route path="/" element={<Index />} />
+      <Route path="/student" element={<StudentDashboard onLogout={handleDashboardLogout} />} />
+      <Route path="/admin/dashboard" element={<AdminDashboard onLogout={handleDashboardLogout} />} />
+      <Route path="/recruiter/dashboard" element={<AgentDashboard onLogout={handleDashboardLogout} />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/admin/signup" element={<AdminSignup />} />
+      <Route path="/signup-success" element={<SignupSuccessPage />} />
+      <Route path="/signup" element={<RegisterForm />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -18,12 +51,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <AppRoutes />
         </BrowserRouter>
       </TooltipProvider>
     </AuthProvider>

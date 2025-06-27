@@ -115,7 +115,7 @@ const OverviewTab = () => {
         <CardContent className="p-8">
           <div>
             <h2 className="text-3xl font-bold text-gray-800 mb-2">Welcome back, {user?.first_name || 'User'}! 👋</h2>
-            <p className="text-gray-600 text-lg">Your job search is progressing excellently. Keep up the great work!</p>
+            <p className="text-gray-600 text-lg">Chill out, we're taking care of your applications! Get ready for those interviews! 🚀</p>
           </div>
         </CardContent>
       </Card>
@@ -129,7 +129,9 @@ const OverviewTab = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-800">{metrics.totalApplied}</div>
-            <p className="text-xs text-green-600">{metrics.totalApplied - metrics.prevWeekApplied >= 0 ? '+' : ''}{metrics.totalApplied - metrics.prevWeekApplied} compared to last week</p>
+            <p className={`text-xs ${metrics.totalApplied - metrics.prevWeekApplied >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {metrics.totalApplied - metrics.prevWeekApplied >= 0 ? '+' : ''}{metrics.totalApplied - metrics.prevWeekApplied} compared to last week
+            </p>
           </CardContent>
         </Card>
         <Card className="backdrop-blur-xl bg-white/60 border-white/20 shadow-lg hover:shadow-xl transition-all duration-300">

@@ -161,13 +161,15 @@ const ProfileTab = () => {
               <div className="flex items-center gap-2">
                 <p className="text-gray-800 font-medium break-words">{user.first_name} {user.last_name}</p>
                 <div className="group relative">
-                  <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 text-white shadow-lg border border-slate-300 hover:shadow-xl transition-all duration-200">
-                    <Crown className="w-4 h-4 stroke-[2] fill-current" />
+                  <div className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-white shadow-xl border-2 border-white ring-2 ring-amber-200 hover:shadow-amber-500/60 transition-all duration-300 hover:scale-105">
+                    <Crown className="w-5 h-5 stroke-[2] fill-current drop-shadow-lg" />
                   </div>
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10 shadow-lg">
-                    Platinum Verified
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                  </div>
+                  <div className="absolute -inset-1 bg-gradient-to-br from-amber-300/30 to-yellow-500/30 rounded-full blur-md opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
+                  {/* <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-3 bg-gradient-to-r from-amber-800 to-orange-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-20 shadow-xl">
+                    <div className="font-bold">Elite Gold Job Seeker</div>
+                    <div className="text-xs text-amber-200 mt-1">✓ All Pro features</div>
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-amber-800"></div>
+                  </div> */}
                 </div>
               </div>
             )}

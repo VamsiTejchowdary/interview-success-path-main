@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS recruiters (
   address TEXT,
   status TEXT DEFAULT 'pending',
   approved_at TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  salary NUMERIC DEFAULT 5000 NOT NULL
 );
 
 -- Users table

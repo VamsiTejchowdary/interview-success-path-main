@@ -142,13 +142,7 @@ const Index = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative">
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 opacity-20 animate-pulse"></div>
-            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-purple-600 relative" />
-          </div>
-          <p className="text-slate-600 font-medium">Loading your dashboard...</p>
-        </div>
+        <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
       </div>
     );
   }

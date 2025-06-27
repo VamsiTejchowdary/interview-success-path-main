@@ -38,7 +38,14 @@ const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFo
     try {
       let signupData: any = {};
       if (role === 'recruiter') {
-        if (!email || !name || !password || !phone || !address) {
+        console.log('Recruiter fields:', { email, name, password, phone, address });
+        if (
+          !email.trim() ||
+          !name.trim() ||
+          !password.trim() ||
+          !phone.trim() ||
+          !address.trim()
+        ) {
           toast({
             title: "Missing Fields",
             description: "Please fill in all required fields (recruiter).",
@@ -49,7 +56,16 @@ const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFo
         }
         signupData = { name, phone, address };
       } else {
-        if (!email || !password || !firstName || !lastName || !phone || !address || !resumeFile) {
+        console.log('Student fields:', { email, password, firstName, lastName, phone, address, resumeFile });
+        if (
+          !email.trim() ||
+          !password.trim() ||
+          !firstName.trim() ||
+          !lastName.trim() ||
+          !phone.trim() ||
+          !address.trim() ||
+          !resumeFile
+        ) {
           toast({
             title: "Missing Fields",
             description: "Please fill in all required fields (including resume).",
@@ -219,6 +235,29 @@ const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFo
                       disabled={isLoading}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-slate-700 font-semibold text-sm sm:text-base">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Create a secure password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
+                        disabled={isLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        disabled={isLoading}
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
+                  </div>
                 </>
               )}
               
@@ -318,6 +357,29 @@ const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFo
                       className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
                       disabled={isLoading}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-slate-700 font-semibold text-sm sm:text-base">Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Create a secure password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
+                        disabled={isLoading}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        disabled={isLoading}
+                        tabIndex={-1}
+                      >
+                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                      </button>
+                    </div>
                   </div>
                 </>
               )}

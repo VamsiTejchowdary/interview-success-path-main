@@ -206,189 +206,192 @@ export default function InterviewsTab() {
       ) : (
         <>
           <div className="space-y-3">
-            <TransitionGroup>
-              {applications.map(app => {
+            <TransitionGroup component={null}>
+              {applications.map((app, idx) => {
                 const isExpanded = expanded === app.application_id;
+                const isLast = idx === applications.length - 1;
                 return (
                   <CSSTransition
                     key={app.application_id}
                     timeout={300}
                     classNames="fade-slide"
                   >
-                    <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
-                      <CardContent className="p-0">
-                        {/* Main Content */}
-                        <div 
-                          className="p-4 sm:p-6 cursor-pointer"
-                          onClick={() => setExpanded(isExpanded ? null : app.application_id)}
-                        >
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                            <div className="flex-1 min-w-0">
-                              {/* Job Title & Company */}
-                              <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate mb-1">
-                                    {app.job_title}
-                                  </h3>
-                                  <div className="flex items-center gap-2 text-sm text-gray-700 mb-1">
-                                    <Building2 className="w-4 h-4 text-blue-500" />
-                                    <span className="truncate font-medium">
-                                      {app.company_name ? app.company_name : 'Company Name Not Provided'}
-                                    </span>
+                    <div className={!isLast ? 'pb-1' : ''}>
+                      <Card className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+                        <CardContent className="p-0">
+                          {/* Main Content */}
+                          <div 
+                            className="p-4 sm:p-6 cursor-pointer"
+                            onClick={() => setExpanded(isExpanded ? null : app.application_id)}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                {/* Job Title & Company */}
+                                <div className="flex items-start justify-between mb-3">
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="text-lg sm:text-xl font-bold text-gray-900 truncate mb-1">
+                                      {app.job_title}
+                                    </h3>
+                                    <div className="flex items-center gap-2 text-sm text-gray-700 mb-1">
+                                      <Building2 className="w-4 h-4 text-blue-500" />
+                                      <span className="truncate font-medium">
+                                        {app.company_name ? app.company_name : 'Company Name Not Provided'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                      <Clock className="w-4 h-4" />
+                                      <span>Applied {app.applied_at ? new Date(app.applied_at).toLocaleDateString('en-US', { 
+                                        month: 'short', 
+                                        day: 'numeric',
+                                        year: 'numeric'
+                                      }) : '-'}</span>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                                    <Clock className="w-4 h-4" />
-                                    <span>Applied {app.applied_at ? new Date(app.applied_at).toLocaleDateString('en-US', { 
-                                      month: 'short', 
-                                      day: 'numeric',
-                                      year: 'numeric'
-                                    }) : '-'}</span>
+                                  <div className="sm:hidden">
+                                    {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                                   </div>
                                 </div>
-                                <div className="sm:hidden">
-                                  {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
-                                </div>
-                              </div>
 
-                              {/* Status & Actions Row */}
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                <div className="flex items-center gap-3 flex-wrap">
-                                  <Badge className="bg-purple-50 text-purple-700 border-purple-200 border font-medium px-3 py-1">
-                                    <div className="w-2 h-2 rounded-full bg-purple-500 mr-2"></div>
-                                    Interviewed
-                                  </Badge>
-                                  <div className="flex items-center gap-2">
-                                    {app.job_link && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-8 px-3"
-                                        onClick={e => {
-                                          e.stopPropagation();
-                                          window.open(app.job_link, '_blank');
-                                        }}
-                                      >
-                                        <ExternalLink className="w-4 h-4 mr-1" />
-                                        <span className="hidden sm:inline">View Job</span>
-                                      </Button>
-                                    )}
-                                    {app.resumeUrl && (
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 h-8 px-3"
-                                        onClick={e => {
-                                          e.stopPropagation();
-                                          window.open(app.resumeUrl, '_blank');
-                                        }}
-                                      >
-                                        <FileText className="w-4 h-4 mr-1" />
-                                        <span className="hidden sm:inline">Resume</span>
-                                      </Button>
-                                    )}
+                                {/* Status & Actions Row */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                  <div className="flex items-center gap-3 flex-wrap">
+                                    <Badge className="bg-purple-50 text-purple-700 border-purple-200 border font-medium px-3 py-1">
+                                      <div className="w-2 h-2 rounded-full bg-purple-500 mr-2"></div>
+                                      Interviewed
+                                    </Badge>
+                                    <div className="flex items-center gap-2">
+                                      {app.job_link && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-8 px-3"
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            window.open(app.job_link, '_blank');
+                                          }}
+                                        >
+                                          <ExternalLink className="w-4 h-4 mr-1" />
+                                          <span className="hidden sm:inline">View Job</span>
+                                        </Button>
+                                      )}
+                                      {app.resumeUrl && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 h-8 px-3"
+                                          onClick={e => {
+                                            e.stopPropagation();
+                                            window.open(app.resumeUrl, '_blank');
+                                          }}
+                                        >
+                                          <FileText className="w-4 h-4 mr-1" />
+                                          <span className="hidden sm:inline">Resume</span>
+                                        </Button>
+                                      )}
+                                    </div>
                                   </div>
-                                </div>
-                                <div className="hidden sm:block">
-                                  {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                                  <div className="hidden sm:block">
+                                    {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>
 
-                        {/* Expanded Details */}
-                        {isExpanded && (
-                          <div className="border-t border-gray-100 bg-gray-50/50">
-                            <div className="p-4 sm:p-6 space-y-6">
-                              {/* Details Grid */}
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                                      <User className="w-4 h-4 text-blue-600" />
-                                    </div>
-                                    <div>
-                                      <p className="text-sm text-gray-600">Recruiter</p>
-                                      <p className="font-medium text-gray-900">{app.recruiterName}</p>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                                      <Calendar className="w-4 h-4 text-green-600" />
-                                    </div>
-                                    <div>
-                                      <p className="text-sm text-gray-600">Application Date</p>
-                                      <p className="font-medium text-gray-900">
-                                        {app.applied_at ? new Date(app.applied_at).toLocaleDateString('en-US', { 
-                                          weekday: 'long',
-                                          year: 'numeric',
-                                          month: 'long',
-                                          day: 'numeric'
-                                        }) : '-'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  {/* Resume Info - Integrated here */}
-                                  {app.resumeUrl && (
+                          {/* Expanded Details */}
+                          {isExpanded && (
+                            <div className="border-t border-gray-100 bg-gray-50/50">
+                              <div className="p-4 sm:p-6 space-y-6">
+                                {/* Details Grid */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  <div className="space-y-3">
                                     <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                                        <FileText className="w-4 h-4 text-purple-600" />
+                                      <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                                        <User className="w-4 h-4 text-blue-600" />
                                       </div>
-                                      <div className="flex-1 min-w-0">
-                                        <p className="text-sm text-gray-600">Resume</p>
-                                        <p className="font-medium text-gray-900 truncate">{app.resumeName}</p>
+                                      <div>
+                                        <p className="text-sm text-gray-600">Recruiter</p>
+                                        <p className="font-medium text-gray-900">{app.recruiterName}</p>
                                       </div>
                                     </div>
-                                  )}
-                                </div>
-                                {/* Status Update Section */}
-                                <div className="space-y-3">
-                                  <div className="flex items-center gap-2 mb-3">
-                                    <Edit3 className="w-4 h-4 text-gray-600" />
-                                    <span className="text-sm font-medium text-gray-700">Update Status</span>
-                                  </div>
-                                  <div className="space-y-2">
-                                    {STATUS_OPTIONS.map(option => (
-                                      <button
-                                        key={option.value}
-                                        onClick={() => handleStatusChange(app.application_id, option.value)}
-                                        disabled={updatingStatus === app.application_id}
-                                        className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
-                                          app.status === option.value 
-                                            ? `${option.color} border-2`
-                                            : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
-                                        } ${updatingStatus === app.application_id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                                      >
-                                        <div className="flex items-center gap-3">
-                                          <div className={`w-3 h-3 rounded-full ${option.dot} ${app.status === option.value ? '' : 'opacity-30'}`}></div>
-                                          <span className="font-medium">{option.label}</span>
-                                          {updatingStatus === app.application_id && app.status === option.value && (
-                                            <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                                          )}
+                                    <div className="flex items-center gap-3">
+                                      <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                                        <Calendar className="w-4 h-4 text-green-600" />
+                                      </div>
+                                      <div>
+                                        <p className="text-sm text-gray-600">Application Date</p>
+                                        <p className="font-medium text-gray-900">
+                                          {app.applied_at ? new Date(app.applied_at).toLocaleDateString('en-US', { 
+                                            weekday: 'long',
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric'
+                                          }) : '-'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    {/* Resume Info - Integrated here */}
+                                    {app.resumeUrl && (
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                                          <FileText className="w-4 h-4 text-purple-600" />
                                         </div>
-                                      </button>
-                                    ))}
+                                        <div className="flex-1 min-w-0">
+                                          <p className="text-sm text-gray-600">Resume</p>
+                                          <p className="font-medium text-gray-900 truncate">{app.resumeName}</p>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {/* Status Update Section */}
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <Edit3 className="w-4 h-4 text-gray-600" />
+                                      <span className="text-sm font-medium text-gray-700">Update Status</span>
+                                    </div>
+                                    <div className="space-y-2">
+                                      {STATUS_OPTIONS.map(option => (
+                                        <button
+                                          key={option.value}
+                                          onClick={() => handleStatusChange(app.application_id, option.value)}
+                                          disabled={updatingStatus === app.application_id}
+                                          className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
+                                            app.status === option.value 
+                                              ? `${option.color} border-2`
+                                              : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
+                                          } ${updatingStatus === app.application_id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        >
+                                          <div className="flex items-center gap-3">
+                                            <div className={`w-3 h-3 rounded-full ${option.dot} ${app.status === option.value ? '' : 'opacity-30'}`}></div>
+                                            <span className="font-medium">{option.label}</span>
+                                            {updatingStatus === app.application_id && app.status === option.value && (
+                                              <Loader2 className="w-4 h-4 animate-spin ml-auto" />
+                                            )}
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
                                   </div>
                                 </div>
+                                {/* Resume Preview */}
+                                {app.resumeUrl && app.resumeUrl.endsWith('.pdf') && (
+                                  <div className="mt-4 w-full">
+                                    <div className="rounded-lg overflow-hidden border border-purple-200 bg-white shadow-sm">
+                                      <iframe
+                                        src={app.resumeUrl}
+                                        title="Resume Preview"
+                                        className="w-full"
+                                        style={{ minHeight: 400, maxHeight: 600 }}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                              {/* Resume Preview */}
-                              {app.resumeUrl && app.resumeUrl.endsWith('.pdf') && (
-                                <div className="mt-4 w-full">
-                                  <div className="rounded-lg overflow-hidden border border-purple-200 bg-white shadow-sm">
-                                    <iframe
-                                      src={app.resumeUrl}
-                                      title="Resume Preview"
-                                      className="w-full"
-                                      style={{ minHeight: 400, maxHeight: 600 }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
                             </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </div>
                   </CSSTransition>
                 );
               })}

@@ -7,7 +7,7 @@ import { Users, GraduationCap, Shield, Loader2, Eye, EyeOff, Upload, Briefcase, 
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { put } from "@vercel/blob";
+import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/use-toast";
 
 type UserRole = 'recruiter' | 'user';
@@ -32,6 +32,8 @@ const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFo
   const [activeTab, setActiveTab] = useState<UserRole>('user');
   const [name, setName] = useState("");
   const { signUp } = useAuth();
+
+  const resumeBucket = import.meta.env.VITE_SUPABASE_RESUME_BUCKET || 'userresumes';
 
   const handleSubmit = async (role: UserRole) => {
     setIsLoading(true);
@@ -75,16 +77,35 @@ const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFo
           return;
         }
         const uniqueResumeName = `${Date.now()}_${resumeFile.name}`;
-        const { url: resumeUrl } = await put(uniqueResumeName, resumeFile, {
-          access: "public",
-          token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN,
-        });
+        // Upload to Supabase Storage
+        const { data, error } = await supabase.storage.from(resumeBucket).upload(uniqueResumeName, resumeFile, { upsert: false });
+        if (error) {
+          toast({
+            title: "Resume Upload Failed",
+            description: error.message,
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+        const { data: publicUrlData } = supabase.storage.from(resumeBucket).getPublicUrl(data.path);
+        const publicUrl = publicUrlData?.publicUrl;
+        console.log("public", publicUrl);
+        if (!publicUrl) {
+          toast({
+            title: "Resume URL Error",
+            description: "Could not get public URL for uploaded resume.",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
         signupData = {
           first_name: firstName,
           last_name: lastName,
           phone,
           address,
-          resume_url: resumeUrl,
+          resume_url: publicUrl,
           linkedin_url: linkedin,
         };
       }

@@ -4,7 +4,6 @@ import { DialogTitle, DialogDescription } from "@radix-ui/react-dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
-import { put } from "@vercel/blob";
 import { useToast } from "@/hooks/use-toast";
 import { User, FileText, Upload, X, File, CheckCircle } from "lucide-react";
 
@@ -15,6 +14,8 @@ export default function UploadResumeModal({ open, onClose, recruiterId, onUpload
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
+
+  const resumeBucket = import.meta.env.VITE_SUPABASE_APPLICATIONS_RESUME_BUCKET || 'applicationsresumes';
 
   useEffect(() => {
     if (open) {
@@ -38,15 +39,16 @@ export default function UploadResumeModal({ open, onClose, recruiterId, onUpload
     setUploading(true);
     try {
       const uniqueResumeName = `${Date.now()}_${file.name}`;
-      const { url } = await put(uniqueResumeName, file, {
-        access: "public",
-        token: import.meta.env.VITE_BLOB_READ_WRITE_TOKEN || process.env.BLOB_READ_WRITE_TOKEN,
-      });
+      const { data, error } = await supabase.storage.from(resumeBucket).upload(uniqueResumeName, file, { upsert: false });
+      if (error) throw error;
+      const { data: publicUrlData } = supabase.storage.from(resumeBucket).getPublicUrl(data.path);
+      const publicUrl = publicUrlData?.publicUrl;
+      if (!publicUrl) throw new Error('Could not get public URL for uploaded resume.');
       const { error: dbError } = await supabase.from("resumes").insert([
         {
           user_id: userId,
           recruiter_id: recruiterId,
-          storage_key: url,
+          storage_key: publicUrl,
           name,
         },
       ]);

@@ -2,13 +2,252 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserCheck, Building2, TrendingUp, MessageSquare, Calendar, Loader2, Star, Award, Target, Briefcase, CheckCircle, ArrowRight, Globe, Shield } from "lucide-react";
+import { Users, UserCheck, Building2, TrendingUp, MessageSquare, Calendar, Loader2, Star, Award, Target, Briefcase, CheckCircle, ArrowRight, Globe, Shield, Play, Pause } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import ForgotPasswordDialog from "@/components/auth/ForgotPasswordDialog";
 import { useNavigate } from "react-router-dom";
+import video from "@/resources/Application.mov"
 
 type AuthView = 'login' | 'register' | 'success';
+
+// Company logos data
+const companyLogos = [
+  { name: "Google", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" },
+  { name: "Microsoft", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/microsoft/microsoft-original.svg" },
+  { name: "Apple", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/apple/apple-original.svg" },
+  { name: "Amazon", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg" },
+  { name: "Meta", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/facebook/facebook-original.svg" },
+  { name: "Netflix", logo: "https://images.ctfassets.net/y2ske4sx2t1a/1aONibCke6niZhgPxuiilC/2c401b05a07288746ddf3bd3943fbc76/BrandAssets_Logos_01-Wordmark.jpg" },
+  { name: "Tesla", logo: "https://www.carlogos.org/logo/Tesla-logo-2003-2500x2500.png" },
+  { name: "Spotify", logo: "https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_Green.png" },
+  { name: "Uber", logo: "https://d3i4yxtzktqr9n.cloudfront.net/web-eats-v2/97c43f8974e6c876.svg" },
+  { name: "Airbnb", logo: "https://news.airbnb.com/wp-content/uploads/sites/4/2014/01/Airbnb_Logo_Bélo.svg" },
+];
+
+// Video Showcase Component
+const VideoShowcase = () => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [videoRef, setVideoRef] = useState<HTMLVideoElement | null>(null);
+
+  const togglePlay = () => {
+    if (videoRef) {
+      if (isPlaying) {
+        videoRef.pause();
+      } else {
+        videoRef.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  return (
+    <div className="relative py-24 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900/50 to-slate-900"></div>
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-600/10 to-blue-600/10 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 rounded-full blur-3xl"></div>
+      
+      <div className="relative container mx-auto px-4">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20 mb-6">
+            <Star className="w-4 h-4 text-yellow-400" />
+            <span className="text-sm font-medium text-white">See Our Platform in Action</span>
+          </div>
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+            Experience the
+            <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent"> Power </span>
+            of Professional Job Search
+          </h2>
+          <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
+            Watch how our intuitive dashboard transforms your job search experience with real-time tracking, 
+            personalized insights, and automated application management.
+          </p>
+        </div>
+
+        {/* Video Container */}
+        <div className="max-w-5xl mx-auto">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-3xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+            <div className="relative bg-white/10 backdrop-blur-2xl rounded-3xl p-8 border border-white/20 shadow-2xl">
+              <div className="relative aspect-video bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl overflow-hidden shadow-2xl">
+                {/* Placeholder for video - replace with your actual video */}
+                <video
+                  ref={setVideoRef}
+                  className="w-full h-full object-cover"
+                  poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 675'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23667eea;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23764ba2;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23grad)'/%3E%3Ctext x='50%25' y='50%25' font-family='Arial, sans-serif' font-size='48' fill='white' text-anchor='middle' dy='.3em'%3EDashboard Preview%3C/text%3E%3C/svg%3E"
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                >
+                  <source src={ video }type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                
+                {/* Play/Pause Overlay */}
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300">
+                  <button
+                    onClick={togglePlay}
+                    className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30 hover:bg-white/30 hover:scale-110 transition-all duration-300 shadow-2xl"
+                  >
+                    {isPlaying ? (
+                      <Pause className="w-8 h-8 text-white ml-0" />
+                    ) : (
+                      <Play className="w-8 h-8 text-white ml-1" />
+                    )}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Video Features */}
+              <div className="grid md:grid-cols-3 gap-6 mt-8">
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <Target className="w-6 h-6 text-white" />
+                  </div>
+                  <h4 className="text-white font-semibold mb-2">Smart Matching</h4>
+                  <p className="text-slate-300 text-sm">AI-powered job matching based on your skills and preferences</p>
+                </div>
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <TrendingUp className="w-6 h-6 text-white" />
+                  </div>
+                  <h4 className="text-white font-semibold mb-2">Real-time Analytics</h4>
+                  <p className="text-slate-300 text-sm">Track application progress and interview success rates</p>
+                </div>
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <MessageSquare className="w-6 h-6 text-white" />
+                  </div>
+                  <h4 className="text-white font-semibold mb-2">Communication Hub</h4>
+                  <p className="text-slate-300 text-sm">Centralized messaging with recruiters and hiring managers</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Company Scroller Component
+const CompanyScroller = () => {
+  return (
+    <div className="relative py-16 bg-white/50 backdrop-blur-sm overflow-hidden">
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-12">
+          <h3 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-4">
+            Recent Success Stories
+          </h3>
+          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+            Our job seekers have recently been placed at these industry-leading companies
+          </p>
+        </div>
+        
+        {/* Scrolling Container */}
+        <div className="relative">
+          {/* Gradient Overlays */}
+          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-white/50 to-transparent z-10 pointer-events-none"></div>
+          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-white/50 to-transparent z-10 pointer-events-none"></div>
+          
+          <div className="overflow-hidden">
+            <div className="animate-scroll flex items-center space-x-12 py-8">
+              {/* First set of logos */}
+              {companyLogos.map((company, index) => (
+                <div 
+                  key={`first-${index}`}
+                  className="flex-shrink-0 group"
+                >
+                  <div className="w-32 h-20 bg-white/70 backdrop-blur-sm rounded-xl border border-white/30 shadow-lg flex items-center justify-center p-4 group-hover:shadow-xl group-hover:scale-105 transition-all duration-300">
+                    <img 
+                      src={company.logo} 
+                      alt={company.name}
+                      className="max-w-full max-h-full object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300"
+                      onError={(e) => {
+                        // Fallback to text if image fails to load
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling!.style.display = 'block';
+                      }}
+                    />
+                    <span className="hidden text-slate-700 font-semibold text-sm">{company.name}</span>
+                  </div>
+                </div>
+              ))}
+              
+              {/* Duplicate set for seamless scroll */}
+              {companyLogos.map((company, index) => (
+                <div 
+                  key={`second-${index}`}
+                  className="flex-shrink-0 group"
+                >
+                  <div className="w-32 h-20 bg-white/70 backdrop-blur-sm rounded-xl border border-white/30 shadow-lg flex items-center justify-center p-4 group-hover:shadow-xl group-hover:scale-105 transition-all duration-300">
+                    <img 
+                      src={company.logo} 
+                      alt={company.name}
+                      className="max-w-full max-h-full object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.nextElementSibling!.style.display = 'block';
+                      }}
+                    />
+                    <span className="hidden text-slate-700 font-semibold text-sm">{company.name}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        {/* Success Stats */}
+        <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <div>
+            <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
+              1,247
+            </div>
+            <div className="text-sm text-slate-600 font-medium">Successful Placements</div>
+          </div>
+          <div>
+            <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+              $125K
+            </div>
+            <div className="text-sm text-slate-600 font-medium">Average Salary</div>
+          </div>
+          <div>
+            <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+              14 Days
+            </div>
+            <div className="text-sm text-slate-600 font-medium">Average Placement Time</div>
+          </div>
+          <div>
+            <div className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-2">
+              500+
+            </div>
+            <div className="text-sm text-slate-600 font-medium">Partner Companies</div>
+          </div>
+        </div>
+      </div>
+      
+      <style jsx>{`
+        @keyframes scroll {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+        
+        .animate-scroll {
+          animation: scroll 30s linear infinite;
+        }
+        
+        .animate-scroll:hover {
+          animation-play-state: running;
+        }
+      `}</style>
+    </div>
+  );
+};
 
 // Mock LoginForm component for demo
 const LoginForm = ({ onLogin, onSwitchToRegister }: any) => (
@@ -181,9 +420,6 @@ const Index = () => {
               CandidateSide
             </span>
           </div>
-          <Badge variant="secondary" className="px-4 py-2 bg-white/60 backdrop-blur-sm border-white/30 text-slate-700 font-medium">
-            Professional Career Services
-          </Badge>
         </div>
       </nav>
 
@@ -296,6 +532,12 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      {/* Video Showcase Section */}
+      <VideoShowcase />
+
+      {/* Company Scroller Section */}
+      <CompanyScroller />
 
       {/* Services Section */}
       <div className="relative py-24 bg-white/30 backdrop-blur-sm">

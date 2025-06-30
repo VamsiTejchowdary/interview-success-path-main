@@ -15,7 +15,7 @@ export default function UploadResumeModal({ open, onClose, recruiterId, onUpload
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
 
-  const resumeBucket = import.meta.env.VITE_SUPABASE_APPLICATIONS_RESUME_BUCKET || 'applicationsresumes';
+  const resumeBucket = import.meta.env.VITE_SUPABASE_APPLICATIONS_RESUME_BUCKET;
 
   useEffect(() => {
     if (open) {

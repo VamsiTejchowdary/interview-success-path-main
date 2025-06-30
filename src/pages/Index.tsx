@@ -7,22 +7,49 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import ForgotPasswordDialog from "@/components/auth/ForgotPasswordDialog";
 import { useNavigate } from "react-router-dom";
-import video from "@/resources/Application.mov"
+import video from "@/resources/Application.mp4"
 
 type AuthView = 'login' | 'register' | 'success';
 
 // Company logos data
 const companyLogos = [
-  { name: "Google", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg" },
-  { name: "Microsoft", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/microsoft/microsoft-original.svg" },
-  { name: "Apple", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/apple/apple-original.svg" },
-  { name: "Amazon", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg" },
-  { name: "Meta", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/facebook/facebook-original.svg" },
-  { name: "Netflix", logo: "https://images.ctfassets.net/y2ske4sx2t1a/1aONibCke6niZhgPxuiilC/2c401b05a07288746ddf3bd3943fbc76/BrandAssets_Logos_01-Wordmark.jpg" },
-  { name: "Tesla", logo: "https://www.carlogos.org/logo/Tesla-logo-2003-2500x2500.png" },
-  { name: "Spotify", logo: "https://storage.googleapis.com/pr-newsroom-wp/1/2018/11/Spotify_Logo_RGB_Green.png" },
-  { name: "Uber", logo: "https://d3i4yxtzktqr9n.cloudfront.net/web-eats-v2/97c43f8974e6c876.svg" },
-  { name: "Airbnb", logo: "https://news.airbnb.com/wp-content/uploads/sites/4/2014/01/Airbnb_Logo_Bélo.svg" },
+  // Amazon
+  {
+    name: "Amazon",
+    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg",
+  },
+  // Siemens
+  {
+    name: "Siemens",
+    logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/siemens.svg",
+  },
+  // PwC
+  {
+    name: "PwC",
+    logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/pwc.svg",
+  },
+  // Cognizant
+  {
+    name: "Cognizant",
+    logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/cognizant.svg",
+  },
+  // Accenture
+
+  // Sysco
+  {
+    name: "Sysco",
+    logo: "https://www.sysco.com/etc.clientlibs/sysco/clientlibs/clientlib-site/resources/images/sysco-logo.svg",
+  },
+  // Procter & Gamble (P&G)
+  {
+    name: "Procter & Gamble",
+    logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/procterandgamble.svg",
+  },
+  // Walmart
+  {
+    name: "Walmart",
+    logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/walmart.svg",
+  },
 ];
 
 // Video Showcase Component
@@ -79,7 +106,7 @@ const VideoShowcase = () => {
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
                 >
-                  <source src={ video }type="video/mp4" />
+                  <source src={video} type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
                 
@@ -130,7 +157,7 @@ const VideoShowcase = () => {
   );
 };
 
-// Company Scroller Component
+// Company Scroller Component - Updated Version with Colored Logos
 const CompanyScroller = () => {
   return (
     <div className="relative py-16 bg-white/50 backdrop-blur-sm overflow-hidden">
@@ -158,19 +185,21 @@ const CompanyScroller = () => {
                   key={`first-${index}`}
                   className="flex-shrink-0 group"
                 >
-                  <div className="w-32 h-20 bg-white/70 backdrop-blur-sm rounded-xl border border-white/30 shadow-lg flex items-center justify-center p-4 group-hover:shadow-xl group-hover:scale-105 transition-all duration-300">
-                    <img 
-                      src={company.logo} 
-                      alt={company.name}
-                      className="max-w-full max-h-full object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300"
-                      onError={(e) => {
-                        // Fallback to text if image fails to load
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling!.style.display = 'block';
-                      }}
-                    />
-                    <span className="hidden text-slate-700 font-semibold text-sm">{company.name}</span>
-                  </div>
+                  <img 
+                    src={company.logo} 
+                    alt={company.name}
+                    className="w-32 h-20 object-contain transition-all duration-300 group-hover:scale-110"
+                    onError={(e) => {
+                      // Fallback to text if image fails to load
+                      const target = e.currentTarget as HTMLImageElement;
+                      target.style.display = 'none';
+                      const fallback = target.nextElementSibling as HTMLElement;
+                      if (fallback) {
+                        fallback.style.display = 'block';
+                      }
+                    }}
+                  />
+                  <span className="hidden text-slate-700 font-semibold text-sm">{company.name}</span>
                 </div>
               ))}
               
@@ -180,18 +209,20 @@ const CompanyScroller = () => {
                   key={`second-${index}`}
                   className="flex-shrink-0 group"
                 >
-                  <div className="w-32 h-20 bg-white/70 backdrop-blur-sm rounded-xl border border-white/30 shadow-lg flex items-center justify-center p-4 group-hover:shadow-xl group-hover:scale-105 transition-all duration-300">
-                    <img 
-                      src={company.logo} 
-                      alt={company.name}
-                      className="max-w-full max-h-full object-contain filter grayscale group-hover:grayscale-0 transition-all duration-300"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                        e.currentTarget.nextElementSibling!.style.display = 'block';
-                      }}
-                    />
-                    <span className="hidden text-slate-700 font-semibold text-sm">{company.name}</span>
-                  </div>
+                  <img 
+                    src={company.logo} 
+                    alt={company.name}
+                    className="w-32 h-20 object-contain transition-all duration-300 group-hover:scale-110"
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      target.style.display = 'none';
+                      const fallback = target.nextElementSibling as HTMLElement;
+                      if (fallback) {
+                        fallback.style.display = 'block';
+                      }
+                    }}
+                  />
+                  <span className="hidden text-slate-700 font-semibold text-sm">{company.name}</span>
                 </div>
               ))}
             </div>
@@ -242,7 +273,7 @@ const CompanyScroller = () => {
         }
         
         .animate-scroll:hover {
-          animation-play-state: running;
+          animation-play-state: paused;
         }
       `}</style>
     </div>

@@ -33,7 +33,7 @@ const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFo
   const [name, setName] = useState("");
   const { signUp } = useAuth();
 
-  const resumeBucket = import.meta.env.VITE_SUPABASE_RESUME_BUCKET || 'userresumes';
+  const resumeBucket = import.meta.env.VITE_SUPABASE_RESUME_BUCKET;
 
   const handleSubmit = async (role: UserRole) => {
     setIsLoading(true);

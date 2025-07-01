@@ -12,6 +12,7 @@ import { useNavigate } from "react-router-dom";
 import video from "@/resources/Application.mp4"
 import mobileimage from "@/resources/mobiledashboard.jpeg"
 import desktopimage from "@/resources/desktopdashboard.png"
+import Footer from '@/components/ui/Footer';
 
 type AuthView = "login" | "register" | "success";
 
@@ -760,7 +761,8 @@ const IndexPage = () => {
       <DashboardShowcase />
       <CompanySection />
       <ServicesSection />
-      <ContactSection />
+      {/* <ContactSection /> */}
+      <Footer />
     </>
   );
 };

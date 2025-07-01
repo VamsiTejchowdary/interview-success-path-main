@@ -6,6 +6,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Briefcase, Upload, User, FileText, Link, Building2, CheckCircle } from "lucide-react";
 import UploadResumeModal from "./UploadResumeModal";
 
+function getToday() {
+  const today = new Date();
+  return today.toISOString().slice(0, 10);
+}
+
 export default function JobsTab({ recruiterId }) {
   const [users, setUsers] = useState([]);
   const [resumes, setResumes] = useState([]);
@@ -17,6 +22,8 @@ export default function JobsTab({ recruiterId }) {
   const [submitting, setSubmitting] = useState(false);
   const [companyName, setCompanyName] = useState("");
   const { toast } = useToast();
+  const [resumeFrom, setResumeFrom] = useState(getToday());
+  const [resumeTo, setResumeTo] = useState(getToday());
 
   useEffect(() => {
     supabase
@@ -27,16 +34,18 @@ export default function JobsTab({ recruiterId }) {
   }, [recruiterId]);
 
   useEffect(() => {
-    if (userId) {
+    if (userId && resumeFrom && resumeTo) {
       supabase
         .from("resumes")
-        .select("resume_id, name")
+        .select("resume_id, name, created_at")
         .eq("user_id", userId)
+        .gte("created_at", resumeFrom + "T00:00:00")
+        .lte("created_at", resumeTo + "T23:59:59")
         .then(({ data }) => setResumes(data || []));
     } else {
       setResumes([]);
     }
-  }, [userId, showResumeModal]);
+  }, [userId, showResumeModal, resumeFrom, resumeTo]);
 
   const handleSubmit = async () => {
     if (!userId || !recruiterId || !companyName.trim() || !jobTitle || !resumeId || !jobLink) {
@@ -138,6 +147,31 @@ export default function JobsTab({ recruiterId }) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
+              </div>
+            </div>
+
+            {/* Resume Date Range Selection */}
+            <div className="space-y-3">
+              <label className="flex items-center space-x-2 text-white/80 font-medium">
+                <FileText className="w-4 h-4" />
+                <span>Resume Date Range <span className="text-red-400">*</span></span>
+              </label>
+              <div className="flex space-x-2">
+                <input
+                  type="date"
+                  className="w-full p-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 backdrop-blur-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 transition-all duration-200 hover:bg-white/15"
+                  value={resumeFrom}
+                  max={resumeTo}
+                  onChange={e => setResumeFrom(e.target.value)}
+                />
+                <span className="text-white/70 flex items-center">to</span>
+                <input
+                  type="date"
+                  className="w-full p-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-white/50 backdrop-blur-sm focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 transition-all duration-200 hover:bg-white/15"
+                  value={resumeTo}
+                  min={resumeFrom}
+                  onChange={e => setResumeTo(e.target.value)}
+                />
               </div>
             </div>
 

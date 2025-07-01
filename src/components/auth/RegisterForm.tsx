@@ -76,9 +76,13 @@ const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFo
           setIsLoading(false);
           return;
         }
-        const uniqueResumeName = `${Date.now()}_${resumeFile.name}`;
+        const safeFirstName = (firstName || '').replace(/[^a-zA-Z0-9]/g, '');
+        const safeLastName = (lastName || '').replace(/[^a-zA-Z0-9]/g, '');
+        const safeEmail = (email || '').replace(/[^a-zA-Z0-9]/g, '');
+        const fileExt = resumeFile.name.split('.').pop();
+        const filePath = `${safeFirstName}_${safeLastName}_${safeEmail}/resume_${Date.now()}.${fileExt}`;
         // Upload to Supabase Storage
-        const { data, error } = await supabase.storage.from(resumeBucket).upload(uniqueResumeName, resumeFile, { upsert: false });
+        const { data, error } = await supabase.storage.from(resumeBucket).upload(filePath, resumeFile, { upsert: false });
         if (error) {
           toast({
             title: "Resume Upload Failed",

@@ -38,10 +38,16 @@ export default function UploadResumeModal({ open, onClose, recruiterId, onUpload
     }
     setUploading(true);
     try {
-      const uniqueResumeName = `${Date.now()}_${file.name}`;
-      const { data, error } = await supabase.storage.from(resumeBucket).upload(uniqueResumeName, file, { upsert: false });
+      // Find the selected user to get their name and email
+      const selectedUser = users.find(u => u.user_id === userId);
+      const safeFirstName = (selectedUser?.first_name || '').replace(/[^a-zA-Z0-9]/g, '');
+      const safeLastName = (selectedUser?.last_name || '').replace(/[^a-zA-Z0-9]/g, '');
+      const safeEmail = (selectedUser?.email || selectedUser?.user_id || '').replace(/[^a-zA-Z0-9]/g, '');
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${safeFirstName}_${safeLastName}_${safeEmail}/resume_${Date.now()}.${fileExt}`;
+      const { data, error } = await supabase.storage.from(resumeBucket).upload(filePath, file, { upsert: false });
       if (error) throw error;
-      const { data: publicUrlData } = supabase.storage.from(resumeBucket).getPublicUrl(data.path);
+      const { data: publicUrlData } = supabase.storage.from(resumeBucket).getPublicUrl(filePath);
       const publicUrl = publicUrlData?.publicUrl;
       if (!publicUrl) throw new Error('Could not get public URL for uploaded resume.');
       const { error: dbError } = await supabase.from("resumes").insert([

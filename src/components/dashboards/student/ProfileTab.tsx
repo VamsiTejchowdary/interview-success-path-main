@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getCurrentUser, AuthUser, getUserInfo } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { Linkedin, CheckCircle, Shield, Check, Crown } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const ProfileTab = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -22,6 +23,10 @@ const ProfileTab = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [resumeUploading, setResumeUploading] = useState(false);
+  const [resumeUploadError, setResumeUploadError] = useState<string | null>(null);
+  const resumeBucket = import.meta.env.VITE_SUPABASE_RESUME_BUCKET;
+  const { toast } = useToast();
 
   useEffect(() => {
     getCurrentUser().then(async (u) => {
@@ -87,12 +92,52 @@ const ProfileTab = () => {
     setLoading(false);
     if (error) {
       setError("Failed to update profile. Please try again.");
+      toast({ title: "Error", description: "Failed to update profile. Please try again.", variant: "destructive" });
       return;
     }
     // Refresh user data
     const updatedUser = { ...user, ...form };
     setUser(updatedUser);
     setEditMode(false);
+    toast({ title: "Profile Updated", description: "Your profile changes have been saved.", variant: "success" });
+  };
+
+  const handleResumeUpdate = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !userId || !e.target.files || e.target.files.length === 0) return;
+    setResumeUploading(true);
+    setResumeUploadError(null);
+    const file = e.target.files[0];
+    const fileExt = file.name.split('.').pop();
+    const safeFirstName = (user.first_name || '').replace(/[^a-zA-Z0-9]/g, '');
+    const safeLastName = (user.last_name || '').replace(/[^a-zA-Z0-9]/g, '');
+    const safeEmail = (user.email || '').replace(/[^a-zA-Z0-9]/g, '');
+    const filePath = `${safeFirstName}_${safeLastName}_${safeEmail}/resume_${Date.now()}.${fileExt}`;
+    try {
+      // 1. Upload new resume
+      const { error: uploadError } = await supabase.storage.from(resumeBucket).upload(filePath, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      // 2. Get public URL
+      const { data: publicUrlData } = supabase.storage.from(resumeBucket).getPublicUrl(filePath);
+      const newResumeUrl = publicUrlData.publicUrl;
+      // 3. Delete old resume (if exists)
+      if (user.resume_url) {
+        // Extract storage key from old URL using the actual bucket name
+        const bucketPrefix = `/${resumeBucket}/`;
+        const oldKey = user.resume_url.split(bucketPrefix)[1];
+        if (oldKey) {
+          await supabase.storage.from(resumeBucket).remove([oldKey]);
+        }
+      }
+      // 4. Update user table
+      const { error: updateError } = await supabase.from('users').update({ resume_url: newResumeUrl }).eq('user_id', userId);
+      if (updateError) throw updateError;
+      // 5. Update local user state
+      setUser({ ...user, resume_url: newResumeUrl });
+      setResumeModal(false);
+    } catch (err: any) {
+      setResumeUploadError(err.message || 'Failed to update resume.');
+    }
+    setResumeUploading(false);
   };
 
   const isOverdue = userDb && userDb.next_billing_at && new Date(userDb.next_billing_at) <= new Date();
@@ -161,8 +206,8 @@ const ProfileTab = () => {
               <div className="flex items-center gap-2">
                 <p className="text-gray-800 font-medium break-words">{user.first_name} {user.last_name}</p>
                 <div className="group relative">
-                  <div className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-white shadow-xl border-2 border-white ring-2 ring-amber-200 hover:shadow-amber-500/60 transition-all duration-300 hover:scale-105">
-                    <Crown className="w-5 h-5 stroke-[2] fill-current drop-shadow-lg" />
+                  <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-white shadow-lg border border-white ring-1 ring-amber-200 hover:shadow-amber-500/60 transition-all duration-300 hover:scale-105">
+                    <Crown className="w-4 h-4 stroke-[2] fill-current drop-shadow-lg" />
                   </div>
                   <div className="absolute -inset-1 bg-gradient-to-br from-amber-300/30 to-yellow-500/30 rounded-full blur-md opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
                   {/* <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-3 bg-gradient-to-r from-amber-800 to-orange-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-20 shadow-xl">
@@ -215,15 +260,30 @@ const ProfileTab = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                className="border-blue-400 text-blue-700 hover:bg-blue-50 px-3 py-1"
-                onClick={() => setResumeModal(true)}
-              >
-                View Resume
-              </Button>
-              {editMode && (
-                <span className="text-xs text-gray-500 ml-2">To change your resume, please contact your recruiter.</span>
+              {editMode ? (
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-gray-700">Update Resume (PDF)</label>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handleResumeUpdate}
+                    className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+                    disabled={resumeUploading}
+                  />
+                  {resumeUploading && <span className="text-xs text-gray-500">Uploading...</span>}
+                  {resumeUploadError && <span className="text-xs text-red-500">{resumeUploadError}</span>}
+                  <span className="text-xs text-amber-600 mt-1">After updating your resume, please notify your recruiter.</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="border-blue-400 text-blue-700 hover:bg-blue-50 px-3 py-1"
+                    onClick={() => setResumeModal(true)}
+                  >
+                    View Resume
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -310,14 +370,14 @@ const ProfileTab = () => {
               <span>{getFeeBadge()}</span>
             </div>
           </div>
-          <div className="flex gap-2">
+          {/* <div className="flex gap-2">
             <Button variant="outline" className="flex-1 border-purple-300 text-purple-700 hover:bg-purple-50">
               Manage Plan
             </Button>
             <Button variant="outline" className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50">
               Billing
             </Button>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
       {/* Resume Modal */}

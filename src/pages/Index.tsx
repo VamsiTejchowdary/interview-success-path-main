@@ -8,8 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import ForgotPasswordDialog from "@/components/auth/ForgotPasswordDialog";
 import { useNavigate } from "react-router-dom";
 import video from "@/resources/Application.mp4"
-import mobileimage from "@/resources/image-1.jpeg"
-import desktopimage from "@/resources/image.png"
+import mobileimage from "@/resources/mobiledashboard.jpeg"
+import desktopimage from "@/resources/desktopdashboard.png"
 
 type AuthView = "login" | "register" | "success";
 

@@ -121,43 +121,51 @@ const HeroSection = () => {
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-8 pt-8">
+              <div className="grid grid-cols-3 gap-4 sm:gap-8 pt-8">
                 <div className="text-center">
-                  <div className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">2,500+</div>
-                  <div className="text-slate-600 font-medium">Jobs Applied</div>
+                  <div className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2 leading-tight">2,500+</div>
+                  <div className="text-slate-600 font-medium text-sm sm:text-base">Jobs Applied</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">89%</div>
-                  <div className="text-slate-600 font-medium">Interview Rate</div>
+                  <div className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2 leading-tight">89%</div>
+                  <div className="text-slate-600 font-medium text-sm sm:text-base">Interview Rate</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">4.8★</div>
-                  <div className="text-slate-600 font-medium">Client Rating</div>
+                  <div className="text-2xl sm:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2 leading-tight">4.8★</div>
+                  <div className="text-slate-600 font-medium text-sm sm:text-base">Client Rating</div>
                 </div>
               </div>
             </div>
 
             {/* Right Side - Dashboard Images */}
             <div className="relative flex flex-col items-center lg:items-end">
-              <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 w-full max-w-xl aspect-video flex items-center justify-center">
+              <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 w-full max-w-sm sm:max-w-md lg:max-w-xl aspect-video flex items-center justify-center">
                 <img
                   src={desktopimage}
                   alt="Dashboard Desktop Preview"
-                  className="object-cover w-full h-full hidden sm:block"
-                  onError={e => { e.currentTarget.style.display = 'none'; }}
+                  className="object-cover w-full h-full"
+                  onError={e => { 
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
                 />
-                <div className="sm:hidden flex flex-col items-center justify-center w-full h-full bg-gradient-to-br from-slate-50 to-slate-100">
-                  <span className="text-slate-400 text-lg">Dashboard Preview</span>
+                <div className="hidden absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
+                  <span className="text-slate-400 text-lg">Desktop Dashboard Preview</span>
                 </div>
               </div>
-              <div className="absolute -bottom-8 right-0 sm:-right-8 w-36 h-64 bg-white rounded-3xl shadow-xl border-4 border-slate-100 overflow-hidden flex items-center justify-center">
+              
+              {/* Mobile Dashboard Preview - Responsive sizing */}
+              <div className="absolute -bottom-6 right-0 sm:-right-6 w-24 h-40 sm:w-28 sm:h-48 lg:w-36 lg:h-64 bg-white rounded-3xl shadow-xl border-4 border-slate-100 overflow-hidden flex items-center justify-center">
                 <img
                   src={mobileimage}
                   alt="Dashboard Mobile Preview"
                   className="object-cover w-full h-full"
-                  onError={e => { e.currentTarget.style.display = 'none'; }}
+                  onError={e => { 
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                  }}
                 />
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 text-slate-400 text-sm" style={{display: 'none'}}>
+                <div className="hidden absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 text-slate-400 text-xs">
                   Mobile Preview
                 </div>
               </div>

@@ -2,558 +2,333 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Users, UserCheck, Building2, TrendingUp, MessageSquare, Calendar, Loader2, Star, Award, Target, Briefcase, CheckCircle, ArrowRight, Globe, Shield, Play, Pause } from "lucide-react";
+import { Users, UserCheck, Building2, TrendingUp, MessageSquare, Calendar, Loader2, Star, Award, Target, Briefcase, CheckCircle, ArrowRight, Globe, Shield, Play, Pause, Monitor, Smartphone, BarChart3, Mail, Phone, MapPin, Send, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import ForgotPasswordDialog from "@/components/auth/ForgotPasswordDialog";
 import { useNavigate } from "react-router-dom";
 import video from "@/resources/Application.mp4"
+import mobileimage from "@/resources/image-1.jpeg"
+import desktopimage from "@/resources/image.png"
 
-type AuthView = 'login' | 'register' | 'success';
+type AuthView = "login" | "register" | "success";
 
 // Company logos data
 const companyLogos = [
-  // Amazon
-  {
-    name: "Amazon",
-    logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg",
-  },
-  // Siemens
-  {
-    name: "Siemens",
-    logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/siemens.svg",
-  },
-  // PwC
-  {
-    name: "PwC",
-    logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/pwc.svg",
-  },
-  // Cognizant
-  {
-    name: "Cognizant",
-    logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/cognizant.svg",
-  },
-  // Accenture
-
-  // Sysco
-  {
-    name: "Sysco",
-    logo: "https://www.sysco.com/etc.clientlibs/sysco/clientlibs/clientlib-site/resources/images/sysco-logo.svg",
-  },
-  // Procter & Gamble (P&G)
-  {
-    name: "Procter & Gamble",
-    logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/procterandgamble.svg",
-  },
-  // Walmart
-  {
-    name: "Walmart",
-    logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/walmart.svg",
-  },
+  { name: "Amazon", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-original.svg" },
+  { name: "Siemens", logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/siemens.svg" },
+  { name: "PwC", logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/pwc.svg" },
+  { name: "Cognizant", logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/cognizant.svg" },
+  { name: "Sysco", logo: "https://www.sysco.com/etc.clientlibs/sysco/clientlibs/clientlib-site/resources/images/sysco-logo.svg" },
+  { name: "Procter & Gamble", logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/procterandgamble.svg" },
+  { name: "Walmart", logo: "https://cdn.jsdelivr.net/npm/simple-icons@v13.8.0/icons/walmart.svg" },
 ];
 
-// Video Showcase Component
-const VideoShowcase = () => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [videoRef, setVideoRef] = useState<HTMLVideoElement | null>(null);
-
-  const togglePlay = () => {
-    if (videoRef) {
-      if (isPlaying) {
-        videoRef.pause();
-      } else {
-        videoRef.play();
-      }
-      setIsPlaying(!isPlaying);
-    }
-  };
-
-  return (
-    <div className="relative py-24 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 overflow-hidden">
-      {/* Background Effects */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900/50 to-slate-900"></div>
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-600/10 to-blue-600/10 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 rounded-full blur-3xl"></div>
-      
-      <div className="relative container mx-auto px-4">
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 border border-white/20 mb-6">
-            <Star className="w-4 h-4 text-yellow-400" />
-            <span className="text-sm font-medium text-white">See Our Platform in Action</span>
-          </div>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Experience the
-            <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent"> Power </span>
-            of Professional Job Search
-          </h2>
-          <p className="text-xl text-slate-300 max-w-3xl mx-auto leading-relaxed">
-            Watch how our intuitive dashboard transforms your job search experience with real-time tracking, 
-            personalized insights, and automated application management.
-          </p>
-        </div>
-
-        {/* Video Container */}
-        <div className="max-w-5xl mx-auto">
-          <div className="relative group">
-            <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-3xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
-            <div className="relative bg-white/10 backdrop-blur-2xl rounded-3xl p-8 border border-white/20 shadow-2xl">
-              <div className="relative aspect-video bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl overflow-hidden shadow-2xl">
-                {/* Placeholder for video - replace with your actual video */}
-                <video
-                  ref={setVideoRef}
-                  className="w-full h-full object-cover"
-                  poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 675'%3E%3Cdefs%3E%3ClinearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23667eea;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23764ba2;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23grad)'/%3E%3Ctext x='50%25' y='50%25' font-family='Arial, sans-serif' font-size='48' fill='white' text-anchor='middle' dy='.3em'%3EDashboard Preview%3C/text%3E%3C/svg%3E"
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                >
-                  <source src={video} type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-                
-                {/* Play/Pause Overlay */}
-                <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-300">
-                  <button
-                    onClick={togglePlay}
-                    className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/30 hover:bg-white/30 hover:scale-110 transition-all duration-300 shadow-2xl"
-                  >
-                    {isPlaying ? (
-                      <Pause className="w-8 h-8 text-white ml-0" />
-                    ) : (
-                      <Play className="w-8 h-8 text-white ml-1" />
-                    )}
-                  </button>
-                </div>
-              </div>
-              
-              {/* Video Features */}
-              <div className="grid md:grid-cols-3 gap-6 mt-8">
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <Target className="w-6 h-6 text-white" />
-                  </div>
-                  <h4 className="text-white font-semibold mb-2">Smart Matching</h4>
-                  <p className="text-slate-300 text-sm">AI-powered job matching based on your skills and preferences</p>
-                </div>
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <TrendingUp className="w-6 h-6 text-white" />
-                  </div>
-                  <h4 className="text-white font-semibold mb-2">Real-time Analytics</h4>
-                  <p className="text-slate-300 text-sm">Track application progress and interview success rates</p>
-                </div>
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <MessageSquare className="w-6 h-6 text-white" />
-                  </div>
-                  <h4 className="text-white font-semibold mb-2">Communication Hub</h4>
-                  <p className="text-slate-300 text-sm">Centralized messaging with recruiters and hiring managers</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Company Scroller Component - Updated Version with Colored Logos
-const CompanyScroller = () => {
-  return (
-    <div className="relative py-16 bg-white/50 backdrop-blur-sm overflow-hidden">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-12">
-          <h3 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-4">
-            Recent Success Stories
-          </h3>
-          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Our job seekers have recently been placed at these industry-leading companies
-          </p>
-        </div>
-        
-        {/* Scrolling Container */}
-        <div className="relative">
-          {/* Gradient Overlays */}
-          <div className="absolute left-0 top-0 bottom-0 w-32 bg-gradient-to-r from-white/50 to-transparent z-10 pointer-events-none"></div>
-          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-white/50 to-transparent z-10 pointer-events-none"></div>
-          
-          <div className="overflow-hidden">
-            <div className="animate-scroll flex items-center space-x-12 py-8">
-              {/* First set of logos */}
-              {companyLogos.map((company, index) => (
-                <div 
-                  key={`first-${index}`}
-                  className="flex-shrink-0 group"
-                >
-                  <img 
-                    src={company.logo} 
-                    alt={company.name}
-                    className="w-32 h-20 object-contain transition-all duration-300 group-hover:scale-110"
-                    onError={(e) => {
-                      // Fallback to text if image fails to load
-                      const target = e.currentTarget as HTMLImageElement;
-                      target.style.display = 'none';
-                      const fallback = target.nextElementSibling as HTMLElement;
-                      if (fallback) {
-                        fallback.style.display = 'block';
-                      }
-                    }}
-                  />
-                  <span className="hidden text-slate-700 font-semibold text-sm">{company.name}</span>
-                </div>
-              ))}
-              
-              {/* Duplicate set for seamless scroll */}
-              {companyLogos.map((company, index) => (
-                <div 
-                  key={`second-${index}`}
-                  className="flex-shrink-0 group"
-                >
-                  <img 
-                    src={company.logo} 
-                    alt={company.name}
-                    className="w-32 h-20 object-contain transition-all duration-300 group-hover:scale-110"
-                    onError={(e) => {
-                      const target = e.currentTarget as HTMLImageElement;
-                      target.style.display = 'none';
-                      const fallback = target.nextElementSibling as HTMLElement;
-                      if (fallback) {
-                        fallback.style.display = 'block';
-                      }
-                    }}
-                  />
-                  <span className="hidden text-slate-700 font-semibold text-sm">{company.name}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        {/* Success Stats */}
-        <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-          <div>
-            <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
-              1,247
-            </div>
-            <div className="text-sm text-slate-600 font-medium">Successful Placements</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-              $125K
-            </div>
-            <div className="text-sm text-slate-600 font-medium">Average Salary</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-              14 Days
-            </div>
-            <div className="text-sm text-slate-600 font-medium">Average Placement Time</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent mb-2">
-              500+
-            </div>
-            <div className="text-sm text-slate-600 font-medium">Partner Companies</div>
-          </div>
-        </div>
-      </div>
-      
-      <style jsx>{`
-        @keyframes scroll {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
-        }
-        
-        .animate-scroll {
-          animation: scroll 30s linear infinite;
-        }
-        
-        .animate-scroll:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
-    </div>
-  );
-};
-
-// Mock LoginForm component for demo
-const LoginForm = ({ onLogin, onSwitchToRegister }: any) => (
-  <div className="bg-white/70 backdrop-blur-2xl rounded-3xl p-8 border border-white/30 shadow-2xl">
-    <h3 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-      Sign In
-    </h3>
-    <div className="space-y-4">
-      <input 
-        className="w-full p-3 border border-gray-200 rounded-xl bg-white/80 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
-        placeholder="Email"
-      />
-      <input 
-        className="w-full p-3 border border-gray-200 rounded-xl bg-white/80 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
-        placeholder="Password"
-        type="password"
-      />
-      <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-12 rounded-xl font-semibold">
-        Sign In
-      </Button>
-      <div className="text-center">
-        <button onClick={onSwitchToRegister} className="text-purple-600 hover:text-purple-700 font-medium">
-          Sign up here
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-// Mock RegisterForm component for demo
-const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: any) => (
-  <div className="bg-white/70 backdrop-blur-2xl rounded-3xl p-8 border border-white/30 shadow-2xl">
-    <h3 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-      Sign Up
-    </h3>
-    <div className="space-y-4">
-      <input 
-        className="w-full p-3 border border-gray-200 rounded-xl bg-white/80 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
-        placeholder="Email"
-      />
-      <input 
-        className="w-full p-3 border border-gray-200 rounded-xl bg-white/80 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
-        placeholder="Password"
-        type="password"
-      />
-      <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-12 rounded-xl font-semibold">
-        Create Account
-      </Button>
-      <div className="text-center">
-        <button onClick={onSwitchToLogin} className="text-purple-600 hover:text-purple-700 font-medium">
-          Already have an account?
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-const Index = () => {
-  const { signIn, user } = useAuth();
+// Hero Section with Professional Background
+const HeroSection = () => {
+  const { signIn } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [authView, setAuthView] = useState<AuthView>('login');
-  const [signupData, setSignupData] = useState<{ email: string; role: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      if (user.role === 'admin') navigate('/admin/dashboard');
-      else if (user.role === 'recruiter') navigate('/recruiter/dashboard');
-      else if (user.role === 'user') navigate('/student');
-    }
-  }, [user, navigate]);
-
   const handleLogin = async () => {
     if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Please fill in all fields", variant: "destructive" });
       return;
     }
     setIsLoading(true);
     try {
       await signIn(email, password);
-      toast({
-        title: "Success",
-        description: "Successfully signed in!",
-      });
-      // Redirect will happen in useEffect
+      toast({ title: "Success", description: "Successfully signed in!" });
     } catch (error: any) {
+      console.error("Login error:", error);
       let errorMessage = "An error occurred during sign in";
       if (error.message) {
-        if (error.message.includes('pending approval')) {
-          errorMessage = "Your account is pending admin approval. Please wait for approval before signing in.";
-        } else if (error.message.includes('Invalid login credentials')) {
-          errorMessage = "Invalid email or password. Please check your credentials.";
-        } else if (error.message.includes('Email not confirmed')) {
-          errorMessage = "Please verify your email address before signing in.";
+        if (error.message.includes("pending approval")) {
+          errorMessage = "Your account is pending admin approval.";
+        } else if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password.";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please verify your email.";
         } else {
           errorMessage = error.message;
         }
       }
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSwitchToRegister = () => {
-    setAuthView('register');
-  };
-
-  const handleSwitchToLogin = () => {
-    setAuthView('login');
-  };
-
-  const handleSignupSuccess = (email: string, role: string) => {
-    setSignupData({ email, role });
-    setAuthView('success');
-  };
-
-  // Show loading spinner while checking authentication
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
-      </div>
-    );
-  }
-
-  // If user is authenticated, show appropriate dashboard
-  if (signupData) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="bg-white/70 backdrop-blur-2xl rounded-3xl p-8 border border-white/30 shadow-2xl">
-            <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-8 h-8 text-white" />
-            </div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">Welcome to CandidateSide!</h2>
-            <p className="text-slate-600 mb-6">Your account has been created successfully. Please check your email to verify your account.</p>
-            <Button onClick={handleSwitchToLogin} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-12 rounded-xl font-semibold">
-              Back to Sign In
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Main landing page with auth
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Navigation Bar */}
-      <nav className="relative z-10 container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
-              <Briefcase className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              CandidateSide
-            </span>
-          </div>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+      {/* Professional Background Pattern */}
+      <div className="absolute inset-0">
+        <div className="absolute top-0 left-0 w-full h-full opacity-30">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-br from-purple-200/40 to-blue-200/40 rounded-full blur-3xl"></div>
+          <div className="absolute top-40 right-20 w-96 h-96 bg-gradient-to-br from-blue-200/30 to-indigo-200/30 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-gradient-to-br from-indigo-200/40 to-purple-200/40 rounded-full blur-3xl"></div>
         </div>
-      </nav>
+        {/* Subtle Grid Pattern */}
+        <div className="absolute inset-0 opacity-[0.02]" style={{
+          backgroundImage: `radial-gradient(circle at 25px 25px, rgba(99, 102, 241, 0.5) 2px, transparent 0)`,
+          backgroundSize: '50px 50px'
+        }}></div>
+      </div>
 
-      {/* Hero Section */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/5 to-blue-600/5"></div>
-        
-        {/* Floating background elements */}
-        <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-r from-purple-400/10 to-blue-400/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-r from-blue-400/10 to-indigo-400/10 rounded-full blur-3xl"></div>
-        
-        <div className="relative container mx-auto px-4 py-20">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+      {/* Content Overlay */}
+      <div className="relative z-10 min-h-screen flex flex-col">
+        {/* Navigation */}
+        <nav className="container mx-auto px-6 py-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <div className="w-14 h-14 bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center shadow-xl">
+                <Briefcase className="w-8 h-8 text-white" />
+              </div>
+              <span className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">CandidateSide</span>
+            </div>
+          </div>
+        </nav>
+
+        {/* Main Content */}
+        <div className="flex-1 container mx-auto px-6 flex items-center">
+          <div className="grid lg:grid-cols-2 gap-20 items-center w-full">
             
-            {/* Left Content */}
-            <div className="space-y-8">
-              <div className="space-y-6">
-                <div className="inline-flex items-center space-x-2 bg-white/60 backdrop-blur-sm rounded-full px-4 py-2 border border-white/30">
-                  <Star className="w-4 h-4 text-yellow-500" />
-                  <span className="text-sm font-medium text-slate-700">#1 Reverse Recruiting Platform</span>
+            {/* Left Side - Hero Content */}
+            <div className="text-center lg:text-left space-y-10">
+              <div className="space-y-8">
+                <div className="inline-flex items-center space-x-3 bg-white/80 backdrop-blur-sm rounded-full px-6 py-3 border border-purple-200/50 shadow-lg">
+                  <Star className="w-5 h-5 text-yellow-500" />
+                  <span className="text-slate-700 font-semibold">Trusted by 2,500+ Job Seekers</span>
                 </div>
                 
-                <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight">
-                  <span className="bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                    Land Your
-                  </span>
+                <h1 className="text-5xl lg:text-7xl font-bold leading-tight">
+                  <span className="text-slate-800">Land Your</span>
                   <br />
-                  <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent">
                     Dream Job
                   </span>
                 </h1>
                 
-                <p className="text-xl text-slate-600 leading-relaxed max-w-2xl">
+                <p className="text-xl lg:text-2xl text-slate-600 leading-relaxed max-w-2xl">
                   Professional reverse recruiting service that applies to jobs on your behalf. 
-                  Get more interviews with our expert application strategy and resume optimization.
+                  Get more interviews with our expert application strategy.
                 </p>
               </div>
 
               {/* Stats */}
-              <div className="grid grid-cols-3 gap-6">
+              <div className="grid grid-cols-3 gap-8 pt-8">
                 <div className="text-center">
-                  <div className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    2,500+
-                  </div>
-                  <div className="text-sm text-slate-600 font-medium">Jobs Applied</div>
+                  <div className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">2,500+</div>
+                  <div className="text-slate-600 font-medium">Jobs Applied</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                    89%
-                  </div>
-                  <div className="text-sm text-slate-600 font-medium">Interview Rate</div>
+                  <div className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">89%</div>
+                  <div className="text-slate-600 font-medium">Interview Rate</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                    4.8★
-                  </div>
-                  <div className="text-sm text-slate-600 font-medium">Client Rating</div>
+                  <div className="text-3xl lg:text-4xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">4.8★</div>
+                  <div className="text-slate-600 font-medium">Client Rating</div>
                 </div>
               </div>
             </div>
 
-            {/* Right Auth Section */}
-            <div>
-              <div className="bg-white/70 backdrop-blur-2xl rounded-3xl p-8 border border-white/30 shadow-2xl max-w-md mx-auto">
-                <h3 className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  Sign In
-                </h3>
-                <div className="space-y-4">
-                  <input
-                    className="w-full p-3 border border-gray-200 rounded-xl bg-white/80 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
-                    placeholder="Email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    disabled={isLoading}
-                  />
-                  <input
-                    className="w-full p-3 border border-gray-200 rounded-xl bg-white/80 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all"
-                    placeholder="Password"
-                    type="password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    disabled={isLoading}
-                  />
-                  <Button
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-12 rounded-xl font-semibold"
-                    onClick={handleLogin}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2 inline-block" /> : null}
-                    Sign In
-                  </Button>
-                  <div className="text-center">
+            {/* Right Side - Dashboard Images */}
+            <div className="relative flex flex-col items-center lg:items-end">
+              <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-100 w-full max-w-xl aspect-video flex items-center justify-center">
+                <img
+                  src={desktopimage}
+                  alt="Dashboard Desktop Preview"
+                  className="object-cover w-full h-full hidden sm:block"
+                  onError={e => { e.currentTarget.style.display = 'none'; }}
+                />
+                <div className="sm:hidden flex flex-col items-center justify-center w-full h-full bg-gradient-to-br from-slate-50 to-slate-100">
+                  <span className="text-slate-400 text-lg">Dashboard Preview</span>
+                </div>
+              </div>
+              <div className="absolute -bottom-8 right-0 sm:-right-8 w-36 h-64 bg-white rounded-3xl shadow-xl border-4 border-slate-100 overflow-hidden flex items-center justify-center">
+                <img
+                  src={mobileimage}
+                  alt="Dashboard Mobile Preview"
+                  className="object-cover w-full h-full"
+                  onError={e => { e.currentTarget.style.display = 'none'; }}
+                />
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 text-slate-400 text-sm" style={{display: 'none'}}>
+                  Mobile Preview
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Dashboard/Analytics Section with Sign In Form
+const DashboardShowcase = () => {
+  const { signIn } = useAuth();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      toast({ title: "Error", description: "Please fill in all fields", variant: "destructive" });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await signIn(email, password);
+      toast({ title: "Success", description: "Successfully signed in!" });
+    } catch (error: any) {
+      console.error("Login error:", error);
+      let errorMessage = "An error occurred during sign in";
+      if (error.message) {
+        if (error.message.includes("pending approval")) {
+          errorMessage = "Your account is pending admin approval.";
+        } else if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password.";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please verify your email.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative py-24 bg-white overflow-hidden">
+      {/* Background Elements */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-gradient-to-r from-purple-100/60 to-blue-100/60 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gradient-to-r from-blue-100/60 to-indigo-100/60 rounded-full blur-3xl"></div>
+      
+      <div className="container mx-auto px-6">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          
+          {/* Left - Content */}
+          <div className="space-y-8">
+            <div className="space-y-6">
+              <div className="inline-flex items-center space-x-2 bg-purple-50 border border-purple-200 rounded-full px-5 py-3">
+                <Target className="w-5 h-5 text-purple-600" />
+                <span className="text-sm font-semibold text-purple-800">Smart Job Matching</span>
+              </div>
+              
+              <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 leading-tight">
+                Track Your Success
+                <span className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-transparent"> Journey</span>
+              </h2>
+              
+              <p className="text-xl text-slate-600 leading-relaxed">
+                Monitor applications, track responses, and optimize your job search with our comprehensive dashboard and analytics.
+              </p>
+            </div>
+
+            {/* Feature List */}
+            <div className="space-y-4">
+              {[
+                { icon: TrendingUp, title: "Real-time Analytics", desc: "Track application progress instantly" },
+                { icon: Target, title: "Smart Matching", desc: "AI-powered job recommendations" },
+                { icon: MessageSquare, title: "Communication Hub", desc: "Centralized messaging system" }
+              ].map((feature, index) => (
+                <div key={index} className="flex items-start space-x-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                  <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center shadow-md">
+                    <feature.icon className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 mb-1">{feature.title}</h4>
+                    <p className="text-slate-600 text-sm">{feature.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right - Sign In Form */}
+          <div className="flex justify-center lg:justify-end">
+            <div className="w-full max-w-md">
+              <div className="bg-white/90 backdrop-blur-xl border border-white/50 rounded-3xl p-8 shadow-2xl">
+                <div className="text-center mb-8">
+                  <h3 className="text-3xl font-bold text-slate-800 mb-2">Welcome Back</h3>
+                  <p className="text-slate-600">Sign in to your account</p>
+                </div>
+                
+                <div className="space-y-6">
+                  <div className="relative">
+                    <input
+                      type="email"
+                      placeholder="Email address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full h-14 px-4 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                      disabled={isLoading}
+                    />
+                    <Mail className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  </div>
+                  
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full h-14 px-4 pr-12 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                      disabled={isLoading}
+                    />
                     <button
-                      className="text-purple-600 hover:text-purple-700 font-medium text-sm"
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  
+                  <Button
+                    onClick={handleLogin}
+                    disabled={isLoading || !email || !password}
+                    className="w-full h-14 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-[1.02]"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    ) : (
+                      <>
+                        Sign In
+                        <ArrowRight className="w-5 h-5 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                  
+                  <div className="text-center space-y-4">
+                    <button
+                      className="text-slate-600 hover:text-slate-800 font-medium transition-colors"
                       onClick={() => setShowForgotPassword(true)}
                       disabled={isLoading}
                     >
                       Forgot Password?
                     </button>
-                  </div>
-                  <div className="text-center">
-                    <button onClick={() => navigate('/signup')} className="text-purple-600 hover:text-purple-700 font-medium">
-                      Sign up here
+                    <div className="flex items-center space-x-3">
+                      <div className="flex-1 h-px bg-slate-200"></div>
+                      <span className="text-slate-400 text-sm font-medium">or</span>
+                      <div className="flex-1 h-px bg-slate-200"></div>
+                    </div>
+                    <button
+                      className="text-purple-600 hover:text-purple-700 font-semibold transition-colors"
+                      onClick={() => navigate('/signup')}
+                    >
+                      Create new account
                     </button>
                   </div>
                 </div>
@@ -563,144 +338,310 @@ const Index = () => {
           </div>
         </div>
       </div>
+    </div>
+  );
+};
 
-      {/* Video Showcase Section */}
-      <VideoShowcase />
+// Company Success Section
+const CompanySection = () => {
+  return (
+    <div className="py-20 bg-white">
+      <div className="container mx-auto px-4 sm:px-6">
+        <div className="text-center mb-12">
+          <h3 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-4">
+            Trusted by Job Seekers at
+            <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"> Leading Companies</span>
+          </h3>
+          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+            Our clients have secured positions at top-tier organizations
+          </p>
+        </div>
 
-      {/* Company Scroller Section */}
-      <CompanyScroller />
+        {/* Company Logos Carousel */}
+        <div className="relative max-w-full sm:max-w-5xl mx-auto overflow-hidden">
+          {/* Gradient overlays for smooth fade effect */}
+          <div className="absolute left-0 top-0 bottom-0 w-12 sm:w-16 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none"></div>
+          <div className="absolute right-0 top-0 bottom-0 w-12 sm:w-16 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none"></div>
 
-      {/* Services Section */}
-      <div className="relative py-24 bg-white/30 backdrop-blur-sm">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent mb-6">
-              Professional Services
-            </h2>
-            <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-              Comprehensive career services designed to accelerate your job search and maximize interview opportunities
-            </p>
+          {/* Scrolling container */}
+          <div className="overflow-hidden">
+            <div className="flex animate-infinite-scroll gap-6 items-center justify-center">
+              {[...companyLogos, ...companyLogos, ...companyLogos].map((company, index) => (
+                <div
+                  key={index}
+                  className="flex-shrink-0 group cursor-pointer w-28 h-16 sm:w-48 sm:h-24"
+                >
+                  <div className="flex items-center justify-center h-full transition-all duration-300">
+                    <img
+                      src={company.logo}
+                      alt={company.name}
+                      className="max-w-[90%] max-h-[90%] object-contain grayscale-[30%] group-hover:grayscale-0 group-hover:scale-105 transition-all duration-300"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
+        </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {/* Job Applications Service */}
-            <Card className="group backdrop-blur-2xl bg-white/70 border-white/30 shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl overflow-hidden hover:scale-[1.02]">
-              <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-blue-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <CardHeader className="text-center pb-4 relative">
-                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25 group-hover:shadow-blue-500/40 transition-all duration-300">
-                  <Target className="w-8 h-8 text-white" />
-                </div>
-                <CardTitle className="text-xl font-bold text-slate-800 mb-3">Strategic Job Applications</CardTitle>
-                <CardDescription className="text-slate-600 leading-relaxed">
-                  We apply to 50+ targeted positions monthly on your behalf using industry-specific strategies
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0 relative">
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-sm text-slate-600">Targeted job matching</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-sm text-slate-600">Personalized cover letters</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-sm text-slate-600">Application tracking</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Resume Optimization Service */}
-            <Card className="group backdrop-blur-2xl bg-white/70 border-white/30 shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl overflow-hidden hover:scale-[1.02]">
-              <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-green-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <CardHeader className="text-center pb-4 relative">
-                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/25 group-hover:shadow-green-500/40 transition-all duration-300">
-                  <Award className="w-8 h-8 text-white" />
-                </div>
-                <CardTitle className="text-xl font-bold text-slate-800 mb-3">Resume Optimization</CardTitle>
-                <CardDescription className="text-slate-600 leading-relaxed">
-                  Professional resume editing and ATS optimization to maximize your application success rate
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0 relative">
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-sm text-slate-600">ATS optimization</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-sm text-slate-600">Industry-specific keywords</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-sm text-slate-600">Professional formatting</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Interview Coaching Service */}
-            <Card className="group backdrop-blur-2xl bg-white/70 border-white/30 shadow-xl hover:shadow-2xl transition-all duration-500 rounded-3xl overflow-hidden hover:scale-[1.02] md:col-span-2 lg:col-span-1">
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-indigo-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              <CardHeader className="text-center pb-4 relative">
-                <div className="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/25 group-hover:shadow-indigo-500/40 transition-all duration-300">
-                  <MessageSquare className="w-8 h-8 text-white" />
-                </div>
-                <CardTitle className="text-xl font-bold text-slate-800 mb-3">Interview Coaching</CardTitle>
-                <CardDescription className="text-slate-600 leading-relaxed">
-                  Personalized interview preparation and coaching to help you confidently secure job offers
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pt-0 relative">
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-sm text-slate-600">Mock interviews</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-sm text-slate-600">Behavioral questions prep</span>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                    <span className="text-sm text-slate-600">Salary negotiation</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+        {/* Success Metrics */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 mt-12">
+          {[
+            { number: "1,247", label: "Successful Placements", color: "from-green-500 to-emerald-500" },
+            { number: "$125K", label: "Average Salary", color: "from-blue-500 to-indigo-500" },
+            { number: "14 Days", label: "Average Placement", color: "from-purple-500 to-pink-500" },
+            { number: "500+", label: "Partner Companies", color: "from-orange-500 to-red-500" },
+          ].map((stat, index) => (
+            <div key={index} className="text-center group">
+              <div
+                className={`text-3xl lg:text-4xl font-bold bg-gradient-to-r ${stat.color} bg-clip-text text-transparent mb-2 group-hover:scale-110 transition-transform`}
+              >
+                {stat.number}
+              </div>
+              <div className="text-slate-600 font-medium">{stat.label}</div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Trust Indicators */}
-      <div className="relative py-16 bg-gradient-to-r from-slate-50 to-white">
-        <div className="container mx-auto px-4">
+      <style jsx>{`
+        @keyframes infinite-scroll {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-66.666%);
+          }
+        }
+        .animate-infinite-scroll {
+          display: flex;
+          width: max-content;
+          animation: infinite-scroll 20s linear infinite;
+        }
+        @media (max-width: 640px) {
+          .animate-infinite-scroll {
+            animation: infinite-scroll 15s linear infinite;
+          }
+        }
+        .animate-infinite-scroll:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
+    </div>
+  );
+};
+// Services Section
+const ServicesSection = () => {
+  const services = [
+    {
+      icon: Target,
+      title: "Strategic Job Applications",
+      description: "Apply to 50+ targeted jobs monthly with expert strategies and personalized approach.",
+      features: ["Targeted matching", "Personalized letters", "Application tracking"],
+      gradient: "from-blue-500 to-blue-600"
+    },
+    {
+      icon: Award,
+      title: "Resume Optimization",
+      description: "Enhance your resume with ATS optimization and industry-specific keywords.",
+      features: ["ATS optimization", "Keyword integration", "Professional formatting"],
+      gradient: "from-green-500 to-green-600"
+    },
+    {
+      icon: MessageSquare,
+      title: "Interview Coaching",
+      description: "Prepare with personalized coaching sessions and mock interview practice.",
+      features: ["Mock interviews", "Behavioral prep", "Salary negotiation"],
+      gradient: "from-purple-500 to-purple-600"
+    }
+  ];
+
+  return (
+    <div className="py-24 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      <div className="container mx-auto px-6">
+        <div className="text-center mb-16">
+          <h2 className="text-4xl lg:text-5xl font-bold text-slate-900 mb-6">
+            Professional
+            <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"> Services</span>
+          </h2>
+          <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+            Accelerate your job search with our comprehensive, tailored career services
+          </p>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          {services.map((service, index) => (
+            <Card key={index} className="group bg-white border-0 shadow-lg hover:shadow-2xl rounded-3xl overflow-hidden transition-all duration-500 hover:scale-[1.02]">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/80 to-white/60 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+              
+              <CardHeader className="text-center pb-6 relative z-10">
+                <div className={`w-20 h-20 mx-auto mb-6 bg-gradient-to-br ${service.gradient} rounded-3xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                  <service.icon className="w-10 h-10 text-white" />
+                </div>
+                <CardTitle className="text-2xl font-bold text-slate-900 mb-3">{service.title}</CardTitle>
+                <CardDescription className="text-slate-600 text-base leading-relaxed">
+                  {service.description}
+                </CardDescription>
+              </CardHeader>
+              
+              <CardContent className="pt-0 relative z-10">
+                <div className="space-y-4">
+                  {service.features.map((feature, featureIndex) => (
+                    <div key={featureIndex} className="flex items-center space-x-3">
+                      <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                      <span className="text-slate-700 font-medium">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+                
+                <Button className="w-full mt-8 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-12 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all">
+                  Learn More
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Professional Contact Section
+const ContactSection = () => {
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: "",
+  });
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      setFormData({ name: "", email: "", phone: "", message: "" });
+    } catch (error) {
+      console.error("Contact form error:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
+
+  return (
+    <div className="py-24 bg-white relative overflow-hidden">
+      {/* Subtle Background Elements */}
+      <div className="absolute inset-0">
+        <div className="absolute top-10 left-10 w-80 h-80 bg-gradient-to-r from-purple-200/30 to-blue-200/30 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-10 right-10 w-80 h-80 bg-gradient-to-r from-blue-200/30 to-indigo-200/30 rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="container mx-auto px-4 sm:px-6 relative z-10">
+        <div className="max-w-5xl mx-auto">
+          {/* Header */}
           <div className="text-center mb-12">
-            <h3 className="text-2xl font-bold text-slate-800 mb-4">Trusted by Professionals Worldwide</h3>
-            <p className="text-slate-600">Join thousands of successful job seekers who landed their dream careers</p>
+            <div className="inline-flex items-center space-x-2 bg-purple-50 border border-purple-100 rounded-full px-6 py-3 mb-6">
+              <MessageSquare className="w-5 h-5 text-purple-600" />
+              <span className="text-slate-700 font-medium">Get In Touch</span>
+            </div>
+            <h2 className="text-3xl sm:text-5xl font-bold text-slate-900 mb-4">
+              Ready to
+              <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent"> Transform </span>
+              Your Career?
+            </h2>
+            <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto">
+              Connect with our career experts to start your journey toward landing your dream job.
+            </p>
           </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center opacity-60">
-            <div className="text-center">
-              <Globe className="w-12 h-12 mx-auto mb-2 text-slate-400" />
-              <span className="text-sm font-medium text-slate-600">Global Reach</span>
-            </div>
-            <div className="text-center">
-              <Shield className="w-12 h-12 mx-auto mb-2 text-slate-400" />
-              <span className="text-sm font-medium text-slate-600">Secure & Private</span>
-            </div>
-            <div className="text-center">
-              <Users className="w-12 h-12 mx-auto mb-2 text-slate-400" />
-              <span className="text-sm font-medium text-slate-600">Expert Team</span>
-            </div>
-            <div className="text-center">
-              <TrendingUp className="w-12 h-12 mx-auto mb-2 text-slate-400" />
-              <span className="text-sm font-medium text-slate-600">Proven Results</span>
-            </div>
+
+          {/* Contact Form */}
+          <div className="bg-white border border-slate-100 rounded-3xl p-6 sm:p-12 shadow-lg">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="name"
+                    placeholder="Full Name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className="w-full h-16 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                    required
+                  />
+                </div>
+                <div className="relative">
+                  <input
+                    type="email"
+                    name="email"
+                    placeholder="Email Address"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full h-16 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                    required
+                  />
+                </div>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    name="phone"
+                    placeholder="Phone Number (Optional)"
+                    value={formData.phone}
+                    onChange={handleChange}
+                    className="w-full h-16 px-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all"
+                  />
+                </div>
+                <div className="relative sm:col-span-2">
+                  <textarea
+                    name="message"
+                    placeholder="Your Message"
+                    value={formData.message}
+                    onChange={handleChange}
+                    className="w-full h-36 px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 transition-all resize-none"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 pt-4">
+                <div className="flex items-center space-x-3">
+                  <Phone className="w-5 h-5 text-purple-600" />
+                  <span className="text-slate-700 font-medium">+1 (555) 123-4567</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Mail className="w-5 h-5 text-blue-600" />
+                  <span className="text-slate-700 font-medium">hello@candidateside.com</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <MapPin className="w-5 h-5 text-green-600" />
+                  <span className="text-slate-700 font-medium">Remote / Global</span>
+                </div>
+              </div>
+              <Button
+                type="submit"
+                className="w-full h-14 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all hover:scale-[1.02] mt-6"
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                ) : (
+                  <>
+                    <Send className="w-5 h-5 mr-2" />
+                    Send Message
+                  </>
+                )}
+              </Button>
+            </form>
           </div>
         </div>
       </div>
@@ -708,4 +649,28 @@ const Index = () => {
   );
 };
 
-export default Index;
+// Main Index Page Export
+const IndexPage = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === 'admin') navigate('/admin/dashboard');
+      else if (user.role === 'recruiter') navigate('/recruiter/dashboard');
+      else if (user.role === 'user') navigate('/student');
+    }
+  }, [user, navigate]);
+
+  return (
+    <>
+      <HeroSection />
+      <DashboardShowcase />
+      <CompanySection />
+      <ServicesSection />
+      <ContactSection />
+    </>
+  );
+};
+
+export default IndexPage;

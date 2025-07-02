@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import ForgotPasswordDialog from "@/components/auth/ForgotPasswordDialog";
 import { useNavigate } from "react-router-dom";
+import Footer from "@/components/ui/Footer";
 
 const IndexPage = () => {
   const { user, signIn } = useAuth();
@@ -68,7 +69,7 @@ const IndexPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col font-sans">
       {/* Header */}
-      <header className="relative z-20 bg-white/80 backdrop-blur-xl border-b border-white/50 shadow-sm">
+      <header className="relative z-20 bg-white/80 backdrop-blur-xl border-b border-white/50 shadow-sm mb-8 sm:mb-12">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
@@ -91,7 +92,7 @@ const IndexPage = () => {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex">
+      <div className="flex-1 flex pb-12 sm:pb-20">
         {/* Left Side - Animated Content */}
         <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         {/* Animated Background Elements */}
@@ -170,7 +171,7 @@ const IndexPage = () => {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-6">
             {[
-              { number: "2,500+", label: "Jobs Applied", color: "from-purple-600 to-blue-600" },
+              { number: "10,500+", label: "Jobs Applied", color: "from-purple-600 to-blue-600" },
               { number: "89%", label: "Success Rate", color: "from-blue-600 to-indigo-600" },
               { number: "4.8", label: "User Rating", color: "from-indigo-600 to-purple-600" }
             ].map((stat, index) => (
@@ -297,7 +298,7 @@ const IndexPage = () => {
           {/* Mobile Features */}
           <div className="lg:hidden mt-8 space-y-3">
             {[
-              { icon: CheckCircle, text: "AI-driven job matching" },
+              { icon: CheckCircle, text: "AI-driven Resumes" },
               { icon: Shield, text: "Secure platform" },
               { icon: Zap, text: "89% placement success" }
             ].map((feature, index) => (
@@ -338,6 +339,10 @@ const IndexPage = () => {
           animation: fadeInUp 0.6s ease-out forwards;
         }
       `}</style>
+      {/* Footer */}
+      <div className="mt-8 sm:mt-12">
+        <Footer />
+      </div>
     </div>
   );
 };

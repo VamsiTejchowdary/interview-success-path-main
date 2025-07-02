@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Tooltip } from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 const STATUS_OPTIONS = [
   { value: "applied", label: "Applied", color: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
@@ -36,7 +36,7 @@ export default function ApplicationsTab() {
   const [statusCounts, setStatusCounts] = useState({});
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const searchTimeout = useRef();
+  const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
   const [refreshing, setRefreshing] = useState(false);
 
   // Debounce search input
@@ -204,20 +204,25 @@ export default function ApplicationsTab() {
             }}
             className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
           />
-          <Tooltip content="Refresh applications">
-            <Button
-              variant="ghost"
-              onClick={fetchApplications}
-              className="ml-2 p-2 h-10 w-10 flex items-center justify-center border border-gray-200 text-gray-700 hover:bg-gray-100"
-              disabled={refreshing || loading}
-              aria-label="Refresh applications"
-            >
-              {refreshing ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582M20 20v-5h-.581M5.582 9A7.003 7.003 0 0112 5c3.314 0 6.13 2.165 6.818 5M18.418 15A7.003 7.003 0 0112 19c-3.314 0-6.13-2.165-6.818-5" /></svg>
-              )}
-            </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                onClick={fetchApplications}
+                className="ml-2 p-2 h-10 w-10 flex items-center justify-center border border-gray-200 text-gray-700 hover:bg-gray-100"
+                disabled={refreshing || loading}
+                aria-label="Refresh applications"
+              >
+                {refreshing ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582M20 20v-5h-.581M5.582 9A7.003 7.003 0 0112 5c3.314 0 6.13 2.165 6.818 5M18.418 15A7.003 7.003 0 0112 19c-3.314 0-6.13-2.165-6.818-5" /></svg>
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              Refresh applications
+            </TooltipContent>
           </Tooltip>
         </div>
       </div>

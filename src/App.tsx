@@ -16,6 +16,7 @@ import AgentDashboard from "@/components/dashboards/AgentDashboard";
 import { useNavigate } from "react-router-dom";
 import RegisterForm from "@/components/auth/RegisterForm"
 import ContactForm from "./pages/contact.tsx"
+import RecruiterSignup from "./pages/agentSignup.tsx";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +43,7 @@ function AppRoutes() {
       <Route path="/signup" element={<RegisterForm />} />
       <Route path="*" element={<NotFound />} />
       <Route path="/contact" element= { <ContactForm /> } />
+      <Route path="/agent/signup" element={<RecruiterSignup />} />
     </Routes>
   );
 }

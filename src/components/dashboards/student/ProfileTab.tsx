@@ -99,7 +99,7 @@ const ProfileTab = () => {
     const updatedUser = { ...user, ...form };
     setUser(updatedUser);
     setEditMode(false);
-    toast({ title: "Profile Updated", description: "Your profile changes have been saved.", variant: "success" });
+    toast({ title: "Profile Updated", description: "Your profile changes have been saved.", variant: "default" });
   };
 
   const handleResumeUpdate = async (e: React.ChangeEvent<HTMLInputElement>) => {

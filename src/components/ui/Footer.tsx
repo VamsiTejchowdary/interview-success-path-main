@@ -10,6 +10,7 @@ import {
   ArrowUp,
   Heart
 } from 'lucide-react';
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   const scrollToTop = () => {
@@ -40,10 +41,10 @@ const Footer = () => {
               
               {/* Contact Info */}
               <div className="flex flex-col sm:flex-row gap-4 text-sm">
-                <div className="flex items-center space-x-2 text-slate-300">
+                {/* <div className="flex items-center space-x-2 text-slate-300">
                   <Phone className="w-4 h-4 text-purple-400" />
                   <span>+1 (555) 123-4567</span>
-                </div>
+                </div> */}
                 <div className="flex items-center space-x-2 text-slate-300">
                   <Mail className="w-4 h-4 text-blue-400" />
                   <span>hello@jobsmartly.com</span>
@@ -69,11 +70,17 @@ const Footer = () => {
             {/* <div>
               <h4 className="text-lg font-semibold mb-4 text-white">Company</h4>
               <ul className="space-y-2 text-sm">
-                {["About Us", "Success Stories", "Privacy Policy", "Contact"].map((item, index) => (
+                {["Contact"].map((item, index) => (
                   <li key={index}>
-                    <a href="#" className="text-slate-300 hover:text-white transition-colors">
-                      {item}
-                    </a>
+                    {item === "Contact" ? (
+                      <Link to="/contact" className="text-slate-300 hover:text-white transition-colors">
+                        {item}
+                      </Link>
+                    ) : (
+                      <a href="#" className="text-slate-300 hover:text-white transition-colors">
+                        {item}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>

@@ -7,7 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Tooltip } from "@/components/ui/tooltip";
+import { Tooltip, TooltipTrigger } from "@/components/ui/tooltip";
 import { CSSTransition, TransitionGroup } from "react-transition-group";
 import "./interview-card-animations.css";
 
@@ -36,7 +36,7 @@ export default function InterviewsTab() {
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const searchTimeout = useRef();
+  const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
   const [refreshing, setRefreshing] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(null);
 
@@ -169,7 +169,8 @@ export default function InterviewsTab() {
             }}
             className="w-full bg-white border border-gray-200 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-400"
           />
-          <Tooltip content="Refresh interviews">
+          <Tooltip>
+            <TooltipTrigger asChild>
             <Button
               variant="ghost"
               onClick={fetchApplications}
@@ -183,6 +184,7 @@ export default function InterviewsTab() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582M20 20v-5h-.581M5.582 9A7.003 7.003 0 0112 5c3.314 0 6.13 2.165 6.818 5M18.418 15A7.003 7.003 0 0112 19c-3.314 0-6.13-2.165-6.818-5" /></svg>
               )}
             </Button>
+            </TooltipTrigger>
           </Tooltip>
         </div>
       </div>

@@ -2,23 +2,20 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, GraduationCap, Shield, Loader2, Eye, EyeOff, Upload, Briefcase, Star, CheckCircle, Target, Award, Globe } from "lucide-react";
+import { Loader2, Eye, EyeOff, Upload, Briefcase, Star, CheckCircle, Target, Award, Globe, Shield, Users, GraduationCap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/components/ui/use-toast";
-
-type UserRole = 'recruiter' | 'user';
+import Footer from "@/components/ui/Footer";
 
 interface RegisterFormProps {
-  userType?: 'recruiter' | 'user';
   onSwitchToLogin?: () => void;
   onSignupSuccess?: (email: string, role: string) => void;
 }
 
-const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFormProps) => {
+const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -29,98 +26,74 @@ const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFo
   const [linkedin, setLinkedin] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<UserRole>('user');
-  const [name, setName] = useState("");
   const { signUp } = useAuth();
 
   const resumeBucket = import.meta.env.VITE_SUPABASE_RESUME_BUCKET;
 
-  const handleSubmit = async (role: UserRole) => {
+  const handleSubmit = async () => {
     setIsLoading(true);
     try {
-      let signupData: any = {};
-      if (role === 'recruiter') {
-        console.log('Recruiter fields:', { email, name, password, phone, address });
-        if (
-          !email.trim() ||
-          !name.trim() ||
-          !password.trim() ||
-          !phone.trim() ||
-          !address.trim()
-        ) {
-          toast({
-            title: "Missing Fields",
-            description: "Please fill in all required fields (recruiter).",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
-        signupData = { name, phone, address };
-      } else {
-        console.log('Student fields:', { email, password, firstName, lastName, phone, address, resumeFile });
-        if (
-          !email.trim() ||
-          !password.trim() ||
-          !firstName.trim() ||
-          !lastName.trim() ||
-          !phone.trim() ||
-          !address.trim() ||
-          !resumeFile
-        ) {
-          toast({
-            title: "Missing Fields",
-            description: "Please fill in all required fields (including resume).",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
-        const safeFirstName = (firstName || '').replace(/[^a-zA-Z0-9]/g, '');
-        const safeLastName = (lastName || '').replace(/[^a-zA-Z0-9]/g, '');
-        const safeEmail = (email || '').replace(/[^a-zA-Z0-9]/g, '');
-        const fileExt = resumeFile.name.split('.').pop();
-        const filePath = `${safeFirstName}_${safeLastName}_${safeEmail}/resume_${Date.now()}.${fileExt}`;
-        // Upload to Supabase Storage
-        const { data, error } = await supabase.storage.from(resumeBucket).upload(filePath, resumeFile, { upsert: false });
-        if (error) {
-          toast({
-            title: "Resume Upload Failed",
-            description: error.message,
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
-        const { data: publicUrlData } = supabase.storage.from(resumeBucket).getPublicUrl(data.path);
-        const publicUrl = publicUrlData?.publicUrl;
-        console.log("public", publicUrl);
-        if (!publicUrl) {
-          toast({
-            title: "Resume URL Error",
-            description: "Could not get public URL for uploaded resume.",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
-        signupData = {
-          first_name: firstName,
-          last_name: lastName,
-          phone,
-          address,
-          resume_url: publicUrl,
-          linkedin_url: linkedin,
-        };
+      if (
+        !email.trim() ||
+        !password.trim() ||
+        !firstName.trim() ||
+        !lastName.trim() ||
+        !phone.trim() ||
+        !address.trim() ||
+        !resumeFile
+      ) {
+        toast({
+          title: "Missing Fields",
+          description: "Please fill in all required fields (including resume).",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
       }
+      const safeFirstName = (firstName || '').replace(/[^a-zA-Z0-9]/g, '');
+      const safeLastName = (lastName || '').replace(/[^a-zA-Z0-9]/g, '');
+      const safeEmail = (email || '').replace(/[^a-zA-Z0-9]/g, '');
+      const fileExt = resumeFile.name.split('.').pop();
+      const filePath = `${safeFirstName}_${safeLastName}_${safeEmail}/resume_${Date.now()}.${fileExt}`;
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage.from(resumeBucket).upload(filePath, resumeFile, { upsert: false });
+      if (error) {
+        toast({
+          title: "Resume Upload Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      const { data: publicUrlData } = supabase.storage.from(resumeBucket).getPublicUrl(data.path);
+      const publicUrl = publicUrlData?.publicUrl;
+      if (!publicUrl) {
+        toast({
+          title: "Resume URL Error",
+          description: "Could not get public URL for uploaded resume.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+      const signupData = {
+        email,
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        address,
+        resume_url: publicUrl,
+        linkedin_url: linkedin,
+      };
       const result = await signUp(
         email,
         password,
         signupData,
-        role
+        'user'
       );
       if (result.success) {
-        onSignupSuccess?.(email, role);
+        onSignupSuccess?.(email, 'user');
       } else {
         toast({
           title: "Signup Failed",
@@ -139,27 +112,6 @@ const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFo
     }
   };
 
-  const roles = [
-    {
-      id: 'recruiter',
-      title: 'Recruiter',
-      description: 'Manage students & job applications',
-      icon: Users,
-      color: 'text-blue-600',
-      bgColor: 'bg-gradient-to-br from-blue-50 to-blue-100/50',
-      borderColor: 'border-blue-200/50',
-    },
-    {
-      id: 'user',
-      title: 'Student',
-      description: 'Track progress & interviews',
-      icon: GraduationCap,
-      color: 'text-green-600',
-      bgColor: 'bg-gradient-to-br from-green-50 to-green-100/50',
-      borderColor: 'border-green-200/50',
-    },
-  ];
-
   return (
     <div className="bg-white/70 backdrop-blur-2xl rounded-3xl p-4 sm:p-6 md:p-8 border border-white/30 shadow-2xl max-w-full sm:max-w-md mx-auto">
       <div className="text-center mb-4 sm:mb-6">
@@ -169,276 +121,191 @@ const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFo
         <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
           Join Our Platform
         </h3>
-        <p className="text-sm sm:text-base text-slate-600 mt-2">Create your account and start your journey</p>
+        <p className="text-sm sm:text-base text-slate-600 mt-2">Create your student account and start your journey</p>
       </div>
-      
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as UserRole)} className="w-full">
-        <TabsList className="grid grid-cols-2 mb-4 sm:mb-6 bg-white border border-white/30 rounded-xl p-2 sm:p-3 shadow-sm relative z-10 gap-2 sm:gap-3">
-          {roles.map((role) => (
-            <TabsTrigger
-              key={role.id}
-              value={role.id}
-              className="min-w-0 flex-1 text-sm font-semibold text-slate-600 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-blue-600 data-[state=active]:text-white data-[state=active]:shadow-sm rounded-xl py-2.5 px-2 sm:py-3 sm:px-4 transition-all duration-300"
+      <div className="space-y-4 mt-6 sm:mt-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="firstName" className="text-slate-700 font-semibold text-sm sm:text-base">
+              First Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="firstName"
+              type="text"
+              placeholder="Enter first name"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
+              disabled={isLoading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="lastName" className="text-slate-700 font-semibold text-sm sm:text-base">
+              Last Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="lastName"
+              type="text"
+              placeholder="Enter last name"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
+              disabled={isLoading}
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-slate-700 font-semibold text-sm sm:text-base">
+            Email Address <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="student@university.edu"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
+            disabled={isLoading}
+          />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="phone" className="text-slate-700 font-semibold text-sm sm:text-base">
+              Phone Number <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="+1 (555) 123-4567"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
+              disabled={isLoading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="address" className="text-slate-700 font-semibold text-sm sm:text-base">
+              Address <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="address"
+              type="text"
+              placeholder="Enter your address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
+              disabled={isLoading}
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="resume" className="text-slate-700 font-semibold text-sm sm:text-base">
+            Resume Upload <span className="text-red-500">*</span>
+          </Label>
+          <div
+            className={`
+              flex flex-col items-center justify-center gap-2
+              border-2 border-dashed border-green-300 rounded-xl bg-green-50/50
+              py-6 px-4 transition-all duration-200
+              hover:border-green-500 hover:bg-green-100
+              cursor-pointer
+            `}
+            onClick={() => document.getElementById('resume')?.click()}
+            onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+            onDrop={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                setResumeFile(e.dataTransfer.files[0]);
+              }
+            }}
+            style={{ minHeight: 120 }}
+          >
+            <input
+              id="resume"
+              type="file"
+              accept="application/pdf"
+              onChange={e => setResumeFile(e.target.files?.[0] || null)}
+              className="hidden"
+              disabled={isLoading}
+            />
+            <Upload className="w-8 h-8 text-green-500 mb-2" />
+            <span className="font-medium text-green-700">
+              {resumeFile ? "Change File" : "Click or Drag & Drop to Upload"}
+            </span>
+            <span className="text-xs text-slate-500">PDF only. Max 2MB.</span>
+            {resumeFile && (
+              <span className="mt-2 flex items-center gap-1 text-green-700 bg-green-100 px-3 py-1 rounded-lg text-sm">
+                <CheckCircle className="w-4 h-4" /> {resumeFile.name}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="linkedin" className="text-slate-700 font-semibold text-sm sm:text-base">
+            LinkedIn Profile <span className="text-slate-400 font-normal">(optional)</span>
+          </Label>
+          <Input
+            id="linkedin"
+            type="url"
+            placeholder="https://linkedin.com/in/yourprofile"
+            value={linkedin}
+            onChange={(e) => setLinkedin(e.target.value)}
+            className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
+            disabled={isLoading}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-slate-700 font-semibold text-sm sm:text-base">
+            Password <span className="text-red-500">*</span>
+          </Label>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Create a secure password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
+              disabled={isLoading}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+              disabled={isLoading}
+              tabIndex={-1}
             >
-              <div className="flex items-center gap-2 justify-center">
-                <role.icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                {role.title}
-              </div>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        <div className="h-2 sm:h-4" />
-
-        {(() => {
-          const role = roles.find(r => r.id === activeTab);
-          if (!role) return null;
-          return (
-            <div className={`p-4 sm:p-6 rounded-xl ${role.bgColor} border ${role.borderColor} shadow-sm backdrop-blur-sm mb-6 sm:mb-8`}>
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`p-2 rounded-lg bg-white/70 ${role.color} shadow-sm`}>
-                  <role.icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold text-slate-800 text-base sm:text-lg">{role.title} Account</h4>
-                  <p className="text-xs sm:text-sm text-slate-600">{role.description}</p>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-        {roles.map((role) => (
-          <TabsContent key={role.id} value={role.id} className="space-y-4 mt-6 sm:mt-8">
-            <div className="space-y-4">
-              {role.id === 'recruiter' && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="name" className="text-slate-700 font-semibold text-sm sm:text-base">Full Name</Label>
-                    <Input
-                      id="name"
-                      type="text"
-                      placeholder="Enter your full name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-slate-700 font-semibold text-sm sm:text-base">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="recruiter@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-slate-700 font-semibold text-sm sm:text-base">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+1 (555) 123-4567"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="address" className="text-slate-700 font-semibold text-sm sm:text-base">Address</Label>
-                    <Input
-                      id="address"
-                      type="text"
-                      placeholder="Enter your address"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="text-slate-700 font-semibold text-sm sm:text-base">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Create a secure password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
-                        disabled={isLoading}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                        disabled={isLoading}
-                        tabIndex={-1}
-                      >
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-              
-              {role.id === 'user' && (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="firstName" className="text-slate-700 font-semibold text-sm sm:text-base">First Name</Label>
-                      <Input
-                        id="firstName"
-                        type="text"
-                        placeholder="Enter first name"
-                        value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
-                        className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lastName" className="text-slate-700 font-semibold text-sm sm:text-base">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        type="text"
-                        placeholder="Enter last name"
-                        value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
-                        className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="text-slate-700 font-semibold text-sm sm:text-base">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="student@university.edu"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-slate-700 font-semibold text-sm sm:text-base">Phone Number</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="+1 (555) 123-4567"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="address" className="text-slate-700 font-semibold text-sm sm:text-base">Address</Label>
-                      <Input
-                        id="address"
-                        type="text"
-                        placeholder="Enter your address"
-                        value={address}
-                        onChange={(e) => setAddress(e.target.value)}
-                        className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="resume" className="text-slate-700 font-semibold text-sm sm:text-base">Resume Upload</Label>
-                    <div className="relative">
-                      <Input
-                        id="resume"
-                        type="file"
-                        accept="application/pdf"
-                        onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-                        className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:bg-green-100 file:text-green-700 hover:file:bg-green-200 file:font-medium text-sm sm:text-base"
-                        disabled={isLoading}
-                      />
-                      <Upload className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5 pointer-events-none" />
-                    </div>
-                    {resumeFile && (
-                      <p className="text-xs sm:text-sm text-green-600 bg-green-50 p-2 rounded-lg">
-                        ✓ {resumeFile.name} selected
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="linkedin" className="text-slate-700 font-semibold text-sm sm:text-base">LinkedIn Profile <span className="text-slate-400 font-normal">(optional)</span></Label>
-                    <Input
-                      id="linkedin"
-                      type="url"
-                      placeholder="https://linkedin.com/in/yourprofile"
-                      value={linkedin}
-                      onChange={(e) => setLinkedin(e.target.value)}
-                      className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password" className="text-slate-700 font-semibold text-sm sm:text-base">Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Create a secure password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="w-full p-2 sm:p-3 border border-gray-200/60 rounded-xl bg-white/80 focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all duration-200 shadow-sm text-sm sm:text-base"
-                        disabled={isLoading}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                        disabled={isLoading}
-                        tabIndex={-1}
-                      >
-                        {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-              
-              <Button
-                onClick={() => handleSubmit(activeTab)}
-                disabled={isLoading}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-12 rounded-xl font-semibold text-white shadow-lg hover:shadow-xl transition-all duration-300"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                    Creating Account...
-                  </>
-                ) : (
-                  'Create Account'
-                )}
-              </Button>
-
-              {onSwitchToLogin && (
-                <div className="text-center pt-3 sm:pt-4">
-                  <button
-                    type="button"
-                    onClick={onSwitchToLogin}
-                    className="text-purple-600 hover:text-purple-700 font-medium text-sm sm:text-base transition-colors"
-                  >
-                    Already have an account? Sign in
-                  </button>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        ))}
-      </Tabs>
+              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
+        <Button
+          onClick={handleSubmit}
+          disabled={isLoading}
+          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-12 rounded-xl font-semibold text-white shadow-lg hover:shadow-xl transition-all duration-300"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              Creating Account...
+            </>
+          ) : (
+            'Create Account'
+          )}
+        </Button>
+        {onSwitchToLogin && (
+          <div className="text-center pt-3 sm:pt-4">
+            <button
+              type="button"
+              onClick={onSwitchToLogin}
+              className="text-purple-600 hover:text-purple-700 font-medium text-sm sm:text-base transition-colors"
+            >
+              Already have an account? Sign in
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -473,13 +340,14 @@ const Signup = () => {
             </Button>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Navigation Bar */}
+      {/* Navigation Bar - move to very top */}
       <nav className="relative z-10 container mx-auto px-4 py-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -495,15 +363,12 @@ const Signup = () => {
           </Badge>
         </div>
       </nav>
-
-      {/* Hero Section */}
+      {/* Hero Section - below nav */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/5 to-blue-600/5"></div>
-        
         {/* Floating background elements */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-gradient-to-r from-purple-400/10 to-blue-400/10 rounded-full blur-3xl"></div>
         <div className="absolute bottom-20 right-10 w-96 h-96 bg-gradient-to-r from-blue-400/10 to-indigo-400/10 rounded-full blur-3xl"></div>
-        
         <div className="relative container mx-auto px-4 py-12 sm:py-20">
           <div className="grid lg:grid-cols-2 gap-8 sm:gap-16 items-center">
             {/* Left Content */}
@@ -513,7 +378,6 @@ const Signup = () => {
                   <Star className="w-4 h-4 text-yellow-500" />
                   <span className="text-sm font-medium text-slate-700">#1 Reverse Recruiting Platform</span>
                 </div>
-                
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
                   <span className="bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
                     Join
@@ -523,17 +387,15 @@ const Signup = () => {
                     JobSmartly Today
                   </span>
                 </h1>
-                
                 <p className="text-lg sm:text-xl text-slate-600 leading-relaxed max-w-2xl">
                   Sign up to access our professional reverse recruiting services, personalized job applications, and career coaching to land your dream job.
                 </p>
               </div>
-
               {/* Stats */}
               <div className="grid grid-cols-3 gap-4 sm:gap-6">
                 <div className="text-center">
                   <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    2,500+
+                    10,500+
                   </div>
                   <div className="text-sm text-slate-600 font-medium">Jobs Applied</div>
                 </div>
@@ -551,7 +413,6 @@ const Signup = () => {
                 </div>
               </div>
             </div>
-
             {/* Right Auth Section */}
             <div>
               <RegisterForm
@@ -562,35 +423,8 @@ const Signup = () => {
           </div>
         </div>
       </div>
-
       {/* Footer */}
-      <div className="relative py-12 sm:py-16 bg-gradient-to-r from-slate-50 to-white">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-8 sm:mb-12">
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-800 mb-4">Trusted by Professionals Worldwide</h3>
-            <p className="text-slate-600">Join thousands of successful job seekers who landed their dream careers</p>
-          </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8 items-center opacity-60">
-            <div className="text-center">
-              <Globe className="w-10 sm:w-12 h-10 sm:h-12 mx-auto mb-2 text-slate-400" />
-              <span className="text-sm font-medium text-slate-600">Global Reach</span>
-            </div>
-            <div className="text-center">
-              <Shield className="w-10 sm:w-12 h-10 sm:h-12 mx-auto mb-2 text-slate-400" />
-              <span className="text-sm font-medium text-slate-600">Secure & Private</span>
-            </div>
-            <div className="text-center">
-              <Users className="w-10 sm:w-12 h-10 sm:h-12 mx-auto mb-2 text-slate-400" />
-              <span className="text-sm font-medium text-slate-600">Expert Team</span>
-            </div>
-            <div className="text-center">
-              <Award className="w-10 sm:w-12 h-10 sm:h-12 mx-auto mb-2 text-slate-400" />
-              <span className="text-sm font-medium text-slate-600">Proven Results</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <Footer />
     </div>
   );
 };

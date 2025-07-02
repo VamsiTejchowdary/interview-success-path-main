@@ -79,20 +79,22 @@ const RecruiterSignup = () => {
 
   if (signupSuccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="bg-white/70 backdrop-blur-2xl rounded-3xl p-8 border border-white/30 shadow-2xl">
-            <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-8 h-8 text-white" />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex flex-col">
+        <div className="flex-1 flex items-center justify-center p-4">
+          <div className="text-center max-w-md w-full">
+            <div className="bg-white/70 backdrop-blur-2xl rounded-3xl p-8 border border-white/30 shadow-2xl">
+              <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-800 mb-4">Welcome to JobSmartly!</h2>
+              <p className="text-slate-600 mb-6">Your recruiter account has been created successfully. Please check your email to verify your account.</p>
+              <Button
+                onClick={handleSwitchToLogin}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-12 rounded-xl font-semibold"
+              >
+                Back to Sign In
+              </Button>
             </div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">Welcome to JobSmartly!</h2>
-            <p className="text-slate-600 mb-6">Your recruiter account has been created successfully. Please check your email to verify your account.</p>
-            <Button
-              onClick={handleSwitchToLogin}
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-12 rounded-xl font-semibold"
-            >
-              Back to Sign In
-            </Button>
           </div>
         </div>
       </div>

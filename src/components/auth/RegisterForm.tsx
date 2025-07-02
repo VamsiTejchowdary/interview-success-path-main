@@ -124,7 +124,7 @@ const RegisterForm = ({ userType, onSwitchToLogin, onSignupSuccess }: RegisterFo
       } else {
         toast({
           title: "Signup Failed",
-          description: result.error || "Signup failed. Please try again.",
+          description: "Signup failed. Please try again.",
           variant: "destructive",
         });
       }
@@ -463,7 +463,7 @@ const Signup = () => {
             <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-8 h-8 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-800 mb-4">Welcome to CandidateSide!</h2>
+            <h2 className="text-2xl font-bold text-slate-800 mb-4">Welcome to JobSmartly!</h2>
             <p className="text-slate-600 mb-6">Your account has been created successfully. Please check your email to verify your account.</p>
             <Button
               onClick={handleSwitchToLogin}
@@ -487,7 +487,7 @@ const Signup = () => {
               <Briefcase className="w-6 h-6 text-white" />
             </div>
             <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              CandidateSide
+              JobSmartly
             </span>
           </div>
           <Badge variant="secondary" className="px-4 py-2 bg-white/60 backdrop-blur-sm border-white/30 text-slate-700 font-medium">
@@ -520,7 +520,7 @@ const Signup = () => {
                   </span>
                   <br />
                   <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    CandidateSide Today
+                    JobSmartly Today
                   </span>
                 </h1>
                 

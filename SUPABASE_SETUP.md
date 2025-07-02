@@ -1,6 +1,6 @@
 # Supabase Setup Guide
 
-This guide will help you set up Supabase authentication and database for the CandidateSide application.
+This guide will help you set up Supabase authentication and database for the JobSmartly application.
 
 ## Step 1: Create a Supabase Project
 
@@ -8,7 +8,7 @@ This guide will help you set up Supabase authentication and database for the Can
 2. Click "New Project"
 3. Choose your organization
 4. Enter project details:
-   - Name: `candidateside` (or your preferred name)
+   - Name: `JobSmartly` (or your preferred name)
    - Database Password: Create a strong password
    - Region: Choose closest to your users
 5. Click "Create new project"
@@ -21,7 +21,7 @@ This guide will help you set up Supabase authentication and database for the Can
 4. This will create the following tables:
    - `admins` - For platform administrators
    - `recruiters` - For recruitment agents
-   - `users` - For students/candidates
+   - `users` - For students/JobSmartly
    - `job_applications` - For tracking job applications
    - `resumes` - For storing resume files
 

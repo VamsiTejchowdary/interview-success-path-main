@@ -32,7 +32,7 @@ const Footer = () => {
             {/* Company Info */}
             <div className="lg:col-span-2">
               <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent mb-4">
-                CandidateSide
+              JobSmartly
               </h3>
               <p className="text-slate-300 mb-6 max-w-md">
                 Empowering professionals to transform their careers and land their dream jobs.
@@ -46,7 +46,7 @@ const Footer = () => {
                 </div>
                 <div className="flex items-center space-x-2 text-slate-300">
                   <Mail className="w-4 h-4 text-blue-400" />
-                  <span>hello@candidateside.com</span>
+                  <span>hello@jobsmartly.com</span>
                 </div>
               </div>
             </div>
@@ -88,7 +88,7 @@ const Footer = () => {
               
               {/* Copyright */}
               <div className="text-slate-400 text-sm text-center md:text-left">
-                <p>&copy; 2025 CandidateSide. Made with <Heart className="w-4 h-4 text-red-400 inline mx-1" /> for career success</p>
+                <p>&copy; 2025 JobSmartly. Made with <Heart className="w-4 h-4 text-red-400 inline mx-1" /> for career success</p>
               </div>
 
               {/* Social Links */}

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser, AuthUser, getUserInfo } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { Linkedin, CheckCircle, Shield, Check, Crown } from "lucide-react";
+import { Linkedin, CheckCircle, Shield, Check, Crown, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const ProfileTab = () => {
@@ -25,6 +25,7 @@ const ProfileTab = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [resumeUploading, setResumeUploading] = useState(false);
   const [resumeUploadError, setResumeUploadError] = useState<string | null>(null);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
   const resumeBucket = import.meta.env.VITE_SUPABASE_RESUME_BUCKET;
   const { toast } = useToast();
 
@@ -169,6 +170,130 @@ const ProfileTab = () => {
       return <Badge className="bg-yellow-500 text-white">On Hold</Badge>;
     }
     return null;
+  };
+
+  const handlePayment = async () => {
+    if (!user || !userId || paymentProcessing) return;
+    
+    setPaymentProcessing(true);
+    
+    try {
+      // Debug: Check if environment variables are loaded
+      console.log('Razorpay Public Key:', import.meta.env.VITE_RAZORPAY_PUBLIC_KEY);
+      console.log('User subscription fee:', user.subscription_fee);
+      console.log('User ID:', userId);
+      
+      // Create order
+      const apiBase = import.meta.env.DEV ? 'http://localhost:5000' : '';
+      const orderResponse = await fetch(`${apiBase}/api/payments/create-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: user.subscription_fee,
+          currency: 'USD',
+          receipt: `receipt_${userId}_${Date.now()}`,
+        }),
+      });
+
+      if (!orderResponse.ok) {
+        const errorData = await orderResponse.json();
+        console.error('Order creation failed:', errorData);
+        throw new Error(`Failed to create order: ${errorData.error || 'Unknown error'}`);
+      }
+
+      const order = await orderResponse.json();
+      console.log('Order created successfully:', order);
+
+      // Open Razorpay checkout
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_PUBLIC_KEY, // Add this to your .env
+        amount: order.amount,
+        currency: order.currency,
+        name: 'JobSmartly',
+        description: 'Premium Subscription',
+        order_id: order.id,
+        handler: async function (response: any) {
+          try {
+            // Verify payment
+            const verifyResponse = await fetch(`${apiBase}/api/payments/verify`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                user_id: userId,
+              }),
+            });
+
+            const verifyResult = await verifyResponse.json();
+
+            if (verifyResult.success) {
+              toast({
+                title: "Payment Successful!",
+                description: "Your subscription has been activated.",
+                variant: "default",
+              });
+              
+              // Refresh user data
+              const { data } = await supabase
+                .from("users")
+                .select("next_billing_at, is_paid, status")
+                .eq("user_id", userId)
+                .single();
+              setUserDb(data);
+            } else {
+              toast({
+                title: "Payment Verification Failed",
+                description: "Please contact support if you were charged.",
+                variant: "destructive",
+              });
+            }
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            toast({
+              title: "Payment Error",
+              description: "There was an issue processing your payment. Please try again.",
+              variant: "destructive",
+            });
+          }
+        },
+        prefill: {
+          name: `${user.first_name} ${user.last_name}`,
+          email: user.email,
+          contact: user.phone,
+        },
+        theme: {
+          color: '#8b5cf6', // Purple color matching your theme
+        },
+        modal: {
+          ondismiss: function() {
+            setPaymentProcessing(false);
+          }
+        }
+      };
+
+      // Check if Razorpay is loaded
+      if (!(window as any).Razorpay) {
+        throw new Error('Razorpay script not loaded. Please refresh the page.');
+      }
+      
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+      
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast({
+        title: "Payment Error",
+        description: "Failed to initiate payment. Please try again.",
+        variant: "destructive",
+      });
+      setPaymentProcessing(false);
+    }
   };
 
   if (!user) {
@@ -370,6 +495,32 @@ const ProfileTab = () => {
               <span>{getFeeBadge()}</span>
             </div>
           </div>
+          
+          {/* Pay Now Button */}
+          {userDb && (!userDb.is_paid || isOverdue) && (
+            <div className="pt-4">
+              <Button 
+                onClick={handlePayment}
+                disabled={paymentProcessing}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                {paymentProcessing ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4" />
+                    Pay Now - ${user.subscription_fee}
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                Secure payment powered by Razorpay
+              </p>
+            </div>
+          )}
           {/* <div className="flex gap-2">
             <Button variant="outline" className="flex-1 border-purple-300 text-purple-700 hover:bg-purple-50">
               Manage Plan

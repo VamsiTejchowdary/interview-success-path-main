@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Mail, Phone } from "lucide-react";
-import { updateUserPaid, updateUserNextBilling } from "@/lib/admin";
+import { updateUserPaid, updateUserNextBilling, updateUserSubscriptionFee } from "@/lib/admin";
 
 const AdminUserModal = ({ user, onClose, updating, handleUserStatusUpdate, handleAssignRecruiter, approvedRecruiters, loadData }) => {
   const [localPaid, setLocalPaid] = useState(user.is_paid ? "yes" : "no");
   const [localNextBilling, setLocalNextBilling] = useState(user.next_billing_at ? user.next_billing_at.slice(0, 10) : "");
+  const [localSubscriptionFee, setLocalSubscriptionFee] = useState(user.subscription_fee || 0);
 
   const isOverdue = user.next_billing_at && new Date(user.next_billing_at) < new Date();
 
@@ -96,6 +97,29 @@ const AdminUserModal = ({ user, onClose, updating, handleUserStatusUpdate, handl
                     <span className="text-xs font-medium">Overdue</span>
                   </div>
                 )}
+              </div>
+            </div>
+            {/* Subscription Fee Field */}
+            <div className="flex flex-col gap-2 bg-slate-800/80 rounded-lg p-4 col-span-1 md:col-span-2">
+              <label className="text-sm font-medium text-slate-200">Subscription Fee (₹)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={localSubscriptionFee}
+                  onChange={e => setLocalSubscriptionFee(e.target.value)}
+                  onBlur={async (e) => {
+                    const value = parseFloat(e.target.value);
+                    if (!isNaN(value) && value !== user.subscription_fee) {
+                      await updateUserSubscriptionFee(user.user_id, value);
+                      loadData();
+                    }
+                  }}
+                  className="flex-1 px-3 py-2 rounded-md border border-slate-700 bg-slate-900 text-slate-100 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  disabled={user.status !== "approved"}
+                />
+                <span className="text-slate-400 text-sm">per month</span>
               </div>
             </div>
           </section>

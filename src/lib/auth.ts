@@ -187,7 +187,7 @@ export const signUpWithEmail = async (
               recruiter_id: signupData.recruiter_id,
               resume_url: signupData.resume_url,
               linkedin_url: signupData.linkedin_url,
-              subscription_fee: signupData.subscription_fee ?? 100,
+              subscription_fee: signupData.subscription_fee ?? 150,
               status: 'pending'
             }
           ])
@@ -212,7 +212,7 @@ export const signUpWithEmail = async (
           recruiter_id: signupData.recruiter_id,
           resume_url: signupData.resume_url,
           linkedin_url: signupData.linkedin_url,
-          subscription_fee: signupData.subscription_fee ?? 100
+          subscription_fee: signupData.subscription_fee ?? 150
         }
       }
     }

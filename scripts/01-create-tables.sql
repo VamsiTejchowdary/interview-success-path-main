@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
   address VARCHAR(255) NOT NULL,
   resume_url TEXT NOT NULL,
   linkedin_url TEXT,
-  subscription_fee NUMERIC DEFAULT 100 NOT NULL,
+  subscription_fee NUMERIC DEFAULT 150 NOT NULL,
   recruiter_id uuid REFERENCES recruiters(recruiter_id),
   status VARCHAR(20) DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT NOW(),

@@ -276,4 +276,12 @@ export const updateUserNextBilling = async (userId: string, nextBillingAt: strin
     .update({ next_billing_at: nextBillingAt })
     .eq('user_id', userId);
   if (error) throw error;
+};
+
+export const updateUserSubscriptionFee = async (userId: string, subscriptionFee: number) => {
+  const { error } = await supabase
+    .from('users')
+    .update({ subscription_fee: subscriptionFee })
+    .eq('user_id', userId);
+  if (error) throw error;
 }; 

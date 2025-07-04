@@ -20,10 +20,7 @@ This document explains all the environment variables required for this project.
 ### File Storage (Optional)
 - `VITE_BLOB_READ_WRITE_TOKEN`: Vercel Blob storage token for resume uploads
 
-### Payment Gateway (Razorpay)
-- `VITE_RAZORPAY_PUBLIC_KEY`: Your Razorpay public key ID
-- `RAZORPAY_PUBLIC_KEY`: Your Razorpay public key ID (for serverless functions)
-- `RAZORPAY_SECRET_KEY`: Your Razorpay secret key (for serverless functions)
+
 
 ## Example .env file
 
@@ -34,10 +31,7 @@ VITE_ADMIN_KEY=your-secret-admin-key
 VITE_AUTH_REDIRECT_URL=https://yourdomain.com
 VITE_BLOB_READ_WRITE_TOKEN=your-vercel-blob-token
 
-# Razorpay Keys
-VITE_RAZORPAY_PUBLIC_KEY=your-razorpay-public-key
-RAZORPAY_PUBLIC_KEY=your-razorpay-public-key
-RAZORPAY_SECRET_KEY=your-razorpay-secret-key
+
 ```
 
 ## Production Deployment

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { Eye, EyeOff } from "lucide-react";
 
+console.log('On mount, window.location.hash:', window.location.hash);
+
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -16,6 +18,7 @@ export default function ResetPassword() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -27,19 +30,25 @@ export default function ResetPassword() {
   }, [password, confirmPassword]);
 
   useEffect(() => {
+    // Log the hash immediately
+    console.log('useEffect running, hash:', window.location.hash);
+
+    // Read the hash and store the access and refresh tokens
     const hash = window.location.hash;
     const params = new URLSearchParams(hash.substring(1)); // remove '#'
-    const token = params.get("access_token");
-    
-    if (token) {
-      setAccessToken(token);
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+    if (accessToken && refreshToken) {
+      setAccessToken(accessToken);
+      setRefreshToken(refreshToken);
+      console.log('Access token set:', accessToken);
+      console.log('Refresh token set:', refreshToken);
     } else {
-      // If no token is found after a brief moment, show an error.
       setTimeout(() => {
         if (!window.location.hash.includes("access_token")) {
-          setMessage("Invalid or missing token. Please use the link from your email.");
+          setMessage("Invalid or expired password reset link.");
         }
-      }, 500);
+      }, 1000);
     }
   }, []);
 
@@ -61,59 +70,37 @@ export default function ResetPassword() {
     }
 
     try {
+      console.log('Access token before setSession:', accessToken);
+      console.log('Refresh token before setSession:', refreshToken);
+      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken
+      });
+      console.log('setSession result:', sessionData, sessionError);
+      if (sessionError) {
+        setMessage("Session error: " + sessionError.message);
+        setLoading(false);
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      console.log('User after setSession:', userData, userError);
+
       const { error: updateError } = await supabase.auth.updateUser({ password });
-      
       if (updateError) {
         setMessage(updateError.message);
         setLoading(false);
         return;
       }
 
-      // Check user approval status after password update
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        const userInfo = await getUserInfo(user.email!);
-        
-        if (userInfo) {
-          if (userInfo.role === 'admin') {
-            // Admin users are automatically approved
-            setMessage("Password updated successfully! You can now sign in.");
-          } else if (userInfo.status === 'pending') {
-            // Non-admin users need approval
-            setMessage("Password updated! However, your account is pending admin approval. You will be notified once approved.");
-            // Sign out the user to prevent automatic login
-            await supabase.auth.signOut();
-            // Add a small delay to ensure sign out is complete
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } else if (userInfo.status === 'approved') {
-            // Already approved users
-            setMessage("Password updated successfully! You can now sign in.");
-          } else {
-            // Rejected or other status
-            setMessage("Password updated, but your account has been rejected. Please contact support.");
-            await supabase.auth.signOut();
-            // Add a small delay to ensure sign out is complete
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        } else {
-          setMessage("Password updated, but user profile not found. Please contact support.");
-          await supabase.auth.signOut();
-          // Add a small delay to ensure sign out is complete
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-
-      // Redirect to login page after a delay
+      setMessage("Password updated successfully! You can now sign in.");
       setTimeout(() => {
         navigate('/');
       }, 3000);
-      
     } catch (error) {
       console.error('Password reset error:', error);
       setMessage("An unexpected error occurred. Please try again.");
     }
-    
     setLoading(false);
   };
 

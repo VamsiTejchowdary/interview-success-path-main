@@ -1,4 +1,4 @@
-# HireMe roject
+# HireMe Project
 
 
 ## Supabase Setup

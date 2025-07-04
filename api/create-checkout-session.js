@@ -25,9 +25,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Manually parse body for Vercel compatibility
+  let body = req.body;
+  if (!body || typeof body === 'string') {
+    try {
+      body = JSON.parse(body || '{}');
+    } catch (e) {
+      return res.status(400).json({ error: 'Invalid JSON' });
+    }
+  }
+
+  const { userEmail } = body;
   try {
-    const { userEmail } = req.body;
-    
     if (!userEmail) {
       return res.status(400).json({ error: 'User email is required' });
     }
@@ -53,7 +62,7 @@ export default async function handler(req, res) {
 
     if (userError) {
       console.error('Supabase error:', userError);
-      return res.status(500).json({ error: 'Database error' });
+      return res.status(500).json({ error: 'Database error', details: userError });
     }
 
     if (!userData) {
@@ -89,6 +98,6 @@ export default async function handler(req, res) {
     res.json({ url: session.url });
   } catch (err) {
     console.error('Error creating checkout session:', err);
-    res.status(500).json({ error: 'Failed to create Stripe Checkout session' });
+    res.status(500).json({ error: 'Failed to create Stripe Checkout session', details: err.message, stack: err.stack });
   }
 } 

@@ -27,6 +27,7 @@ const ProfileTab = () => {
   const [resumeUploadError, setResumeUploadError] = useState<string | null>(null);
   const resumeBucket = import.meta.env.VITE_SUPABASE_RESUME_BUCKET;
   const { toast } = useToast();
+  const [stripeLoading, setStripeLoading] = useState(false);
 
   useEffect(() => {
     getCurrentUser().then(async (u) => {
@@ -171,7 +172,47 @@ const ProfileTab = () => {
     return null;
   };
 
+  // Stripe Checkout handler
+  const handleStripeCheckout = async () => {
+    if (!user?.email) {
+      alert('User email not found. Please try again.');
+      return;
+    }
 
+    setStripeLoading(true);
+    try {
+      const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
+      console.log('apiBase', apiBase);
+      const endpoint = import.meta.env.DEV ? '/create-checkout-session' : '/api/create-checkout-session';
+      const response = await fetch(`${apiBase}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userEmail: user.email }),
+      });
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        alert(`Payment server error: ${errorData.error || 'Unknown error'}`);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('Response data:', data);
+      
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert('Failed to create Stripe Checkout session.');
+      }
+    } catch (err) {
+      console.error('Fetch error:', err);
+      alert(`Error connecting to payment server: ${err.message}`);
+    } finally {
+      setStripeLoading(false);
+    }
+  };
 
   if (!user) {
     return <div className="p-6 text-center text-gray-500">Loading profile...</div>;
@@ -358,30 +399,44 @@ const ProfileTab = () => {
               <span className="font-medium text-gray-800">${user.subscription_fee}/month</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Next Billing</span>
-              <span className="font-medium text-gray-800">
-                {userDb && userDb.next_billing_at ? (
-                  new Date(userDb.next_billing_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
-                ) : (
-                  <span className="text-gray-400">—</span>
-                )}
-              </span>
-            </div>
-            <div className="flex justify-between">
               <span className="text-gray-600">Fee Paid</span>
               <span>{getFeeBadge()}</span>
             </div>
+            {userDb && userDb.next_billing_at && (
+              <div className="flex justify-between">
+                <span className="text-gray-600">Next Billing</span>
+                <span className="font-medium text-gray-800">
+                  {new Date(userDb.next_billing_at).toLocaleDateString("en-US", { 
+                    year: "numeric", 
+                    month: "long", 
+                    day: "numeric" 
+                  })}
+                </span>
+              </div>
+            )}
           </div>
-          
-
-          {/* <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 border-purple-300 text-purple-700 hover:bg-purple-50">
-              Manage Plan
-            </Button>
-            <Button variant="outline" className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50">
-              Billing
-            </Button>
-          </div> */}
+          {/* Stripe Subscribe Button - Only show when user is not paid or on hold and not paid */}
+          {userDb && (!userDb.is_paid || (userDb.status === 'on_hold' && !userDb.is_paid)) && (
+            <div className="pt-4">
+              <Button
+                onClick={handleStripeCheckout}
+                disabled={stripeLoading}
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                {stripeLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Redirecting to Stripe...
+                  </>
+                ) : (
+                  <>Subscribe with Stripe</>
+                )}
+              </Button>
+              <p className="text-xs text-gray-500 text-center mt-2">
+                Secure payment powered by Stripe
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
       {/* Resume Modal */}

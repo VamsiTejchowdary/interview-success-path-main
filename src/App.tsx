@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 import RegisterForm from "@/components/auth/RegisterForm"
 import ContactForm from "./pages/contact.tsx"
 import RecruiterSignup from "./pages/agentSignup.tsx";
+import PaymentSuccess from "./pages/PaymentSuccess";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,7 @@ function AppRoutes() {
       <Route path="/admin/signup" element={<AdminSignup />} />
       <Route path="/signup-success" element={<SignupSuccessPage />} />
       <Route path="/signup" element={<RegisterForm />} />
+      <Route path="/success" element={<PaymentSuccess />} />
       <Route path="*" element={<NotFound />} />
       <Route path="/contact" element= { <ContactForm /> } />
       <Route path="/agent/signup" element={<RecruiterSignup />} />

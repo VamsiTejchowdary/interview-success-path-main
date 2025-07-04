@@ -1,19 +1,16 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
-      "destination": "/index.html"
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
     }
   ],
-  "headers": [
-    {
-      "source": "/auth/callback",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        }
-      ]
+  "functions": {
+    "api/create-checkout-session.js": {
+      "maxDuration": 30
+    },
+    "api/payment-success.js": {
+      "maxDuration": 30
     }
-  ]
+  }
 } 

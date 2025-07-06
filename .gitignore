@@ -29,3 +29,4 @@ dist-ssr
 .env.production
 .env.staging
 .env.local.backup
+.env.local.backup2

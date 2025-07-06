@@ -14,7 +14,6 @@ app.use(express.json());
 
 // Replace with your actual product/price IDs if you create them in the dashboard
 const PRODUCT_NAME = 'Premium Plan';
-const PRICE_AMOUNT = 15000; // $150.00 in cents
 const CURRENCY = 'usd';
 
 // Create a price object on the fly (for demo; in production, use a fixed price ID)

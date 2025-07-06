@@ -21,7 +21,7 @@ const PaymentSuccess = () => {
         // Get current user
         const currentUser = await getCurrentUser();
         if (!currentUser) {
-          navigate('/login');
+          navigate('/');
           return;
         }
         setUser(currentUser);
@@ -178,7 +178,7 @@ const PaymentSuccess = () => {
           
           <div className="space-y-3">
             <Button 
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/')}
               className="w-full bg-purple-600 hover:bg-purple-700 text-white"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
@@ -187,7 +187,7 @@ const PaymentSuccess = () => {
             
             <Button 
               variant="outline" 
-              onClick={() => navigate('/dashboard/profile')}
+              onClick={() => navigate('/')}
               className="w-full"
             >
               View Profile

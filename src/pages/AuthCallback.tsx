@@ -11,6 +11,30 @@ export default function AuthCallback() {
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
+  // Function to send verification success email
+  const sendVerificationEmail = async (userEmail: string, userName: string, userRole: string) => {
+    try {
+      const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
+      const endpoint = import.meta.env.DEV ? '/send-email' : '/api/send-email';
+      
+      const response = await fetch(`${apiBase}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: userEmail,
+          template: 'accountVerified',
+          templateData: [userName, userRole]
+        })
+      });
+      
+      if (!response.ok) {
+        console.error('Failed to send verification email');
+      }
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+    }
+  };
+
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
@@ -33,7 +57,10 @@ export default function AuthCallback() {
               setStatus('success');
               setMessage('Email verified successfully! You can now sign in.');
             } else if (userInfo.status === 'pending') {
-              // Non-admin users need approval
+              // Non-admin users need approval - send verification email
+              const userName = `${userInfo.first_name || ''} ${userInfo.last_name || ''}`.trim() || 'User';
+              await sendVerificationEmail(data.session.user.email!, userName, userInfo.role);
+              
               setStatus('pending');
               setMessage('Email verified! Your account is pending admin approval. You will be notified once approved.');
             } else if (userInfo.status === 'approved') {

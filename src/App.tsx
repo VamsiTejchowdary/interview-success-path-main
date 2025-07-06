@@ -18,6 +18,7 @@ import RegisterForm from "@/components/auth/RegisterForm"
 import ContactForm from "./pages/contact.tsx"
 import RecruiterSignup from "./pages/agentSignup.tsx";
 import PaymentSuccess from "./pages/PaymentSuccess";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 const queryClient = new QueryClient();
 
@@ -34,9 +35,30 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Index />} />
-      <Route path="/student" element={<StudentDashboard onLogout={handleDashboardLogout} />} />
-      <Route path="/admin/dashboard" element={<AdminDashboard onLogout={handleDashboardLogout} />} />
-      <Route path="/recruiter/dashboard" element={<AgentDashboard onLogout={handleDashboardLogout} />} />
+      <Route 
+        path="/student" 
+        element={
+          <ProtectedRoute requiredRole="user">
+            <StudentDashboard onLogout={handleDashboardLogout} />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/admin/dashboard" 
+        element={
+          <ProtectedRoute requiredRole="admin">
+            <AdminDashboard onLogout={handleDashboardLogout} />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/recruiter/dashboard" 
+        element={
+          <ProtectedRoute requiredRole="recruiter">
+            <AgentDashboard onLogout={handleDashboardLogout} />
+          </ProtectedRoute>
+        } 
+      />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/admin/signup" element={<AdminSignup />} />

@@ -16,14 +16,6 @@
       "dest": "/stripe-server.js"
     },
     {
-      "src": "/create-checkout-session",
-      "dest": "/stripe-server.js"
-    },
-    {
-      "src": "/payment-success",
-      "dest": "/stripe-server.js"
-    },
-    {
       "src": "/(.*)",
       "dest": "/dist/index.html"
     }

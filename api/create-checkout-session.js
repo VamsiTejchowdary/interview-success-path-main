@@ -93,7 +93,16 @@ export default async function handler(req, res) {
       ],
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cancel`,
+      customer_email: userEmail, // This will create a customer if it doesn't exist
     });
+    
+    // Store the customer ID in the user table for webhook processing
+    if (session.customer) {
+      await supabase
+        .from('users')
+        .update({ stripe_customer_id: session.customer })
+        .eq('email', userEmail);
+    }
     
     res.json({ url: session.url });
   } catch (err) {

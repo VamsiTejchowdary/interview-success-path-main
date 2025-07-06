@@ -73,3 +73,7 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Need to update all these in Prod Env variables
+- STRIPE_WEBHOOK_SECRET (after creating live account in stripe)
+- STRIPE_PUBLISHABLE_KEY (after creating live account in stripe)
+- STRIPE_SECRET_KEY (after creating live account in stripe)

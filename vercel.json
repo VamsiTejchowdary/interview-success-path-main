@@ -1,20 +1,26 @@
 {
-  "rewrites": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/"
+      "src": "stripe-server.js",
+      "use": "@vercel/node"
     }
   ],
-  "functions": {
-    "api/create-checkout-session.js": {
-      "maxDuration": 30
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/stripe-server.js"
     },
-    "api/payment-success.js": {
-      "maxDuration": 30
+    {
+      "src": "/create-checkout-session",
+      "dest": "/stripe-server.js"
+    },
+    {
+      "src": "/payment-success",
+      "dest": "/stripe-server.js"
     }
+  ],
+  "env": {
+    "NODE_ENV": "production"
   }
 } 

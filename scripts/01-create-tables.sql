@@ -34,8 +34,12 @@ CREATE TABLE IF NOT EXISTS users (
   status VARCHAR(20) DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT NOW(),
   next_billing_at TIMESTAMP DEFAULT NULL,
-  is_paid bool DEFAULT 'false'
+  is_paid bool DEFAULT 'false',
+  stripe_customer_id TEXT
 );
+
+-- Add index for better performance when querying by stripe_customer_id
+CREATE INDEX IF NOT EXISTS idx_users_stripe_customer_id ON users(stripe_customer_id);
 
 -- Subscriptions table
 CREATE TABLE IF NOT EXISTS subscriptions (

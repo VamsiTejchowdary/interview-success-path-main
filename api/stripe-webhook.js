@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       case 'customer.subscription.deleted':
         await handleSubscriptionDeleted(event.data.object);
         break;
-      case 'invoice.payment_succeeded':
+      case 'invoice.paid': // Changed from invoice.payment_succeeded
         await handleInvoicePaymentSucceeded(event.data.object);
         break;
       case 'invoice.payment_failed':
@@ -484,7 +484,7 @@ async function handleInvoiceUpcoming(invoice) {
 
 async function logSubscriptionEvent(event) {
   try {
-    await supabase
+    const { error } = await supabase
       .from('subscription_events')
       .insert({
         stripe_event_id: event.id,
@@ -492,7 +492,8 @@ async function logSubscriptionEvent(event) {
         event_data: event.data.object,
         processed: true
       });
+    console.log('Logged subscription event:', event.id, event.type, { error: error?.message });
   } catch (error) {
-    console.error('Error logging subscription event:', error);
+    console.error('Error logging subscription event:', error.message, error.stack);
   }
 }

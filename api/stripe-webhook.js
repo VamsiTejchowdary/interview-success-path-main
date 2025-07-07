@@ -198,6 +198,25 @@ async function handleSubscriptionCreated(subscription) {
       .eq('user_id', userData.user_id);
     console.log('User update:', { userUpdateError: userUpdateError?.message });
 
+    // --- Backfill subscription_id in payments table for first payment ---
+    // Fetch the latest invoice for this subscription
+    const invoices = await stripe.invoices.list({
+      subscription: subscription.id,
+      limit: 1,
+      status: 'paid'
+    });
+    if (invoices.data.length > 0) {
+      const latestInvoice = invoices.data[0];
+      const { error: paymentUpdateError } = await supabase
+        .from('payments')
+        .update({ subscription_id: existingSubscription ? existingSubscription.subscription_id : null })
+        .eq('user_id', userData.user_id)
+        .eq('stripe_invoice_id', latestInvoice.id)
+        .is('subscription_id', null);
+      console.log('Backfilled payment with subscription_id:', { paymentUpdateError: paymentUpdateError?.message });
+    }
+    // --- End backfill ---
+
     console.log('Subscription created successfully for user:', userData.email);
   } catch (error) {
     console.error('Error handling subscription created:', error.message, error.stack);

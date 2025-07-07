@@ -188,7 +188,7 @@ export const signUpWithEmail = async (
               resume_url: signupData.resume_url,
               linkedin_url: signupData.linkedin_url,
               subscription_fee: signupData.subscription_fee ?? 150,
-              status: 'pending'
+              status: 'on_hold'
             }
           ])
         if (insertError) {

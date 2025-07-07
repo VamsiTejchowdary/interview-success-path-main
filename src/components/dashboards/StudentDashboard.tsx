@@ -58,35 +58,6 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
     }
   };
 
-  // Mock data
-  const weeklyApplications = [
-    { week: 'Week 1', applications: 8 },
-    { week: 'Week 2', applications: 12 },
-    { week: 'Week 3', applications: 15 },
-    { week: 'Week 4', applications: 18 },
-    { week: 'Week 5', applications: 22 },
-    { week: 'Week 6', applications: 16 },
-  ];
-
-  const interviewFunnel = [
-    { stage: 'Applied', count: 145 },
-    { stage: 'Screened', count: 32 },
-    { stage: 'Technical', count: 18 },
-    { stage: 'Final', count: 8 },
-    { stage: 'Offer', count: 3 },
-  ];
-
-  const upcomingInterviews = [
-    { company: 'TechCorp Solutions', position: 'Frontend Developer', date: 'Today', time: '2:00 PM', type: 'Technical' },
-    { company: 'Innovation Labs', position: 'Full Stack Engineer', date: 'Tomorrow', time: '10:30 AM', type: 'HR Screening' },
-    { company: 'StartupXYZ', position: 'React Developer', date: 'Friday', time: '3:00 PM', type: 'Culture Fit' },
-  ];
-
-  const agentNotes = [
-    { date: '2 days ago', note: 'Updated your resume with new project experience. Focus on React skills for upcoming interviews.' },
-    { date: '5 days ago', note: 'Applied to 8 new positions this week. Great momentum! Keep practicing system design.' },
-    { date: '1 week ago', note: 'Excellent interview feedback from TechCorp. They want to move to final round!' },
-  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">

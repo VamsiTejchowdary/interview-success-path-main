@@ -67,6 +67,12 @@ export default function AuthCallback() {
               // Already approved users
               setStatus('success');
               setMessage('Email verified successfully! You can now sign in.');
+            } else if (userInfo.status === 'on_hold') {
+              // Users on hold can log in, but may have restricted access
+              setStatus('success');
+              const userName = `${userInfo.first_name || ''} ${userInfo.last_name || ''}`.trim() || 'User';
+              await sendVerificationEmail(data.session.user.email!, userName, userInfo.role);
+              setMessage('Email verified! Your account is on hold. You can sign in and make the payment to start your process.');
             } else {
               // Rejected or other status
               setStatus('error');

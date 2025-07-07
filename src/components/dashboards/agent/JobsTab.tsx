@@ -35,12 +35,15 @@ export default function JobsTab({ recruiterId }) {
 
   useEffect(() => {
     if (userId && resumeFrom && resumeTo) {
+      // Convert date range to UTC ISO strings
+      const fromUTC = new Date(resumeFrom + "T00:00:00Z").toISOString();
+      const toUTC = new Date(resumeTo + "T23:59:59Z").toISOString();
       supabase
         .from("resumes")
         .select("resume_id, name, created_at")
         .eq("user_id", userId)
-        .gte("created_at", resumeFrom + "T00:00:00")
-        .lte("created_at", resumeTo + "T23:59:59")
+        .gte("created_at", fromUTC)
+        .lte("created_at", toUTC)
         .then(({ data }) => setResumes(data || []));
     } else {
       setResumes([]);

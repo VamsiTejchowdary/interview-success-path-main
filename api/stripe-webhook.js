@@ -384,6 +384,7 @@ async function handleSubscriptionUpdated(subscription) {
   console.log('Handling subscription updated:', subscription.id, 'Customer:', subscription.customer);
   
   try {
+    // Retrieve the latest subscription data from Stripe
     const updatedSubscription = await stripe.subscriptions.retrieve(subscription.id);
     let currentPeriodStart = updatedSubscription.current_period_start 
       ? new Date(updatedSubscription.current_period_start * 1000).toISOString() 
@@ -395,35 +396,61 @@ async function handleSubscriptionUpdated(subscription) {
       ? new Date(updatedSubscription.canceled_at * 1000).toISOString() 
       : null;
     
-    console.log('Stripe subscription period start:', currentPeriodStart);
-    console.log('Stripe subscription period end:', currentPeriodEnd);
-    
+    console.log('Stripe subscription data:', {
+      id: subscription.id,
+      status: updatedSubscription.status,
+      currentPeriodStart,
+      currentPeriodEnd,
+      canceledAt
+    });
+
+    // Fallback to latest invoice if period dates are missing
     if (!currentPeriodStart || !currentPeriodEnd) {
-      console.log('Subscription dates are null, checking latest invoice...');
+      console.log('Subscription dates are null or missing, checking latest invoice...');
       const invoices = await stripe.invoices.list({
         subscription: subscription.id,
         limit: 1,
         status: 'paid'
       });
       
-      if (invoices.data.length > 0) {
+      if (invoices.data.length > 0 && invoices.data[0].lines?.data?.[0]) {
         const latestInvoice = invoices.data[0];
-        console.log('Invoice period start:', new Date(latestInvoice.period_start * 1000).toISOString());
-        console.log('Invoice period end:', new Date(latestInvoice.period_end * 1000).toISOString());
+        console.log('Latest invoice data:', {
+          invoiceId: latestInvoice.id,
+          periodStart: latestInvoice.lines.data[0].period?.start
+            ? new Date(latestInvoice.lines.data[0].period.start * 1000).toISOString()
+            : null,
+          periodEnd: latestInvoice.lines.data[0].period?.end
+            ? new Date(latestInvoice.lines.data[0].period.end * 1000).toISOString()
+            : null
+        });
         
-        if (!currentPeriodStart && latestInvoice.lines?.data?.[0]?.period?.start) {
+        if (!currentPeriodStart && latestInvoice.lines.data[0].period?.start) {
           currentPeriodStart = new Date(latestInvoice.lines.data[0].period.start * 1000).toISOString();
           console.log('Using invoice line period start as fallback:', currentPeriodStart);
         }
-        if (!currentPeriodEnd && latestInvoice.lines?.data?.[0]?.period?.end) {
+        if (!currentPeriodEnd && latestInvoice.lines.data[0].period?.end) {
           currentPeriodEnd = new Date(latestInvoice.lines.data[0].period.end * 1000).toISOString();
           console.log('Using invoice line period end as fallback:', currentPeriodEnd);
         }
+      } else {
+        console.log('No paid invoices found for subscription:', subscription.id);
       }
     }
-    
-    console.log('Updating subscription in database...');
-    const { error } = await supabase
+
+    // Ensure period dates are valid before updating
+    if (!currentPeriodStart || !currentPeriodEnd) {
+      console.error('Cannot update subscription: Missing valid period start or end dates');
+      return;
+    }
+
+    // Update subscription in Supabase
+    console.log('Updating subscription in database with:', {
+      stripe_subscription_id: subscription.id,
+      currentPeriodStart,
+      currentPeriodEnd
+    });
+    const { data, error } = await supabase
       .from('subscriptions')
       .update({
         status: updatedSubscription.status,
@@ -433,13 +460,25 @@ async function handleSubscriptionUpdated(subscription) {
         canceled_at: canceledAt,
         updated_at: new Date().toISOString()
       })
-      .eq('stripe_subscription_id', subscription.id);
+      .eq('stripe_subscription_id', subscription.id)
+      .select(); // Return updated data for verification
 
     if (error) {
-      console.error('Error updating subscription:', error.message);
-      return;
+      console.error('Error updating subscription in Supabase:', {
+        error: error.message,
+        details: error.details,
+        code: error.code
+      });
+      throw new Error(`Failed to update subscription: ${error.message}`);
     }
 
+    console.log('Subscription updated successfully:', {
+      subscriptionId: data?.[0]?.subscription_id,
+      currentPeriodStart: data?.[0]?.current_period_start,
+      currentPeriodEnd: data?.[0]?.current_period_end
+    });
+
+    // Update user with next_billing_at
     const { data: subscriptionData } = await supabase
       .from('subscriptions')
       .select('user_id')
@@ -447,9 +486,8 @@ async function handleSubscriptionUpdated(subscription) {
       .single();
 
     if (subscriptionData) {
-      const nextBillingAt = currentPeriodEnd;
       const userUpdate = {
-        next_billing_at: nextBillingAt
+        next_billing_at: currentPeriodEnd
       };
 
       if (updatedSubscription.status === 'canceled' || updatedSubscription.status === 'unpaid') {
@@ -460,15 +498,22 @@ async function handleSubscriptionUpdated(subscription) {
         userUpdate.status = 'approved';
       }
 
-      await supabase
+      const { error: userUpdateError } = await supabase
         .from('users')
         .update(userUpdate)
         .eq('user_id', subscriptionData.user_id);
-      console.log('Updating user billing date...');
+
+      console.log('User update:', {
+        user_id: subscriptionData.user_id,
+        next_billing_at: currentPeriodEnd,
+        error: userUpdateError?.message
+      });
       console.log('User updated successfully');
+    } else {
+      console.log('No user found for subscription:', subscription.id);
     }
 
-    console.log('Subscription updated successfully');
+    console.log('Subscription updated successfully for subscription:', subscription.id);
   } catch (error) {
     console.error('Error handling subscription updated:', error.message, error.stack);
     throw error;

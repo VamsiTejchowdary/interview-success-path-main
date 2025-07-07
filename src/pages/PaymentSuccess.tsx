@@ -31,7 +31,7 @@ const PaymentSuccess = () => {
         
         if (sessionId) {
           // Call your backend to get payment details
-          const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
+          const apiBase = import.meta.env.VITE_API_BASE_URL || (import.meta.env.DEV ? 'http://localhost:4242' : '');
           const endpoint = import.meta.env.DEV ? '/payment-success' : '/api/payment-success';
           const response = await fetch(`${apiBase}${endpoint}?session_id=${sessionId}`, {
             method: 'GET',

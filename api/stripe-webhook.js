@@ -209,85 +209,78 @@ async function handleInvoicePaid(invoice) {
   console.log('Handling invoice paid:', invoice.id, 'Subscription:', invoice.subscription, 'Customer:', invoice.customer);
   
   try {
-    let { data: subscriptionData, error: subscriptionError } = await supabase
-      .from('subscriptions')
-      .select('subscription_id, user_id')
-      .eq('stripe_subscription_id', invoice.subscription)
-      .single();
-    
-    console.log('Subscription lookup:', { subscriptionData, subscriptionError: subscriptionError?.message });
+    let subscriptionData = null;
 
-    // --- Update subscriptions table with invoice period if subscription exists ---
-    let updatedSubscriptionId = subscriptionData && subscriptionData.subscription_id ? subscriptionData.subscription_id : null;
-    if (!updatedSubscriptionId && subscriptionData && subscriptionData.user_id) {
-      // Try to find the most recent active subscription for this user
-      const { data: subByUser, error: subByUserError } = await supabase
+    // Try to find subscription by stripe_subscription_id
+    if (invoice.subscription) {
+      const { data, error } = await supabase
         .from('subscriptions')
-        .select('subscription_id')
-        .eq('user_id', subscriptionData.user_id)
+        .select('subscription_id, user_id')
+        .eq('stripe_subscription_id', invoice.subscription)
+        .single();
+      
+      console.log('Subscription lookup by stripe_subscription_id:', {
+        stripe_subscription_id: invoice.subscription,
+        subscriptionData: data,
+        error: error?.message
+      });
+
+      if (data) {
+        subscriptionData = data;
+      }
+    }
+
+    // If subscription not found, try finding by stripe_customer_id
+    if (!subscriptionData && invoice.customer) {
+      console.log('Subscription not found by stripe_subscription_id, trying stripe_customer_id:', invoice.customer);
+      const { data: subByCustomer, error: subError } = await supabase
+        .from('subscriptions')
+        .select('subscription_id, user_id')
+        .eq('stripe_customer_id', invoice.customer)
         .eq('status', 'active')
-        .order('current_period_end', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(1)
         .single();
-      if (subByUser) {
-        updatedSubscriptionId = subByUser.subscription_id;
-        console.log('Found subscription by user_id for period update:', subByUser.subscription_id);
-      }
-    }
-    if (updatedSubscriptionId && invoice.lines?.data?.[0]?.period) {
-      const periodStart = invoice.lines.data[0].period.start
-        ? new Date(invoice.lines.data[0].period.start * 1000).toISOString()
-        : null;
-      const periodEnd = invoice.lines.data[0].period.end
-        ? new Date(invoice.lines.data[0].period.end * 1000).toISOString()
-        : null;
-      const status = invoice.status || 'active';
-      const { error: subUpdateError } = await supabase
-        .from('subscriptions')
-        .update({
-          current_period_start: periodStart,
-          current_period_end: periodEnd,
-          status: status,
-          updated_at: new Date().toISOString()
-        })
-        .eq('subscription_id', updatedSubscriptionId);
-      if (subUpdateError) {
-        console.error('Error updating subscription from invoice.paid:', subUpdateError.message);
-      } else {
-        console.log('Updated subscription period from invoice.paid');
-      }
-    }
-    // --- End update subscriptions table ---
 
+      console.log('Subscription lookup by stripe_customer_id:', {
+        stripe_customer_id: invoice.customer,
+        subscriptionData: subByCustomer,
+        error: subError?.message
+      });
+
+      if (subByCustomer) {
+        subscriptionData = subByCustomer;
+        // Update subscription with correct stripe_subscription_id if mismatched
+        if (invoice.subscription && subByCustomer.stripe_subscription_id !== invoice.subscription) {
+          console.log('Updating subscription with new stripe_subscription_id:', invoice.subscription);
+          const { error: updateError } = await supabase
+            .from('subscriptions')
+            .update({
+              stripe_subscription_id: invoice.subscription,
+              updated_at: new Date().toISOString()
+            })
+            .eq('subscription_id', subByCustomer.subscription_id);
+          console.log('Subscription ID update:', { error: updateError?.message });
+        }
+      }
+    }
+
+    // If still no subscription, try user lookup by customer_id or email
     if (!subscriptionData && invoice.customer) {
-      console.log('Subscription not found, looking for user by customer ID...');
-      const { data: userByCustomer, error: userError } = await supabase
+      console.log('No subscription found, looking for user by customer ID...');
+      let { data: userByCustomer, error: userError } = await supabase
         .from('users')
         .select('user_id')
         .eq('stripe_customer_id', invoice.customer)
         .single();
       
-      console.log('User lookup by customer ID:', { userByCustomer, userError: userError?.message });
-      
-      if (userByCustomer) {
-        console.log('Found user by customer ID, will use user_id:', userByCustomer.user_id);
-        // Try to find the most recent active subscription for this user
-        const { data: subByUser, error: subByUserError } = await supabase
-          .from('subscriptions')
-          .select('subscription_id')
-          .eq('user_id', userByCustomer.user_id)
-          .eq('status', 'active')
-          .order('current_period_end', { ascending: false })
-          .limit(1)
-          .single();
-        if (subByUser) {
-          subscriptionData = { user_id: userByCustomer.user_id, subscription_id: subByUser.subscription_id };
-          console.log('Found subscription by user_id:', subByUser.subscription_id);
-        } else {
-          subscriptionData = { user_id: userByCustomer.user_id };
-          console.log('No active subscription found for user_id:', userByCustomer.user_id);
-        }
-      } else {
+      console.log('User lookup by customer ID:', {
+        stripe_customer_id: invoice.customer,
+        userData: userByCustomer,
+        error: userError?.message
+      });
+
+      if (!userByCustomer) {
         console.log('Looking for user by email from customer...');
         const customer = await stripe.customers.retrieve(invoice.customer);
         console.log('Customer details:', { email: customer.email, customerId: customer.id });
@@ -299,7 +292,11 @@ async function handleInvoicePaid(invoice) {
             .eq('email', customer.email)
             .single();
           
-          console.log('User lookup by email:', { userByEmail, emailError: emailError?.message });
+          console.log('User lookup by email:', {
+            email: customer.email,
+            userData: userByEmail,
+            error: emailError?.message
+          });
           
           if (userByEmail) {
             console.log('Found user by email, updating stripe_customer_id...');
@@ -307,33 +304,45 @@ async function handleInvoicePaid(invoice) {
               .from('users')
               .update({ stripe_customer_id: invoice.customer })
               .eq('user_id', userByEmail.user_id);
-            console.log('Customer ID update:', { updateError: updateError?.message });
-            // Try to find the most recent active subscription for this user
-            const { data: subByUser, error: subByUserError } = await supabase
-              .from('subscriptions')
-              .select('subscription_id')
-              .eq('user_id', userByEmail.user_id)
-              .eq('status', 'active')
-              .order('current_period_end', { ascending: false })
-              .limit(1)
-              .single();
-            if (subByUser) {
-              subscriptionData = { user_id: userByEmail.user_id, subscription_id: subByUser.subscription_id };
-              console.log('Found subscription by user_id:', subByUser.subscription_id);
-            } else {
-              subscriptionData = { user_id: userByEmail.user_id };
-              console.log('No active subscription found for user_id:', userByEmail.user_id);
-            }
+            console.log('Customer ID update:', { error: updateError?.message });
+            userByCustomer = userByEmail;
           }
         }
+      }
+
+      if (userByCustomer) {
+        subscriptionData = { user_id: userByCustomer.user_id };
+        console.log('Using user_id for payment insertion:', userByCustomer.user_id);
       }
     }
     
     if (!subscriptionData) {
-      console.log('No user found for this invoice, skipping payment insertion');
+      console.log('No user or subscription found for invoice, skipping payment insertion:', invoice.id);
       return;
     }
 
+    // Update subscription period if subscription exists and invoice has period data
+    if (subscriptionData.subscription_id && invoice.lines?.data?.[0]?.period) {
+      const periodStart = invoice.lines.data[0].period.start
+        ? new Date(invoice.lines.data[0].period.start * 1000).toISOString()
+        : null;
+      const periodEnd = invoice.lines.data[0].period.end
+        ? new Date(invoice.lines.data[0].period.end * 1000).toISOString()
+        : null;
+      console.log('Updating subscription period from invoice:', { periodStart, periodEnd });
+      const { error: subUpdateError } = await supabase
+        .from('subscriptions')
+        .update({
+          current_period_start: periodStart,
+          current_period_end: periodEnd,
+          status: invoice.status === 'paid' ? 'active' : 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('subscription_id', subscriptionData.subscription_id);
+      console.log('Subscription period update:', { error: subUpdateError?.message });
+    }
+
+    // Insert payment record
     const paymentData = {
       user_id: subscriptionData.user_id,
       stripe_payment_intent_id: invoice.payment_intent,
@@ -341,7 +350,7 @@ async function handleInvoicePaid(invoice) {
       amount: invoice.amount_paid / 100,
       currency: invoice.currency.toUpperCase(),
       status: 'succeeded',
-      payment_method: 'card',
+      payment_method: invoice.payment_method_details?.type || 'card',
       billing_reason: invoice.billing_reason,
       paid_at: invoice.paid_at ? new Date(invoice.paid_at * 1000).toISOString() : new Date().toISOString()
     };
@@ -350,11 +359,13 @@ async function handleInvoicePaid(invoice) {
       paymentData.subscription_id = subscriptionData.subscription_id;
     }
 
+    console.log('Inserting payment with data:', paymentData);
     const { error: paymentError } = await supabase
       .from('payments')
       .insert(paymentData);
-    console.log('Payment insert:', { paymentError: paymentError?.message });
+    console.log('Payment insert:', { error: paymentError?.message });
 
+    // Update user with next_billing_at
     const nextBillingAt = invoice.lines?.data?.[0]?.period?.end 
       ? new Date(invoice.lines.data[0].period.end * 1000).toISOString() 
       : null;
@@ -368,12 +379,12 @@ async function handleInvoicePaid(invoice) {
           next_billing_at: nextBillingAt
         })
         .eq('user_id', subscriptionData.user_id);
-      console.log('User update:', { userUpdateError: userUpdateError?.message });
+      console.log('User update:', { user_id: subscriptionData.user_id, next_billing_at: nextBillingAt, error: userUpdateError?.message });
     } else {
-      console.log('Could not determine next billing date from invoice');
+      console.log('Could not determine next billing date from invoice:', invoice.id);
     }
 
-    console.log('Invoice paid processed successfully');
+    console.log('Invoice paid processed successfully:', invoice.id);
   } catch (error) {
     console.error('Error handling invoice paid:', error.message, error.stack);
     throw error;
@@ -401,7 +412,8 @@ async function handleSubscriptionUpdated(subscription) {
       status: updatedSubscription.status,
       currentPeriodStart,
       currentPeriodEnd,
-      canceledAt
+      canceledAt,
+      customer: subscription.customer
     });
 
     // Fallback to latest invoice if period dates are missing
@@ -438,19 +450,19 @@ async function handleSubscriptionUpdated(subscription) {
       }
     }
 
-    // Ensure period dates are valid before updating
+    // Validate period dates
     if (!currentPeriodStart || !currentPeriodEnd) {
       console.error('Cannot update subscription: Missing valid period start or end dates');
-      return;
+      throw new Error('Missing valid period start or end dates for subscription update');
     }
 
-    // Update subscription in Supabase
-    console.log('Updating subscription in database with:', {
+    // Try updating subscription by stripe_subscription_id
+    console.log('Attempting to update subscription with:', {
       stripe_subscription_id: subscription.id,
       currentPeriodStart,
       currentPeriodEnd
     });
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('subscriptions')
       .update({
         status: updatedSubscription.status,
@@ -461,22 +473,115 @@ async function handleSubscriptionUpdated(subscription) {
         updated_at: new Date().toISOString()
       })
       .eq('stripe_subscription_id', subscription.id)
-      .select(); // Return updated data for verification
+      .select();
 
-    if (error) {
-      console.error('Error updating subscription in Supabase:', {
-        error: error.message,
-        details: error.details,
-        code: error.code
+    // If no rows updated, try finding subscription by stripe_customer_id
+    if (error || !data?.length) {
+      console.error('Initial subscription update failed:', {
+        error: error?.message,
+        details: error?.details,
+        code: error?.code
       });
-      throw new Error(`Failed to update subscription: ${error.message}`);
-    }
+      console.log('Attempting fallback update using stripe_customer_id:', subscription.customer);
 
-    console.log('Subscription updated successfully:', {
-      subscriptionId: data?.[0]?.subscription_id,
-      currentPeriodStart: data?.[0]?.current_period_start,
-      currentPeriodEnd: data?.[0]?.current_period_end
-    });
+      const { data: subscriptionData, error: subError } = await supabase
+        .from('subscriptions')
+        .select('subscription_id, user_id, stripe_subscription_id')
+        .eq('stripe_customer_id', subscription.customer)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (subError || !subscriptionData) {
+        console.error('Fallback subscription lookup failed:', {
+          error: subError?.message,
+          customerId: subscription.customer
+        });
+        // If no active subscription found, create a new one
+        console.log('No active subscription found, creating new subscription record...');
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('user_id')
+          .eq('stripe_customer_id', subscription.customer)
+          .single();
+
+        if (userError || !userData) {
+          console.error('User lookup failed for customer:', subscription.customer, userError?.message);
+          throw new Error(`No user found for customer: ${subscription.customer}`);
+        }
+
+        const { data: newSubData, error: insertError } = await supabase
+          .from('subscriptions')
+          .insert({
+            user_id: userData.user_id,
+            stripe_customer_id: subscription.customer,
+            stripe_subscription_id: subscription.id,
+            stripe_price_id: updatedSubscription.items.data[0]?.price.id,
+            plan_name: 'Premium Plan',
+            amount: updatedSubscription.items.data[0]?.price.unit_amount / 100,
+            currency: updatedSubscription.currency.toUpperCase(),
+            interval: updatedSubscription.items.data[0]?.price.recurring.interval,
+            status: updatedSubscription.status,
+            current_period_start: currentPeriodStart,
+            current_period_end: currentPeriodEnd,
+            cancel_at_period_end: updatedSubscription.cancel_at_period_end,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .select();
+
+        if (insertError || !newSubData?.length) {
+          console.error('Failed to create new subscription:', insertError?.message);
+          throw new Error(`Failed to create subscription: ${insertError?.message}`);
+        }
+
+        data = newSubData;
+        console.log('New subscription created:', {
+          subscriptionId: data[0]?.subscription_id,
+          currentPeriodStart: data[0]?.current_period_start,
+          currentPeriodEnd: data[0]?.current_period_end
+        });
+      } else {
+        // Update existing subscription with new stripe_subscription_id
+        console.log('Found subscription by customer_id, updating with new stripe_subscription_id:', subscription.id);
+        const { data: updateData, error: updateError } = await supabase
+          .from('subscriptions')
+          .update({
+            stripe_subscription_id: subscription.id,
+            status: updatedSubscription.status,
+            current_period_start: currentPeriodStart,
+            current_period_end: currentPeriodEnd,
+            cancel_at_period_end: updatedSubscription.cancel_at_period_end,
+            canceled_at: canceledAt,
+            updated_at: new Date().toISOString()
+          })
+          .eq('subscription_id', subscriptionData.subscription_id)
+          .select();
+
+        if (updateError || !updateData?.length) {
+          console.error('Fallback subscription update failed:', {
+            error: updateError?.message,
+            details: updateError?.details,
+            code: updateError?.code
+          });
+          throw new Error(`Failed to update subscription: ${updateError?.message || 'Unknown error'}`);
+        }
+
+        data = updateData;
+        console.log('Fallback subscription update successful:', {
+          subscriptionId: data[0]?.subscription_id,
+          currentPeriodStart: data[0]?.current_period_start,
+          currentPeriodEnd: data[0]?.current_period_end
+        });
+      }
+    } else {
+      console.log('Subscription updated successfully:', {
+        subscriptionId: data[0]?.subscription_id,
+        currentPeriodStart: data[0]?.current_period_start,
+        currentPeriodEnd: data[0]?.current_period_end
+      });
+    }
 
     // Update user with next_billing_at
     const { data: subscriptionData } = await supabase
@@ -487,16 +592,10 @@ async function handleSubscriptionUpdated(subscription) {
 
     if (subscriptionData) {
       const userUpdate = {
-        next_billing_at: currentPeriodEnd
+        next_billing_at: currentPeriodEnd,
+        is_paid: updatedSubscription.status === 'active',
+        status: updatedSubscription.status === 'active' ? 'approved' : updatedSubscription.status === 'canceled' || updatedSubscription.status === 'unpaid' ? 'on_hold' : 'pending'
       };
-
-      if (updatedSubscription.status === 'canceled' || updatedSubscription.status === 'unpaid') {
-        userUpdate.is_paid = false;
-        userUpdate.status = 'on_hold';
-      } else if (updatedSubscription.status === 'active') {
-        userUpdate.is_paid = true;
-        userUpdate.status = 'approved';
-      }
 
       const { error: userUpdateError } = await supabase
         .from('users')
@@ -506,6 +605,8 @@ async function handleSubscriptionUpdated(subscription) {
       console.log('User update:', {
         user_id: subscriptionData.user_id,
         next_billing_at: currentPeriodEnd,
+        is_paid: userUpdate.is_paid,
+        status: userUpdate.status,
         error: userUpdateError?.message
       });
       console.log('User updated successfully');

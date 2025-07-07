@@ -28,7 +28,7 @@ export default async function handler(req, res) {
   let event;
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
-    console.log('Received webhook event:', event.type, 'ID:', event.id);
+    console.log('Received webhook event:', event.type, 'ID:', event.id, 'Data:', JSON.stringify(event.data.object, null, 2));
   } catch (err) {
     console.error('Webhook signature verification failed:', err.message);
     return res.status(400).json({ error: `Webhook signature verification failed: ${err.message}` });
@@ -45,8 +45,8 @@ export default async function handler(req, res) {
       case 'customer.subscription.deleted':
         await handleSubscriptionDeleted(event.data.object);
         break;
-      case 'invoice.paid': // Changed from invoice.payment_succeeded
-        await handleInvoicePaymentSucceeded(event.data.object);
+      case 'invoice.paid':
+        await handleInvoicePaid(event.data.object);
         break;
       case 'invoice.payment_failed':
         await handleInvoicePaymentFailed(event.data.object);
@@ -61,7 +61,7 @@ export default async function handler(req, res) {
     await logSubscriptionEvent(event);
     return res.status(200).json({ received: true });
   } catch (error) {
-    console.error('Webhook processing error:', error);
+    console.error('Webhook processing error:', error.message, error.stack);
     return res.status(500).json({ error: `Webhook processing failed: ${error.message}` });
   }
 }
@@ -121,14 +121,14 @@ async function handleSubscriptionCreated(subscription) {
 
     console.log('Existing subscription check:', { existingSubscription });
 
+    const currentPeriodStart = subscription.current_period_start 
+      ? new Date(subscription.current_period_start * 1000).toISOString() 
+      : null;
+    const currentPeriodEnd = subscription.current_period_end 
+      ? new Date(subscription.current_period_end * 1000).toISOString() 
+      : null;
+
     if (existingSubscription) {
-      const currentPeriodStart = subscription.current_period_start 
-        ? new Date(subscription.current_period_start * 1000).toISOString() 
-        : null;
-      const currentPeriodEnd = subscription.current_period_end 
-        ? new Date(subscription.current_period_end * 1000).toISOString() 
-        : null;
-      
       const { error: updateError } = await supabase
         .from('subscriptions')
         .update({
@@ -144,13 +144,6 @@ async function handleSubscriptionCreated(subscription) {
         .eq('subscription_id', existingSubscription.subscription_id);
       console.log('Subscription update:', { updateError: updateError?.message });
     } else {
-      const currentPeriodStart = subscription.current_period_start 
-        ? new Date(subscription.current_period_start * 1000).toISOString() 
-        : null;
-      const currentPeriodEnd = subscription.current_period_end 
-        ? new Date(subscription.current_period_end * 1000).toISOString() 
-        : null;
-      
       const { error: insertError } = await supabase
         .from('subscriptions')
         .insert({
@@ -165,7 +158,9 @@ async function handleSubscriptionCreated(subscription) {
           status: subscription.status,
           current_period_start: currentPeriodStart,
           current_period_end: currentPeriodEnd,
-          cancel_at_period_end: subscription.cancel_at_period_end
+          cancel_at_period_end: subscription.cancel_at_period_end,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
       console.log('Subscription insert:', { insertError: insertError?.message });
     }
@@ -191,30 +186,30 @@ async function handleSubscriptionCreated(subscription) {
   }
 }
 
-async function handleInvoicePaymentSucceeded(invoice) {
-  console.log('Handling invoice payment succeeded:', invoice.id, 'Subscription:', invoice.subscription);
+async function handleInvoicePaid(invoice) {
+  console.log('Handling invoice paid:', invoice.id, 'Subscription:', invoice.subscription, 'Customer:', invoice.customer);
   
   try {
-    let { data: subscriptionData } = await supabase
+    let { data: subscriptionData, error: subscriptionError } = await supabase
       .from('subscriptions')
       .select('subscription_id, user_id')
       .eq('stripe_subscription_id', invoice.subscription)
       .single();
     
-    console.log('Subscription lookup:', { subscriptionData });
+    console.log('Subscription lookup:', { subscriptionData, subscriptionError: subscriptionError?.message });
 
     if (!subscriptionData && invoice.customer) {
       console.log('Subscription not found, looking for user by customer ID...');
-      const { data: userByCustomer } = await supabase
+      const { data: userByCustomer, error: userError } = await supabase
         .from('users')
         .select('user_id')
         .eq('stripe_customer_id', invoice.customer)
         .single();
       
-      console.log('User lookup by customer ID:', { userByCustomer });
+      console.log('User lookup by customer ID:', { userByCustomer, userError: userError?.message });
       
       if (userByCustomer) {
-        console.log('Found user by customer ID, will create subscription record later');
+        console.log('Found user by customer ID, will use user_id:', userByCustomer.user_id);
         subscriptionData = { user_id: userByCustomer.user_id };
       } else {
         console.log('Looking for user by email from customer...');
@@ -222,13 +217,13 @@ async function handleInvoicePaymentSucceeded(invoice) {
         console.log('Customer details:', { email: customer.email, customerId: customer.id });
         
         if (customer.email) {
-          const { data: userByEmail } = await supabase
+          const { data: userByEmail, error: emailError } = await supabase
             .from('users')
             .select('user_id')
             .eq('email', customer.email)
             .single();
           
-          console.log('User lookup by email:', { userByEmail });
+          console.log('User lookup by email:', { userByEmail, emailError: emailError?.message });
           
           if (userByEmail) {
             console.log('Found user by email, updating stripe_customer_id...');
@@ -245,29 +240,30 @@ async function handleInvoicePaymentSucceeded(invoice) {
     }
     
     if (!subscriptionData) {
-      console.log('No user found for this invoice');
+      console.log('No user found for this invoice, skipping payment insertion');
       return;
     }
 
+    const paymentData = {
+      user_id: subscriptionData.user_id,
+      stripe_payment_intent_id: invoice.payment_intent,
+      stripe_invoice_id: invoice.id,
+      amount: invoice.amount_paid / 100,
+      currency: invoice.currency.toUpperCase(),
+      status: 'succeeded',
+      payment_method: 'card',
+      billing_reason: invoice.billing_reason,
+      paid_at: invoice.paid_at ? new Date(invoice.paid_at * 1000).toISOString() : new Date().toISOString()
+    };
+
     if (subscriptionData.subscription_id) {
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          subscription_id: subscriptionData.subscription_id,
-          user_id: subscriptionData.user_id,
-          stripe_payment_intent_id: invoice.payment_intent,
-          stripe_invoice_id: invoice.id,
-          amount: invoice.amount_paid / 100,
-          currency: invoice.currency.toUpperCase(),
-          status: 'succeeded',
-          payment_method: 'card',
-          billing_reason: invoice.billing_reason,
-          paid_at: new Date().toISOString()
-        });
-      console.log('Payment insert:', { paymentError: paymentError?.message });
-    } else {
-      console.log('Skipping payment record creation - subscription not created yet');
+      paymentData.subscription_id = subscriptionData.subscription_id;
     }
+
+    const { error: paymentError } = await supabase
+      .from('payments')
+      .insert(paymentData);
+    console.log('Payment insert:', { paymentError: paymentError?.message });
 
     const nextBillingAt = invoice.lines?.data?.[0]?.period?.end 
       ? new Date(invoice.lines.data[0].period.end * 1000).toISOString() 
@@ -287,17 +283,15 @@ async function handleInvoicePaymentSucceeded(invoice) {
       console.log('Could not determine next billing date from invoice');
     }
 
-    console.log('Payment succeeded processed successfully');
+    console.log('Invoice paid processed successfully');
   } catch (error) {
-    console.error('Error handling invoice payment succeeded:', error.message, error.stack);
+    console.error('Error handling invoice paid:', error.message, error.stack);
     throw error;
   }
 }
 
-// Keep other handler functions as-is
 async function handleSubscriptionUpdated(subscription) {
-  console.log('🔄 Processing event type: subscription.updated');
-  console.log('Handling subscription updated:', subscription.id);
+  console.log('Handling subscription updated:', subscription.id, 'Customer:', subscription.customer);
   
   try {
     const updatedSubscription = await stripe.subscriptions.retrieve(subscription.id);
@@ -311,11 +305,11 @@ async function handleSubscriptionUpdated(subscription) {
       ? new Date(updatedSubscription.canceled_at * 1000).toISOString() 
       : null;
     
-    console.log('📅 Stripe subscription period start:', currentPeriodStart);
-    console.log('📅 Stripe subscription period end:', currentPeriodEnd);
+    console.log('Stripe subscription period start:', currentPeriodStart);
+    console.log('Stripe subscription period end:', currentPeriodEnd);
     
     if (!currentPeriodStart || !currentPeriodEnd) {
-      console.log('📅 Subscription dates are null, checking latest invoice...');
+      console.log('Subscription dates are null, checking latest invoice...');
       const invoices = await stripe.invoices.list({
         subscription: subscription.id,
         limit: 1,
@@ -324,21 +318,21 @@ async function handleSubscriptionUpdated(subscription) {
       
       if (invoices.data.length > 0) {
         const latestInvoice = invoices.data[0];
-        console.log('📅 Invoice period start:', new Date(latestInvoice.period_start * 1000).toISOString());
-        console.log('📅 Invoice period end:', new Date(latestInvoice.period_end * 1000).toISOString());
+        console.log('Invoice period start:', new Date(latestInvoice.period_start * 1000).toISOString());
+        console.log('Invoice period end:', new Date(latestInvoice.period_end * 1000).toISOString());
         
         if (!currentPeriodStart && latestInvoice.lines?.data?.[0]?.period?.start) {
           currentPeriodStart = new Date(latestInvoice.lines.data[0].period.start * 1000).toISOString();
-          console.log('📅 Using invoice line period start as fallback:', currentPeriodStart);
+          console.log('Using invoice line period start as fallback:', currentPeriodStart);
         }
         if (!currentPeriodEnd && latestInvoice.lines?.data?.[0]?.period?.end) {
           currentPeriodEnd = new Date(latestInvoice.lines.data[0].period.end * 1000).toISOString();
-          console.log('📅 Using invoice line period end as fallback:', currentPeriodEnd);
+          console.log('Using invoice line period end as fallback:', currentPeriodEnd);
         }
       }
     }
     
-    console.log('🔄 Updating subscription in database...');
+    console.log('Updating subscription in database...');
     const { error } = await supabase
       .from('subscriptions')
       .update({
@@ -352,7 +346,7 @@ async function handleSubscriptionUpdated(subscription) {
       .eq('stripe_subscription_id', subscription.id);
 
     if (error) {
-      console.error('Error updating subscription:', error);
+      console.error('Error updating subscription:', error.message);
       return;
     }
 
@@ -380,13 +374,13 @@ async function handleSubscriptionUpdated(subscription) {
         .from('users')
         .update(userUpdate)
         .eq('user_id', subscriptionData.user_id);
-      console.log('🔄 Updating user billing date...');
-      console.log('✅ User updated successfully');
+      console.log('Updating user billing date...');
+      console.log('User updated successfully');
     }
 
-    console.log('✅ Subscription updated successfully');
+    console.log('Subscription updated successfully');
   } catch (error) {
-    console.error('Error handling subscription updated:', error);
+    console.error('Error handling subscription updated:', error.message, error.stack);
     throw error;
   }
 }
@@ -423,7 +417,7 @@ async function handleSubscriptionDeleted(subscription) {
 
     console.log('Subscription deleted successfully');
   } catch (error) {
-    console.error('Error handling subscription deleted:', error);
+    console.error('Error handling subscription deleted:', error.message, error.stack);
     throw error;
   }
 }
@@ -467,7 +461,7 @@ async function handleInvoicePaymentFailed(invoice) {
 
     console.log('Payment failed processed successfully');
   } catch (error) {
-    console.error('Error handling invoice payment failed:', error);
+    console.error('Error handling invoice payment failed:', error.message, error.stack);
     throw error;
   }
 }
@@ -477,7 +471,7 @@ async function handleInvoiceUpcoming(invoice) {
   try {
     console.log('Upcoming invoice processed successfully');
   } catch (error) {
-    console.error('Error handling invoice upcoming:', error);
+    console.error('Error handling invoice upcoming:', error.message, error.stack);
     throw error;
   }
 }

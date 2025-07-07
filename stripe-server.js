@@ -12,12 +12,12 @@ const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
 
 // CORS configuration for production
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:8080',
-  'https://app.jobsmartly.com', // Replace with your actual domain
-  process.env.NEXT_PUBLIC_BASE_URL
-].filter(Boolean);
+// const allowedOrigins = [
+//   'http://localhost:5173',
+//   'http://localhost:8080',
+//   'https://app.jobsmartly.com', // Replace with your actual domain
+//   process.env.NEXT_PUBLIC_BASE_URL
+// ].filter(Boolean);
 
 app.use(cors({ 
   origin: function (origin, callback) {

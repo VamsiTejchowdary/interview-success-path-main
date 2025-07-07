@@ -10,17 +10,6 @@
       "use": "@vercel/static-build"
     }
   ],
-  "headers": [
-    {
-      "source": "/auth/callback",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        }
-      ]
-    }
-  ],
   "routes": [
     {
       "src": "/api/(.*)",

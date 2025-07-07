@@ -12,7 +12,19 @@
   ],
   "functions": {
     "api/stripe-webhook.js": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "bodyParser": false
     }
-  }
+  },
+  "headers": [
+    {
+      "source": "/api/stripe-webhook",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/json"
+        }
+      ]
+    }
+  ]
 } 

@@ -14,7 +14,7 @@ const supabase = createClient(
 
 // Test webhook endpoint URL
 const WEBHOOK_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://your-domain.com/api/stripe-webhook'
+  ? 'https://interview-success-path-dev.vercel.app/api/stripe-webhook'
   : 'http://localhost:3000/api/stripe-webhook';
 
 async function testWebhookEvent(eventType, eventData) {

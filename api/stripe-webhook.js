@@ -113,6 +113,34 @@ async function handleSubscriptionCreated(subscription) {
       }
     }
 
+    // Fallback logic for current_period_start and current_period_end
+    let currentPeriodStart = subscription.current_period_start 
+      ? new Date(subscription.current_period_start * 1000).toISOString() 
+      : null;
+    let currentPeriodEnd = subscription.current_period_end 
+      ? new Date(subscription.current_period_end * 1000).toISOString() 
+      : null;
+
+    if (!currentPeriodStart || !currentPeriodEnd) {
+      console.log('Subscription period fields missing, fetching latest paid invoice as fallback...');
+      const invoices = await stripe.invoices.list({
+        subscription: subscription.id,
+        limit: 1,
+        status: 'paid'
+      });
+      if (invoices.data.length > 0) {
+        const latestInvoice = invoices.data[0];
+        if (!currentPeriodStart && latestInvoice.lines?.data?.[0]?.period?.start) {
+          currentPeriodStart = new Date(latestInvoice.lines.data[0].period.start * 1000).toISOString();
+          console.log('Using invoice line period start as fallback:', currentPeriodStart);
+        }
+        if (!currentPeriodEnd && latestInvoice.lines?.data?.[0]?.period?.end) {
+          currentPeriodEnd = new Date(latestInvoice.lines.data[0].period.end * 1000).toISOString();
+          console.log('Using invoice line period end as fallback:', currentPeriodEnd);
+        }
+      }
+    }
+
     const { data: existingSubscription } = await supabase
       .from('subscriptions')
       .select('subscription_id')
@@ -120,13 +148,6 @@ async function handleSubscriptionCreated(subscription) {
       .single();
 
     console.log('Existing subscription check:', { existingSubscription });
-
-    const currentPeriodStart = subscription.current_period_start 
-      ? new Date(subscription.current_period_start * 1000).toISOString() 
-      : null;
-    const currentPeriodEnd = subscription.current_period_end 
-      ? new Date(subscription.current_period_end * 1000).toISOString() 
-      : null;
 
     if (existingSubscription) {
       const { error: updateError } = await supabase
@@ -165,9 +186,7 @@ async function handleSubscriptionCreated(subscription) {
       console.log('Subscription insert:', { insertError: insertError?.message });
     }
 
-    const nextBillingAt = subscription.current_period_end 
-      ? new Date(subscription.current_period_end * 1000).toISOString() 
-      : null;
+    const nextBillingAt = currentPeriodEnd;
     
     const { error: userUpdateError } = await supabase
       .from('users')

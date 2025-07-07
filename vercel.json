@@ -2,19 +2,11 @@
   "version": 2,
   "builds": [
     {
-      "src": "stripe-server.js",
-      "use": "@vercel/node"
-    },
-    {
       "src": "package.json",
       "use": "@vercel/static-build"
     }
   ],
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/stripe-server.js"
-    },
     {
       "source": "/(.*)",
       "destination": "/index.html"

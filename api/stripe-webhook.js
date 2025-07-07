@@ -217,6 +217,32 @@ async function handleInvoicePaid(invoice) {
     
     console.log('Subscription lookup:', { subscriptionData, subscriptionError: subscriptionError?.message });
 
+    // --- Update subscriptions table with invoice period if subscription exists ---
+    if (subscriptionData && invoice.lines?.data?.[0]?.period) {
+      const periodStart = invoice.lines.data[0].period.start
+        ? new Date(invoice.lines.data[0].period.start * 1000).toISOString()
+        : null;
+      const periodEnd = invoice.lines.data[0].period.end
+        ? new Date(invoice.lines.data[0].period.end * 1000).toISOString()
+        : null;
+      const status = invoice.status || 'active';
+      const { error: subUpdateError } = await supabase
+        .from('subscriptions')
+        .update({
+          current_period_start: periodStart,
+          current_period_end: periodEnd,
+          status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('subscription_id', subscriptionData.subscription_id);
+      if (subUpdateError) {
+        console.error('Error updating subscription from invoice.paid:', subUpdateError.message);
+      } else {
+        console.log('Updated subscription period from invoice.paid');
+      }
+    }
+    // --- End update subscriptions table ---
+
     if (!subscriptionData && invoice.customer) {
       console.log('Subscription not found, looking for user by customer ID...');
       const { data: userByCustomer, error: userError } = await supabase
@@ -229,7 +255,22 @@ async function handleInvoicePaid(invoice) {
       
       if (userByCustomer) {
         console.log('Found user by customer ID, will use user_id:', userByCustomer.user_id);
-        subscriptionData = { user_id: userByCustomer.user_id };
+        // Try to find the most recent active subscription for this user
+        const { data: subByUser, error: subByUserError } = await supabase
+          .from('subscriptions')
+          .select('subscription_id')
+          .eq('user_id', userByCustomer.user_id)
+          .eq('status', 'active')
+          .order('current_period_end', { ascending: false })
+          .limit(1)
+          .single();
+        if (subByUser) {
+          subscriptionData = { user_id: userByCustomer.user_id, subscription_id: subByUser.subscription_id };
+          console.log('Found subscription by user_id:', subByUser.subscription_id);
+        } else {
+          subscriptionData = { user_id: userByCustomer.user_id };
+          console.log('No active subscription found for user_id:', userByCustomer.user_id);
+        }
       } else {
         console.log('Looking for user by email from customer...');
         const customer = await stripe.customers.retrieve(invoice.customer);
@@ -251,8 +292,22 @@ async function handleInvoicePaid(invoice) {
               .update({ stripe_customer_id: invoice.customer })
               .eq('user_id', userByEmail.user_id);
             console.log('Customer ID update:', { updateError: updateError?.message });
-            
-            subscriptionData = { user_id: userByEmail.user_id };
+            // Try to find the most recent active subscription for this user
+            const { data: subByUser, error: subByUserError } = await supabase
+              .from('subscriptions')
+              .select('subscription_id')
+              .eq('user_id', userByEmail.user_id)
+              .eq('status', 'active')
+              .order('current_period_end', { ascending: false })
+              .limit(1)
+              .single();
+            if (subByUser) {
+              subscriptionData = { user_id: userByEmail.user_id, subscription_id: subByUser.subscription_id };
+              console.log('Found subscription by user_id:', subByUser.subscription_id);
+            } else {
+              subscriptionData = { user_id: userByEmail.user_id };
+              console.log('No active subscription found for user_id:', userByEmail.user_id);
+            }
           }
         }
       }

@@ -21,8 +21,13 @@ async function getOrCreatePrice() {
 }
 
 export default async function handler(req, res) {
+  console.log('Request method:', req.method);
+  console.log('Request headers:', req.headers);
+  console.log('Request body:', req.body);
+  
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    console.log('Method not allowed:', req.method);
+    return res.status(405).json({ error: 'Method not allowed', receivedMethod: req.method });
   }
 
   // Manually parse body for Vercel compatibility
@@ -36,6 +41,8 @@ export default async function handler(req, res) {
   }
 
   const { userEmail } = body;
+  console.log('Processing request for user:', userEmail);
+  
   try {
     if (!userEmail) {
       return res.status(400).json({ error: 'User email is required' });

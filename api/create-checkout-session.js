@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-06-30.basil' });
 
 // Replace with your actual product/price IDs if you create them in the dashboard
 const PRODUCT_NAME = 'Premium Plan';
@@ -103,6 +103,9 @@ export default async function handler(req, res) {
       customer_email: userEmail, // This will create a customer if it doesn't exist
     });
     
+    console.log('Checkout session created:', session.id);
+    console.log('Session customer:', session.customer);
+    
     // Store the customer ID in the user table for webhook processing
     if (session.customer) {
       console.log('Storing customer ID:', session.customer, 'for user:', userEmail);
@@ -117,7 +120,9 @@ export default async function handler(req, res) {
         console.log('Customer ID stored successfully');
       }
     } else {
-      console.log('No customer ID in session');
+      console.log('No customer ID in session - will be created during checkout');
+      // The customer will be created during the checkout process
+      // The webhook will handle storing the customer ID when the subscription is created
     }
     
     res.json({ url: session.url });

@@ -41,9 +41,7 @@ const PaymentSuccess = () => {
             const data = await response.json();
             setPaymentDetails(data);
             
-            // Update user subscription status in database
-            await updateUserSubscription(currentUser.email, data);
-            
+            // Webhook has already handled database updates, just show success
             toast({
               title: "Payment Successful!",
               description: "Your subscription has been activated.",
@@ -68,72 +66,7 @@ const PaymentSuccess = () => {
     handlePaymentSuccess();
   }, [searchParams, navigate, toast]);
 
-  const updateUserSubscription = async (email: string, paymentData: any) => {
-    try {
-      // 1. Get user details
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('user_id, subscription_fee')
-        .eq('email', email)
-        .single();
 
-      if (userError) throw userError;
-
-      // 2. Create subscription record
-      const { data: subscriptionData, error: subscriptionError } = await supabase
-        .from('subscriptions')
-        .insert({
-          user_id: userData.user_id,
-          stripe_customer_id: paymentData.customer,
-          stripe_subscription_id: paymentData.subscription,
-          plan_name: 'Premium Plan',
-          amount: userData.subscription_fee,
-          currency: 'USD',
-          interval: 'month',
-          status: 'active',
-          current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days
-        })
-        .select()
-        .single();
-
-      if (subscriptionError) throw subscriptionError;
-
-      // 3. Create payment record
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert({
-          subscription_id: subscriptionData.subscription_id,
-          user_id: userData.user_id,
-          stripe_payment_intent_id: paymentData.payment_intent || null,
-          stripe_invoice_id: paymentData.invoice || null,
-          amount: paymentData.amount_total / 100, // Convert from cents
-          currency: paymentData.currency,
-          status: 'succeeded',
-          payment_method: 'card',
-          billing_reason: 'subscription_cycle',
-          paid_at: new Date().toISOString(),
-        });
-
-      if (paymentError) throw paymentError;
-
-      // 4. Update user table
-      const { error: userUpdateError } = await supabase
-        .from('users')
-        .update({
-          is_paid: true,
-          status: 'approved',
-          next_billing_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        })
-        .eq('email', email);
-
-      if (userUpdateError) throw userUpdateError;
-
-    } catch (error) {
-      console.error('Database update error:', error);
-      throw error;
-    }
-  };
 
   if (loading) {
     return (

@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-06-30.basil' });
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -75,16 +75,45 @@ async function handleSubscriptionCreated(subscription) {
   console.log('Handling subscription created:', subscription.id);
   
   try {
-    // Find user by Stripe customer ID
-    const { data: userData, error: userError } = await supabase
+    // First try to find user by Stripe customer ID
+    let { data: userData, error: userError } = await supabase
       .from('users')
       .select('user_id, email, subscription_fee')
       .eq('stripe_customer_id', subscription.customer)
       .single();
 
+    // If not found by customer ID, try to find by email from customer object
     if (userError || !userData) {
-      console.error('User not found for customer:', subscription.customer);
-      return;
+      console.log('User not found by customer ID, trying to find by email...');
+      
+      // Get customer details from Stripe to find the email
+      const customer = await stripe.customers.retrieve(subscription.customer);
+      console.log('Customer details:', customer.email);
+      
+      if (customer.email) {
+        const { data: userByEmail, error: emailError } = await supabase
+          .from('users')
+          .select('user_id, email, subscription_fee')
+          .eq('email', customer.email)
+          .single();
+        
+        if (emailError || !userByEmail) {
+          console.error('User not found by email either:', customer.email);
+          return;
+        }
+        
+        userData = userByEmail;
+        
+        // Store the customer ID since it wasn't stored before
+        console.log('Storing customer ID for user:', customer.email);
+        await supabase
+          .from('users')
+          .update({ stripe_customer_id: subscription.customer })
+          .eq('email', customer.email);
+      } else {
+        console.error('No email found for customer:', subscription.customer);
+        return;
+      }
     }
 
     // Create or update subscription record
@@ -96,6 +125,12 @@ async function handleSubscriptionCreated(subscription) {
 
     if (existingSubscription) {
       // Update existing subscription
+      // Safely handle timestamps
+      const currentPeriodStart = subscription.current_period_start ? 
+        new Date(subscription.current_period_start * 1000).toISOString() : null;
+      const currentPeriodEnd = subscription.current_period_end ? 
+        new Date(subscription.current_period_end * 1000).toISOString() : null;
+      
       await supabase
         .from('subscriptions')
         .update({
@@ -103,14 +138,20 @@ async function handleSubscriptionCreated(subscription) {
           stripe_price_id: subscription.items.data[0]?.price.id,
           amount: subscription.items.data[0]?.price.unit_amount / 100,
           status: subscription.status,
-          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          current_period_start: currentPeriodStart,
+          current_period_end: currentPeriodEnd,
           cancel_at_period_end: subscription.cancel_at_period_end,
           updated_at: new Date().toISOString()
         })
         .eq('subscription_id', existingSubscription.subscription_id);
     } else {
       // Create new subscription record
+      // Safely handle timestamps
+      const currentPeriodStart = subscription.current_period_start ? 
+        new Date(subscription.current_period_start * 1000).toISOString() : null;
+      const currentPeriodEnd = subscription.current_period_end ? 
+        new Date(subscription.current_period_end * 1000).toISOString() : null;
+      
       await supabase
         .from('subscriptions')
         .insert({
@@ -123,19 +164,22 @@ async function handleSubscriptionCreated(subscription) {
           currency: subscription.currency.toUpperCase(),
           interval: subscription.items.data[0]?.price.recurring.interval,
           status: subscription.status,
-          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          current_period_start: currentPeriodStart,
+          current_period_end: currentPeriodEnd,
           cancel_at_period_end: subscription.cancel_at_period_end
         });
     }
 
     // Update user table
+    const nextBillingAt = subscription.current_period_end ? 
+      new Date(subscription.current_period_end * 1000).toISOString() : null;
+    
     await supabase
       .from('users')
       .update({
         is_paid: true,
         status: 'approved',
-        next_billing_at: new Date(subscription.current_period_end * 1000).toISOString()
+        next_billing_at: nextBillingAt
       })
       .eq('user_id', userData.user_id);
 
@@ -147,18 +191,60 @@ async function handleSubscriptionCreated(subscription) {
 }
 
 async function handleSubscriptionUpdated(subscription) {
+  console.log('🔄 Processing event type: subscription.updated');
   console.log('Handling subscription updated:', subscription.id);
   
   try {
-    // Update subscription record
+    // Get the latest subscription data from Stripe
+    console.log('🔄 Retrieving subscription from Stripe...');
+    const updatedSubscription = await stripe.subscriptions.retrieve(subscription.id);
+    
+    // Safely handle timestamps
+    let currentPeriodStart = updatedSubscription.current_period_start ? 
+      new Date(updatedSubscription.current_period_start * 1000).toISOString() : null;
+    let currentPeriodEnd = updatedSubscription.current_period_end ? 
+      new Date(updatedSubscription.current_period_end * 1000).toISOString() : null;
+    const canceledAt = updatedSubscription.canceled_at ? 
+      new Date(updatedSubscription.canceled_at * 1000).toISOString() : null;
+    
+    console.log('📅 Stripe subscription period start:', currentPeriodStart);
+    console.log('📅 Stripe subscription period end:', currentPeriodEnd);
+    
+    // If subscription dates are null, try to get from the latest invoice
+    if (!currentPeriodStart || !currentPeriodEnd) {
+      console.log('📅 Subscription dates are null, checking latest invoice...');
+      const invoices = await stripe.invoices.list({
+        subscription: subscription.id,
+        limit: 1,
+        status: 'paid'
+      });
+      
+      if (invoices.data.length > 0) {
+        const latestInvoice = invoices.data[0];
+        console.log('📅 Invoice period start:', new Date(latestInvoice.period_start * 1000).toISOString());
+        console.log('📅 Invoice period end:', new Date(latestInvoice.period_end * 1000).toISOString());
+        
+        // Fallback to invoice line item period dates if subscription dates are null
+        if (!currentPeriodStart && latestInvoice.lines?.data?.[0]?.period?.start) {
+          currentPeriodStart = new Date(latestInvoice.lines.data[0].period.start * 1000).toISOString();
+          console.log('📅 Using invoice line period start as fallback:', currentPeriodStart);
+        }
+        if (!currentPeriodEnd && latestInvoice.lines?.data?.[0]?.period?.end) {
+          currentPeriodEnd = new Date(latestInvoice.lines.data[0].period.end * 1000).toISOString();
+          console.log('📅 Using invoice line period end as fallback:', currentPeriodEnd);
+        }
+      }
+    }
+    
+    console.log('🔄 Updating subscription in database...');
     const { error } = await supabase
       .from('subscriptions')
       .update({
-        status: subscription.status,
-        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        cancel_at_period_end: subscription.cancel_at_period_end,
-        canceled_at: subscription.canceled_at ? new Date(subscription.canceled_at * 1000).toISOString() : null,
+        status: updatedSubscription.status,
+        current_period_start: currentPeriodStart,
+        current_period_end: currentPeriodEnd,
+        cancel_at_period_end: updatedSubscription.cancel_at_period_end,
+        canceled_at: canceledAt,
         updated_at: new Date().toISOString()
       })
       .eq('stripe_subscription_id', subscription.id);
@@ -176,14 +262,16 @@ async function handleSubscriptionUpdated(subscription) {
       .single();
 
     if (subscriptionData) {
+      const nextBillingAt = currentPeriodEnd;
+      
       const userUpdate = {
-        next_billing_at: new Date(subscription.current_period_end * 1000).toISOString()
+        next_billing_at: nextBillingAt
       };
 
-      if (subscription.status === 'canceled' || subscription.status === 'unpaid') {
+      if (updatedSubscription.status === 'canceled' || updatedSubscription.status === 'unpaid') {
         userUpdate.is_paid = false;
         userUpdate.status = 'on_hold';
-      } else if (subscription.status === 'active') {
+      } else if (updatedSubscription.status === 'active') {
         userUpdate.is_paid = true;
         userUpdate.status = 'approved';
       }
@@ -192,9 +280,11 @@ async function handleSubscriptionUpdated(subscription) {
         .from('users')
         .update(userUpdate)
         .eq('user_id', subscriptionData.user_id);
+      console.log('🔄 Updating user billing date...');
+      console.log('✅ User updated successfully');
     }
 
-    console.log('Subscription updated successfully');
+    console.log('✅ Subscription updated successfully');
   } catch (error) {
     console.error('Error handling subscription updated:', error);
     throw error;
@@ -245,52 +335,93 @@ async function handleInvoicePaymentSucceeded(invoice) {
   console.log('Handling invoice payment succeeded:', invoice.id);
   
   try {
-    // Find subscription
-    const { data: subscriptionData } = await supabase
+    // First, try to find existing subscription
+    let { data: subscriptionData } = await supabase
       .from('subscriptions')
       .select('subscription_id, user_id')
       .eq('stripe_subscription_id', invoice.subscription)
       .single();
-
+    
+    // If subscription doesn't exist yet, try to find user by customer ID
+    if (!subscriptionData && invoice.customer) {
+      console.log('📝 Subscription not found, looking for user by customer ID...');
+      const { data: userByCustomer } = await supabase
+        .from('users')
+        .select('user_id')
+        .eq('stripe_customer_id', invoice.customer)
+        .single();
+      
+      if (userByCustomer) {
+        console.log('✅ Found user by customer ID, will create subscription record later');
+        // We'll create the subscription record when the subscription.created webhook fires
+        subscriptionData = { user_id: userByCustomer.user_id };
+      } else {
+        // Try to find user by email from customer object
+        console.log('🔍 Looking for user by email from customer...');
+        const customer = await stripe.customers.retrieve(invoice.customer);
+        if (customer.email) {
+          const { data: userByEmail } = await supabase
+            .from('users')
+            .select('user_id')
+            .eq('email', customer.email)
+            .single();
+          
+          if (userByEmail) {
+            console.log('✅ Found user by email, updating stripe_customer_id...');
+            // Update user with stripe_customer_id
+            await supabase
+              .from('users')
+              .update({ stripe_customer_id: invoice.customer })
+              .eq('user_id', userByEmail.user_id);
+            
+            subscriptionData = { user_id: userByEmail.user_id };
+          }
+        }
+      }
+    }
+    
     if (!subscriptionData) {
-      console.error('Subscription not found for invoice:', invoice.subscription);
+      console.log('❌ No user found for this invoice');
       return;
     }
 
-    // Create payment record
-    await supabase
-      .from('payments')
-      .insert({
-        subscription_id: subscriptionData.subscription_id,
-        user_id: subscriptionData.user_id,
-        stripe_payment_intent_id: invoice.payment_intent,
-        stripe_invoice_id: invoice.id,
-        amount: invoice.amount_paid / 100,
-        currency: invoice.currency.toUpperCase(),
-        status: 'succeeded',
-        payment_method: 'card',
-        billing_reason: invoice.billing_reason,
-        paid_at: new Date().toISOString()
-      });
+    // Only create payment record if we have a subscription record
+    if (subscriptionData.subscription_id) {
+      await supabase
+        .from('payments')
+        .insert({
+          subscription_id: subscriptionData.subscription_id,
+          user_id: subscriptionData.user_id,
+          stripe_payment_intent_id: invoice.payment_intent,
+          stripe_invoice_id: invoice.id,
+          amount: invoice.amount_paid / 100,
+          currency: invoice.currency.toUpperCase(),
+          status: 'succeeded',
+          payment_method: 'card',
+          billing_reason: invoice.billing_reason,
+          paid_at: new Date().toISOString()
+        });
+      console.log('✅ Payment record created');
+    } else {
+      console.log('📝 Skipping payment record creation - subscription not created yet');
+    }
 
-    // Update user billing date
-    if (invoice.subscription) {
-      const { data: subscription } = await supabase
-        .from('subscriptions')
-        .select('current_period_end')
-        .eq('stripe_subscription_id', invoice.subscription)
-        .single();
-
-      if (subscription) {
-        await supabase
-          .from('users')
-          .update({
-            is_paid: true,
-            status: 'approved',
-            next_billing_at: subscription.current_period_end
-          })
-          .eq('user_id', subscriptionData.user_id);
-      }
+    // Update user billing date using invoice line item period end
+    const nextBillingAt = invoice.lines?.data?.[0]?.period?.end ? 
+      new Date(invoice.lines.data[0].period.end * 1000).toISOString() : null;
+    
+    if (nextBillingAt) {
+      await supabase
+        .from('users')
+        .update({
+          is_paid: true,
+          status: 'approved',
+          next_billing_at: nextBillingAt
+        })
+        .eq('user_id', subscriptionData.user_id);
+      console.log('📅 Updated next billing date to:', nextBillingAt);
+    } else {
+      console.log('⚠️ Could not determine next billing date from invoice');
     }
 
     console.log('Payment succeeded processed successfully');

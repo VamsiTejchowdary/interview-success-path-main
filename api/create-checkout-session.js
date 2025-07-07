@@ -105,10 +105,19 @@ export default async function handler(req, res) {
     
     // Store the customer ID in the user table for webhook processing
     if (session.customer) {
-      await supabase
+      console.log('Storing customer ID:', session.customer, 'for user:', userEmail);
+      const { error: updateError } = await supabase
         .from('users')
         .update({ stripe_customer_id: session.customer })
         .eq('email', userEmail);
+      
+      if (updateError) {
+        console.error('Error storing customer ID:', updateError);
+      } else {
+        console.log('Customer ID stored successfully');
+      }
+    } else {
+      console.log('No customer ID in session');
     }
     
     res.json({ url: session.url });

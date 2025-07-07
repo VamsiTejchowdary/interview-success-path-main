@@ -12,12 +12,13 @@ const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2023-10-16' });
 
 // CORS configuration for production
-// const allowedOrigins = [
-//   'http://localhost:5173',
-//   'http://localhost:8080',
-//   'https://app.jobsmartly.com', // Replace with your actual domain
-//   process.env.NEXT_PUBLIC_BASE_URL
-// ].filter(Boolean);
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:4173', // Add preview server port
+  'http://localhost:8080',
+  'https://app.jobsmartly.com', // Replace with your actual domain
+  process.env.NEXT_PUBLIC_BASE_URL
+].filter(Boolean);
 
 app.use(cors({ 
   origin: function (origin, callback) {
@@ -103,8 +104,8 @@ app.post('/create-checkout-session', async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:8080'}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:8080'}/cancel`,
+      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:4173'}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:4173'}/cancel`,
     });
     res.json({ url: session.url });
   } catch (err) {

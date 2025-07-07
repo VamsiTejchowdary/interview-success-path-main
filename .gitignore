@@ -30,3 +30,4 @@ dist-ssr
 .env.staging
 .env.local.backup
 .env.local.backup2
+.vercel

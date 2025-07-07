@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -42,7 +42,12 @@ function AppRoutes() {
             <StudentDashboard onLogout={handleDashboardLogout} />
           </ProtectedRoute>
         } 
-      />
+      >
+        <Route index element={<StudentDashboard onLogout={handleDashboardLogout} />} />
+        <Route path="profile" element={<StudentDashboard onLogout={handleDashboardLogout} />} />
+        <Route path="applications" element={<StudentDashboard onLogout={handleDashboardLogout} />} />
+        <Route path="interviews" element={<StudentDashboard onLogout={handleDashboardLogout} />} />
+      </Route>
       <Route 
         path="/admin/dashboard" 
         element={
@@ -65,9 +70,9 @@ function AppRoutes() {
       <Route path="/signup-success" element={<SignupSuccessPage />} />
       <Route path="/signup" element={<RegisterForm />} />
       <Route path="/success" element={<PaymentSuccess />} />
-      <Route path="*" element={<NotFound />} />
       <Route path="/contact" element= { <ContactForm /> } />
       <Route path="/agent/signup" element={<RecruiterSignup />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

@@ -22,12 +22,42 @@ import OverviewTab from "./student/OverviewTab";
 import ApplicationsTab from "./student/ApplicationsTab";
 import InterviewsTab from "./student/InterviewsTab";
 import ProfileTab from "./student/ProfileTab";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 interface StudentDashboardProps {
   onLogout: () => void;
 }
 
 const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("overview");
+
+  // Determine active tab from URL
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes("/profile")) {
+      setActiveTab("profile");
+    } else if (path.includes("/applications")) {
+      setActiveTab("applications");
+    } else if (path.includes("/interviews")) {
+      setActiveTab("interviews");
+    } else {
+      setActiveTab("overview");
+    }
+  }, [location.pathname]);
+
+  // Handle tab changes
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    if (value === "overview") {
+      navigate("/student");
+    } else {
+      navigate(`/student/${value}`);
+    }
+  };
+
   // Mock data
   const weeklyApplications = [
     { week: 'Week 1', applications: 8 },
@@ -77,7 +107,7 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="bg-white/60 backdrop-blur-xl border border-purple-200/50">
             <TabsTrigger value="overview" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Overview</TabsTrigger>
             <TabsTrigger value="applications" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Applications</TabsTrigger>

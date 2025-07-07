@@ -218,7 +218,23 @@ async function handleInvoicePaid(invoice) {
     console.log('Subscription lookup:', { subscriptionData, subscriptionError: subscriptionError?.message });
 
     // --- Update subscriptions table with invoice period if subscription exists ---
-    if (subscriptionData && invoice.lines?.data?.[0]?.period) {
+    let updatedSubscriptionId = subscriptionData && subscriptionData.subscription_id ? subscriptionData.subscription_id : null;
+    if (!updatedSubscriptionId && subscriptionData && subscriptionData.user_id) {
+      // Try to find the most recent active subscription for this user
+      const { data: subByUser, error: subByUserError } = await supabase
+        .from('subscriptions')
+        .select('subscription_id')
+        .eq('user_id', subscriptionData.user_id)
+        .eq('status', 'active')
+        .order('current_period_end', { ascending: false })
+        .limit(1)
+        .single();
+      if (subByUser) {
+        updatedSubscriptionId = subByUser.subscription_id;
+        console.log('Found subscription by user_id for period update:', subByUser.subscription_id);
+      }
+    }
+    if (updatedSubscriptionId && invoice.lines?.data?.[0]?.period) {
       const periodStart = invoice.lines.data[0].period.start
         ? new Date(invoice.lines.data[0].period.start * 1000).toISOString()
         : null;
@@ -234,7 +250,7 @@ async function handleInvoicePaid(invoice) {
           status: status,
           updated_at: new Date().toISOString()
         })
-        .eq('subscription_id', subscriptionData.subscription_id);
+        .eq('subscription_id', updatedSubscriptionId);
       if (subUpdateError) {
         console.error('Error updating subscription from invoice.paid:', subUpdateError.message);
       } else {

@@ -10,6 +10,9 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
+// Utility function to delay execution
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -141,16 +144,18 @@ async function handleSubscriptionCreated(subscription) {
       }
     }
 
-    const { data: existingSubscription } = await supabase
+    // Insert or update subscription
+    const { data: existingSubscription, error: existingSubError } = await supabase
       .from('subscriptions')
       .select('subscription_id')
       .eq('stripe_subscription_id', subscription.id)
       .single();
 
-    console.log('Existing subscription check:', { existingSubscription });
+    console.log('Existing subscription check:', { existingSubscription, error: existingSubError?.message });
 
+    let subscriptionId;
     if (existingSubscription) {
-      const { error: updateError } = await supabase
+      const { data, error: updateError } = await supabase
         .from('subscriptions')
         .update({
           stripe_customer_id: subscription.customer,
@@ -162,10 +167,12 @@ async function handleSubscriptionCreated(subscription) {
           cancel_at_period_end: subscription.cancel_at_period_end,
           updated_at: new Date().toISOString()
         })
-        .eq('subscription_id', existingSubscription.subscription_id);
+        .eq('subscription_id', existingSubscription.subscription_id)
+        .select();
       console.log('Subscription update:', { updateError: updateError?.message });
+      subscriptionId = data?.[0]?.subscription_id;
     } else {
-      const { error: insertError } = await supabase
+      const { data, error: insertError } = await supabase
         .from('subscriptions')
         .insert({
           user_id: userData.user_id,
@@ -182,12 +189,34 @@ async function handleSubscriptionCreated(subscription) {
           cancel_at_period_end: subscription.cancel_at_period_end,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        });
+        })
+        .select();
       console.log('Subscription insert:', { insertError: insertError?.message });
+      subscriptionId = data?.[0]?.subscription_id;
     }
 
+    // Backfill subscription_id in payments table for initial payment
+    if (subscriptionId) {
+      const invoices = await stripe.invoices.list({
+        subscription: subscription.id,
+        limit: 1,
+        status: 'paid'
+      });
+      if (invoices.data.length > 0) {
+        const latestInvoice = invoices.data[0];
+        console.log('Backfilling payment with subscription_id for invoice:', latestInvoice.id);
+        const { error: paymentUpdateError } = await supabase
+          .from('payments')
+          .update({ subscription_id: subscriptionId })
+          .eq('stripe_invoice_id', latestInvoice.id)
+          .eq('user_id', userData.user_id)
+          .is('subscription_id', null);
+        console.log('Backfilled payment with subscription_id:', { subscriptionId, invoiceId: latestInvoice.id, error: paymentUpdateError?.message });
+      }
+    }
+
+    // Update user with next_billing_at
     const nextBillingAt = currentPeriodEnd;
-    
     const { error: userUpdateError } = await supabase
       .from('users')
       .update({
@@ -197,25 +226,6 @@ async function handleSubscriptionCreated(subscription) {
       })
       .eq('user_id', userData.user_id);
     console.log('User update:', { userUpdateError: userUpdateError?.message });
-
-    // --- Backfill subscription_id in payments table for first payment ---
-    // Fetch the latest invoice for this subscription
-    const invoices = await stripe.invoices.list({
-      subscription: subscription.id,
-      limit: 1,
-      status: 'paid'
-    });
-    if (invoices.data.length > 0) {
-      const latestInvoice = invoices.data[0];
-      const { error: paymentUpdateError } = await supabase
-        .from('payments')
-        .update({ subscription_id: existingSubscription ? existingSubscription.subscription_id : null })
-        .eq('user_id', userData.user_id)
-        .eq('stripe_invoice_id', latestInvoice.id)
-        .is('subscription_id', null);
-      console.log('Backfilled payment with subscription_id:', { paymentUpdateError: paymentUpdateError?.message });
-    }
-    // --- End backfill ---
 
     console.log('Subscription created successfully for user:', userData.email);
   } catch (error) {
@@ -229,23 +239,34 @@ async function handleInvoicePaid(invoice) {
   
   try {
     let subscriptionData = null;
+    let maxRetries = 3;
+    let retryCount = 0;
 
-    // Try to find subscription by stripe_subscription_id
+    // Try to find subscription by stripe_subscription_id with retries
     if (invoice.subscription) {
-      const { data, error } = await supabase
-        .from('subscriptions')
-        .select('subscription_id, user_id')
-        .eq('stripe_subscription_id', invoice.subscription)
-        .single();
-      
-      console.log('Subscription lookup by stripe_subscription_id:', {
-        stripe_subscription_id: invoice.subscription,
-        subscriptionData: data,
-        error: error?.message
-      });
+      while (!subscriptionData && retryCount < maxRetries) {
+        const { data, error } = await supabase
+          .from('subscriptions')
+          .select('subscription_id, user_id')
+          .eq('stripe_subscription_id', invoice.subscription)
+          .single();
+        
+        console.log('Subscription lookup by stripe_subscription_id:', {
+          stripe_subscription_id: invoice.subscription,
+          subscriptionData: data,
+          error: error?.message,
+          retryCount
+        });
 
-      if (data) {
-        subscriptionData = data;
+        if (data) {
+          subscriptionData = data;
+        } else {
+          retryCount++;
+          if (retryCount < maxRetries) {
+            console.log(`Subscription not found, retrying in ${retryCount * 1000}ms...`);
+            await delay(retryCount * 1000);
+          }
+        }
       }
     }
 

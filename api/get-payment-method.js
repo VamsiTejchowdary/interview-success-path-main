@@ -15,13 +15,11 @@ export default async function handler(req, res) {
     }
 
     // Get the customer's default payment method
-    const customer = await stripe.customers.retrieve(customerId);
+    const customer = await stripe.customers.retrieve(customerId, {
+      expand: ['invoice_settings.default_payment_method', 'sources']
+    });
     
-    if (!customer.default_source && !customer.invoice_settings?.default_payment_method) {
-      return res.status(404).json({ error: 'No payment method found for this customer' });
-    }
-
-    let paymentMethodId;
+    let paymentMethodId = null;
     
     // Check for default payment method first (preferred)
     if (customer.invoice_settings?.default_payment_method) {
@@ -29,10 +27,18 @@ export default async function handler(req, res) {
     } else if (customer.default_source) {
       // Fallback to default source (older method)
       paymentMethodId = customer.default_source;
-    }
-
-    if (!paymentMethodId) {
-      return res.status(404).json({ error: 'No payment method found' });
+    } else {
+      // If no default is set, try to get the first available payment method
+      const paymentMethods = await stripe.paymentMethods.list({
+        customer: customerId,
+        type: 'card',
+      });
+      
+      if (paymentMethods.data.length > 0) {
+        paymentMethodId = paymentMethods.data[0].id;
+      } else {
+        return res.status(404).json({ error: 'No payment method found' });
+      }
     }
 
     // Retrieve the payment method details

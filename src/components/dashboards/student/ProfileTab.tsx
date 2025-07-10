@@ -184,7 +184,7 @@ const ProfileTab = () => {
     setPaymentLoading(true);
     try {
       const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
-      const endpoint = '/get-payment-method';
+      const endpoint = import.meta.env.DEV ? '/get-payment-method' : '/api/get-payment-method';
       const url = `${apiBase}${endpoint}`;
       const requestBody = { customerId: userDb.stripe_customer_id };
       

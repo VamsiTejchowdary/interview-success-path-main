@@ -1,16 +1,5 @@
-import React from 'react';
-import { 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Linkedin, 
-  Twitter, 
-  Facebook, 
-  Instagram, 
-  ArrowUp,
-  Heart
-} from 'lucide-react';
-import { Link } from "react-router-dom";
+import { Linkedin, ArrowUp, Heart } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Footer = () => {
   const scrollToTop = () => {
@@ -18,114 +7,62 @@ const Footer = () => {
   };
 
   return (
-    <footer className="relative bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0">
-        <div className="absolute top-0 left-0 w-80 h-80 bg-gradient-to-r from-purple-600/20 to-blue-600/20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 right-0 w-80 h-80 bg-gradient-to-l from-blue-600/20 to-indigo-600/20 rounded-full blur-3xl"></div>
+    <footer className="footer bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white pt-16 pb-8 relative overflow-hidden">
+      {/* Top CTA */}
+      <section className="section_footer pb-12">
+        <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <div>
+              <h2 className="text-4xl font-bold text-white mb-2">
+                <span className="text-blue-400 italic">Get started</span>
+                <span className="block">today</span>
+              </h2>
+            </div>
+          </div>
+          <div className="flex flex-col items-center md:items-end gap-4">
+            <p className="text-white text-lg hidden md:block">
+            Spend less time applying, more time interviewing.
+            </p>
+            <a
+              href="https://jobsmartly.com/contact"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="button bg-white text-slate-900 font-semibold px-6 py-3 rounded-lg shadow hover:bg-blue-100 transition"
+            >
+              Contact Us
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Middle Links */}
+      <div className="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 md:grid-cols-3 gap-8 border-t border-slate-700">
+        {/* Follow Us */}
+        <div>
+          <div className="font-semibold mb-2">Follow us</div>
+          <div className="flex gap-3">
+            <a href="https://www.linkedin.com/company/send-blue" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="footer_social-icon w-10 h-10 flex items-center justify-center bg-white rounded-full hover:scale-110 transition">
+              <Linkedin className="text-slate-900 w-5 h-5" />
+            </a>
+            {/* Add more social icons as needed */}
+          </div>
+        </div>
+        {/* Company */}
+       
       </div>
 
-      <div className="relative z-10">
-        {/* Main Footer Content */}
-        <div className="container mx-auto px-4 sm:px-6 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            
-            {/* Company Info */}
-            <div className="lg:col-span-2">
-              <h3 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent mb-4">
-              JobSmartly
-              </h3>
-              <p className="text-slate-300 mb-6 max-w-md">
-                Empowering professionals to transform their careers and land their dream jobs.
-              </p>
-              
-              {/* Contact Info */}
-              <div className="flex flex-col sm:flex-row gap-4 text-sm">
-                {/* <div className="flex items-center space-x-2 text-slate-300">
-                  <Phone className="w-4 h-4 text-purple-400" />
-                  <span>+1 (555) 123-4567</span>
-                </div> */}
-                <div className="flex items-center space-x-2 text-slate-300">
-                  <Mail className="w-4 h-4 text-blue-400" />
-                  <span>hello@jobsmartly.com</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Links */}
-            {/* <div>
-              <h4 className="text-lg font-semibold mb-4 text-white">Services</h4>
-              <ul className="space-y-2 text-sm">
-                {["Career Coaching", "Resume Writing", "Interview Prep", "Skill Development"].map((item, index) => (
-                  <li key={index}>
-                    <a href="#" className="text-slate-300 hover:text-white transition-colors">
-                      {item}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div> */}
-
-            {/* Company Links */}
-            {/* <div>
-              <h4 className="text-lg font-semibold mb-4 text-white">Company</h4>
-              <ul className="space-y-2 text-sm">
-                {["Contact"].map((item, index) => (
-                  <li key={index}>
-                    {item === "Contact" ? (
-                      <Link to="/contact" className="text-slate-300 hover:text-white transition-colors">
-                        {item}
-                      </Link>
-                    ) : (
-                      <a href="#" className="text-slate-300 hover:text-white transition-colors">
-                        {item}
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div> */}
-          </div>
-        </div>
-
-        {/* Bottom Bar */}
-        <div className="border-t border-slate-700 bg-slate-900/50 backdrop-blur-sm">
-          <div className="container mx-auto px-4 sm:px-6 py-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              
-              {/* Copyright */}
-              <div className="text-slate-400 text-sm text-center md:text-left">
-                <p>&copy; 2025 JobSmartly. Made with <Heart className="w-4 h-4 text-red-400 inline mx-1" /> for career success</p>
-              </div>
-
-              {/* Social Links */}
-              <div className="flex items-center space-x-3">
-                {[
-                  { icon: Linkedin, color: "hover:text-blue-400" },
-                  { icon: Twitter, color: "hover:text-sky-400" },
-                  { icon: Facebook, color: "hover:text-blue-500" },
-                  { icon: Instagram, color: "hover:text-pink-400" }
-                ].map((social, index) => (
-                  <a
-                    key={index}
-                    href="#"
-                    className={`w-9 h-9 bg-slate-800 rounded-full flex items-center justify-center text-slate-400 ${social.color} hover:bg-slate-700 transition-all hover:scale-110`}
-                  >
-                    <social.icon className="w-4 h-4" />
-                  </a>
-                ))}
-
-                {/* Scroll to Top */}
-                <button
-                  onClick={scrollToTop}
-                  className="w-9 h-9 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 rounded-full flex items-center justify-center ml-2 transition-all hover:scale-110"
-                >
-                  <ArrowUp className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Bottom Bar */}
+      <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 pt-8">
+        <button
+          onClick={scrollToTop}
+          className="flex items-center gap-2 text-white hover:underline"
+        >
+          <span>Back to the top</span>
+          <ArrowUp className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="text-center text-slate-400 text-sm mt-6">
+        &copy; 2025 JobSmartly. Made with <Heart className="w-4 h-4 text-red-400 inline mx-1" /> for career success
       </div>
     </footer>
   );

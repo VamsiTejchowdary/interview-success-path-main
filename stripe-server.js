@@ -144,6 +144,108 @@ app.get('/payment-success', async (req, res) => {
   }
 });
 
+// Get payment method for a customer
+app.post('/get-payment-method', async (req, res) => {
+  console.log('🔍 Payment method request received');
+      console.log('📋 Request body:', req.body);
+  
+  try {
+    const { customerId } = req.body;
+    let paymentMethodId = null;
+
+    if (!customerId) {
+      console.log('❌ No customer ID provided');
+      return res.status(400).json({ error: 'Customer ID is required' });
+    }
+
+    console.log('🔍 Fetching customer from Stripe:', customerId);
+    
+    // Get the customer's default payment method
+    const customer = await stripe.customers.retrieve(customerId, {
+      expand: ['invoice_settings.default_payment_method', 'sources']
+    });
+    console.log('📋 Customer data:', {
+      id: customer.id,
+      email: customer.email,
+      default_source: customer.default_source,
+      default_payment_method: customer.invoice_settings?.default_payment_method,
+      invoice_settings: customer.invoice_settings,
+      sources: customer.sources?.data?.length || 0
+    });
+    
+    // Check for default payment method first (preferred)
+    if (customer.invoice_settings?.default_payment_method) {
+      paymentMethodId = customer.invoice_settings.default_payment_method;
+      console.log('✅ Using default payment method:', paymentMethodId);
+    } else if (customer.default_source) {
+      // Fallback to default source (older method)
+      paymentMethodId = customer.default_source;
+      console.log('✅ Using default source:', paymentMethodId);
+    } else {
+      // If no default is set, try to get the first available payment method
+      console.log('🔍 No default payment method, checking available payment methods...');
+      
+      // First try payment methods
+      try {
+        const paymentMethods = await stripe.paymentMethods.list({
+          customer: customerId,
+          type: 'card',
+        });
+        
+        if (paymentMethods.data.length > 0) {
+          paymentMethodId = paymentMethods.data[0].id;
+          console.log('✅ Using first available payment method:', paymentMethodId);
+        } else {
+          console.log('💳 No payment methods found, checking sources...');
+          
+          // If no payment methods, check sources (older Stripe method)
+          if (customer.sources && customer.sources.data.length > 0) {
+            const cardSource = customer.sources.data.find(source => source.object === 'card');
+            if (cardSource) {
+              paymentMethodId = cardSource.id;
+              console.log('✅ Using card source:', paymentMethodId);
+            }
+          }
+          
+          if (!paymentMethodId) {
+            console.log('❌ No payment methods or sources found for customer');
+            return res.status(404).json({ error: 'No payment method found' });
+          }
+        }
+      } catch (pmError) {
+        console.log('❌ Error checking payment methods:', pmError.message);
+        return res.status(500).json({ error: 'Error checking payment methods' });
+      }
+    }
+
+    // Retrieve the payment method details
+    const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+
+    // Return the payment method data
+    return res.status(200).json({
+      paymentMethod: {
+        id: paymentMethod.id,
+        type: paymentMethod.type,
+        card: paymentMethod.card ? {
+          brand: paymentMethod.card.brand,
+          last4: paymentMethod.card.last4,
+          exp_month: paymentMethod.card.exp_month,
+          exp_year: paymentMethod.card.exp_year,
+          country: paymentMethod.card.country
+        } : null,
+        billing_details: paymentMethod.billing_details
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching payment method:', error);
+    return res.status(500).json({ 
+      error: 'Failed to fetch payment method',
+      details: error.message 
+    });
+  }
+});
+
 // Stripe Webhook Handler
 app.post('/api/stripe-webhook', bodyParser.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];

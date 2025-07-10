@@ -28,6 +28,8 @@ const ProfileTab = () => {
   const resumeBucket = import.meta.env.VITE_SUPABASE_RESUME_BUCKET;
   const { toast } = useToast();
   const [stripeLoading, setStripeLoading] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<any>(null);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   useEffect(() => {
     getCurrentUser().then(async (u) => {
@@ -47,7 +49,7 @@ const ProfileTab = () => {
         if (user_id) {
           const { data } = await supabase
             .from("users")
-            .select("next_billing_at, is_paid, status")
+            .select("next_billing_at, is_paid, status, stripe_customer_id")
             .eq("user_id", user_id)
             .single();
           setUserDb(data);
@@ -171,6 +173,54 @@ const ProfileTab = () => {
     }
     return null;
   };
+
+  // Fetch payment method from Stripe
+  const fetchPaymentMethod = async () => {
+    if (!userDb?.stripe_customer_id) {
+      console.log('No stripe_customer_id found:', userDb);
+      return;
+    }
+    
+    setPaymentLoading(true);
+    try {
+      const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
+      const endpoint = '/get-payment-method';
+      const url = `${apiBase}${endpoint}`;
+      const requestBody = { customerId: userDb.stripe_customer_id };
+      
+      console.log('Fetching payment method from:', url);
+      console.log('Request body:', requestBody);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Payment method data:', data);
+        setPaymentMethod(data.paymentMethod);
+      } else {
+        const errorData = await response.text();
+        console.error('Failed to fetch payment method:', response.status, errorData);
+      }
+    } catch (error) {
+      console.error('Error fetching payment method:', error);
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  // Fetch payment method when user data is loaded
+  useEffect(() => {
+    if (userDb?.stripe_customer_id && userDb.is_paid) {
+      fetchPaymentMethod();
+    }
+  }, [userDb]);
 
   // Stripe Checkout handler
   const handleStripeCheckout = async () => {
@@ -415,6 +465,62 @@ const ProfileTab = () => {
               </div>
             )}
           </div>
+          
+          {/* Payment Method Card */}
+          {userDb && userDb.is_paid && (
+            <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-gray-800">Payment Method</h4>
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                  </div>
+                  <span className="text-sm font-medium text-green-600">Active</span>
+                </div>
+              </div>
+              {paymentLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <div className="w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="ml-2 text-sm text-gray-600">Loading payment method...</span>
+                </div>
+              ) : paymentMethod ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-800">
+                        •••• •••• •••• {paymentMethod.card?.last4 || '****'}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {paymentMethod.card?.brand || 'Card'} ending in {paymentMethod.card?.last4 || '****'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Expires</span>
+                    <span className="font-medium text-gray-800">
+                      {paymentMethod.card?.exp_month}/{paymentMethod.card?.exp_year}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Auto-renewal</span>
+                    <span className="font-medium text-green-600">Enabled</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-sm text-gray-500">Payment method not available</p>
+                </div>
+              )}
+            </div>
+          )}
+          
           {/* Stripe Subscribe Button - Only show when user is not paid or on hold and not paid */}
           {userDb && (!userDb.is_paid || (userDb.status === 'on_hold' && !userDb.is_paid)) && (
             <div className="pt-4">

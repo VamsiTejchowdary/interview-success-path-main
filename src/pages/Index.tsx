@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import ForgotPasswordDialog from "@/components/auth/ForgotPasswordDialog";
 import { useNavigate } from "react-router-dom";
 import Footer from "@/components/ui/Footer";
+import Navigation from "@/components/ui/Navigation";
 
 const IndexPage = () => {
   const { user, signIn } = useAuth();
@@ -69,30 +70,12 @@ const IndexPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 flex flex-col font-sans">
       {/* Header */}
-      <header className="relative z-20 bg-white/80 backdrop-blur-xl border-b border-white/50 shadow-sm mb-8 sm:mb-12">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Briefcase className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                JobSmartly
-              </span>
-            </div>
-            <div className="hidden sm:flex items-center space-x-4">
-              <span className="text-sm text-slate-600 font-medium">Professional Career Services</span>
-              <div className="flex items-center space-x-1">
-                <Star className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm text-slate-600">4.8</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      <header className="relative z-20 bg-white/80 backdrop-blur-xl border-b border-white/50 shadow-sm">
+        <Navigation />
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex pb-12 sm:pb-20">
+      <div className="flex-1 flex pb-12 sm:pb-20 mt-8 sm:mt-12">
         {/* Left Side - Animated Content */}
         <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         {/* Animated Background Elements */}

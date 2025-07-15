@@ -71,15 +71,60 @@ app.post('/create-checkout-session', async (req, res) => {
       return res.status(400).json({ error: 'User email is required' });
     }
 
-    // Get user's subscription fee from database
+    // Get user's subscription fee and customer ID from database
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('subscription_fee')
+      .select('subscription_fee, stripe_customer_id')
       .eq('email', userEmail)
       .single();
 
     if (userError || !userData) {
       return res.status(404).json({ error: 'User not found' });
+    }
+
+    let customerId = userData.stripe_customer_id;
+    
+    // If customer ID exists, verify it's valid in Stripe
+    if (customerId) {
+      try {
+        await stripe.customers.retrieve(customerId);
+        console.log('✅ Existing customer found in Stripe:', customerId);
+      } catch (error) {
+        console.log('❌ Customer not found in Stripe, creating new one:', customerId);
+        console.log('   Error:', error.message);
+        
+        // Create new customer
+        const customer = await stripe.customers.create({ email: userEmail });
+        customerId = customer.id;
+        
+        // Update database with new customer ID
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ stripe_customer_id: customerId })
+          .eq('email', userEmail);
+        
+        if (updateError) {
+          console.error('❌ Error updating customer ID:', updateError.message);
+        } else {
+          console.log('✅ Updated database with new customer ID:', customerId);
+        }
+      }
+    } else {
+      // No customer ID exists, create new one
+      console.log('📝 Creating new customer for user:', userEmail);
+      const customer = await stripe.customers.create({ email: userEmail });
+      customerId = customer.id;
+      
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ stripe_customer_id: customerId })
+        .eq('email', userEmail);
+        
+      if (updateError) {
+        console.error('❌ Error updating customer ID:', updateError.message);
+      } else {
+        console.log('✅ Created and stored new customer ID:', customerId);
+      }
     }
 
     const userAmount = userData.subscription_fee * 100; // Convert to cents
@@ -93,7 +138,7 @@ app.post('/create-checkout-session', async (req, res) => {
       product: product.id,
     });
 
-    console.log('Creating checkout session for amount:', userAmount);
+    console.log('Creating checkout session for user:', userEmail, 'amount:', userAmount, 'customer:', customerId);
     
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -106,11 +151,12 @@ app.post('/create-checkout-session', async (req, res) => {
       ],
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:4173'}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:4173'}/cancel`,
+      customer: customerId,
     });
     res.json({ url: session.url });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to create Stripe Checkout session' });
+    console.error('Error creating checkout session:', err.message, err.stack);
+    res.status(500).json({ error: 'Failed to create Stripe Checkout session', details: err.message });
   }
 });
 
@@ -439,12 +485,62 @@ async function handleSubscriptionCreated(subscription) {
       if (invoices.data.length > 0) {
         const latestInvoice = invoices.data[0];
         console.log('Backfilling payment with subscription_id for invoice:', latestInvoice.id);
-        const { error: paymentUpdateError } = await supabase
+        
+        // First try to update existing payment record
+        const { data: updatedPayment, error: paymentUpdateError } = await supabase
           .from('payments')
           .update({ subscription_id: subscriptionId })
           .eq('stripe_invoice_id', latestInvoice.id)
           .eq('user_id', userData.user_id)
-          .is('subscription_id', null);
+          .is('subscription_id', null)
+          .select();
+        
+        // If no payment record was updated, check if one already exists for this invoice
+        if (!updatedPayment || updatedPayment.length === 0) {
+          // Check if payment already exists for this invoice
+          const { data: existingPayment, error: checkError } = await supabase
+            .from('payments')
+            .select('payment_id')
+            .eq('stripe_invoice_id', latestInvoice.id)
+            .single();
+
+          if (existingPayment) {
+            console.log('⚠️ Payment already exists for invoice:', latestInvoice.id);
+            console.log('⚠️ Skipping payment creation to avoid duplicates');
+          } else {
+            console.log('💳 Creating new payment record for subscription creation');
+            const paymentData = {
+              user_id: userData.user_id,
+              subscription_id: subscriptionId,
+              stripe_invoice_id: latestInvoice.id,
+              amount: latestInvoice.amount_paid / 100,
+              currency: latestInvoice.currency.toUpperCase(),
+              status: 'succeeded',
+              payment_method: latestInvoice.payment_method_details?.type || 'card',
+              billing_reason: latestInvoice.billing_reason,
+              paid_at: latestInvoice.paid_at ? new Date(latestInvoice.paid_at * 1000).toISOString() : new Date().toISOString()
+            };
+            
+            // Only add payment_intent_id if it exists
+            if (latestInvoice.payment_intent) {
+              paymentData.stripe_payment_intent_id = latestInvoice.payment_intent;
+            }
+            
+            const { data: newPayment, error: insertError } = await supabase
+              .from('payments')
+              .insert(paymentData)
+              .select();
+            
+            if (insertError) {
+              console.error('❌ Error creating payment record:', insertError.message);
+            } else {
+              console.log('✅ Created payment record for subscription:', newPayment?.[0]?.payment_id);
+            }
+          }
+        } else {
+          console.log('✅ Updated existing payment record with subscription_id');
+        }
+        
         console.log('Backfilled payment with subscription_id:', { subscriptionId, invoiceId: latestInvoice.id, error: paymentUpdateError?.message });
       }
     }

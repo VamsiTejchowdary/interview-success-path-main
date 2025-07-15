@@ -17,14 +17,20 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  console.log('📨 Webhook received:', req.method, req.url);
+  console.log('📋 Headers:', Object.keys(req.headers));
+
   const rawBody = await buffer(req);
   const sig = req.headers['stripe-signature'];
 
   let event;
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
+    console.log('✅ Webhook signature verified');
+    console.log('📨 Event type:', event.type);
+    console.log('📨 Event ID:', event.id);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
+    console.error('❌ Webhook signature verification failed:', err.message);
     return res.status(400).json({ error: `Webhook signature verification failed: ${err.message}` });
   }
 
@@ -42,6 +48,9 @@ export default async function handler(req, res) {
       case 'invoice.paid':
         await handleInvoicePaid(event.data.object);
         break;
+      case 'invoice.payment_succeeded':
+        await handleInvoicePaid(event.data.object);
+        break;
       case 'invoice.payment_failed':
         await handleInvoicePaymentFailed(event.data.object);
         break;
@@ -49,7 +58,7 @@ export default async function handler(req, res) {
         await handleInvoiceUpcoming(event.data.object);
         break;
       default:
-        // Unhandled event type
+        console.log('⚠️ Unhandled event type:', event.type);
         break;
     }
 
@@ -174,12 +183,61 @@ async function handleSubscriptionCreated(subscription) {
       });
       if (invoices.data.length > 0) {
         const latestInvoice = invoices.data[0];
-        await supabase
+        
+        // First try to update existing payment record
+        const { data: updatedPayment, error: updateError } = await supabase
           .from('payments')
           .update({ subscription_id: subscriptionId })
           .eq('stripe_invoice_id', latestInvoice.id)
           .eq('user_id', userData.user_id)
-          .is('subscription_id', null);
+          .is('subscription_id', null)
+          .select();
+        
+        // If no payment record was updated, check if one already exists for this invoice
+        if (!updatedPayment || updatedPayment.length === 0) {
+          // Check if payment already exists for this invoice
+          const { data: existingPayment, error: checkError } = await supabase
+            .from('payments')
+            .select('payment_id')
+            .eq('stripe_invoice_id', latestInvoice.id)
+            .single();
+
+          if (existingPayment) {
+            console.log('⚠️ Payment already exists for invoice:', latestInvoice.id);
+            console.log('⚠️ Skipping payment creation to avoid duplicates');
+          } else {
+            console.log('💳 Creating new payment record for subscription creation');
+            const paymentData = {
+              user_id: userData.user_id,
+              subscription_id: subscriptionId,
+              stripe_invoice_id: latestInvoice.id,
+              amount: latestInvoice.amount_paid / 100,
+              currency: latestInvoice.currency.toUpperCase(),
+              status: 'succeeded',
+              payment_method: latestInvoice.payment_method_details?.type || 'card',
+              billing_reason: latestInvoice.billing_reason,
+              paid_at: latestInvoice.paid_at ? new Date(latestInvoice.paid_at * 1000).toISOString() : new Date().toISOString()
+            };
+            
+            // Only add payment_intent_id if it exists
+            if (latestInvoice.payment_intent) {
+              paymentData.stripe_payment_intent_id = latestInvoice.payment_intent;
+            }
+            
+            const { data: newPayment, error: insertError } = await supabase
+              .from('payments')
+              .insert(paymentData)
+              .select();
+            
+            if (insertError) {
+              console.error('❌ Error creating payment record:', insertError.message);
+            } else {
+              console.log('✅ Created payment record for subscription:', newPayment?.[0]?.payment_id);
+            }
+          }
+        } else {
+          console.log('✅ Updated existing payment record with subscription_id');
+        }
       }
     }
 
@@ -200,6 +258,13 @@ async function handleSubscriptionCreated(subscription) {
 
 async function handleInvoicePaid(invoice) {
   try {
+    console.log('💰 Processing invoice.paid event');
+    console.log('📋 Invoice ID:', invoice.id);
+    console.log('📋 Customer ID:', invoice.customer);
+    console.log('📋 Subscription ID:', invoice.subscription);
+    console.log('📋 Amount:', invoice.amount_paid);
+    console.log('📋 Status:', invoice.status);
+    
     let subscriptionData = null;
     let maxRetries = 3;
     let retryCount = 0;
@@ -279,8 +344,16 @@ async function handleInvoicePaid(invoice) {
     }
     
     if (!subscriptionData) {
+      console.log('❌ No subscription data found for invoice:', invoice.id);
+      console.log('❌ Customer ID:', invoice.customer);
+      console.log('❌ Subscription ID:', invoice.subscription);
       return;
     }
+    
+    console.log('✅ Found subscription data:', {
+      user_id: subscriptionData.user_id,
+      subscription_id: subscriptionData.subscription_id
+    });
 
     // Update subscription period if subscription exists and invoice has period data
     if (subscriptionData.subscription_id && invoice.lines?.data?.[0]?.period) {
@@ -304,7 +377,6 @@ async function handleInvoicePaid(invoice) {
     // Insert payment record with better duplicate prevention
     const paymentData = {
       user_id: subscriptionData.user_id,
-      stripe_payment_intent_id: invoice.payment_intent,
       stripe_invoice_id: invoice.id,
       amount: invoice.amount_paid / 100,
       currency: invoice.currency.toUpperCase(),
@@ -314,17 +386,50 @@ async function handleInvoicePaid(invoice) {
       paid_at: invoice.paid_at ? new Date(invoice.paid_at * 1000).toISOString() : new Date().toISOString()
     };
 
+    // Only add payment_intent_id if it exists and is not null
+    if (invoice.payment_intent) {
+      paymentData.stripe_payment_intent_id = invoice.payment_intent;
+    }
+
     if (subscriptionData.subscription_id) {
       paymentData.subscription_id = subscriptionData.subscription_id;
     }
 
-    // Use upsert to prevent duplicates (insert if not exists, do nothing if exists)
-    await supabase
+    console.log('💳 Inserting payment record:', paymentData);
+
+    // Check if payment already exists for this invoice
+    const { data: existingPayment, error: checkError } = await supabase
       .from('payments')
-      .upsert(paymentData, {
-        onConflict: 'stripe_invoice_id',
-        ignoreDuplicates: true
-      });
+      .select('payment_id')
+      .eq('stripe_invoice_id', invoice.id)
+      .single();
+
+    if (existingPayment) {
+      console.log('⚠️ Payment already exists for invoice:', invoice.id);
+      console.log('⚠️ Skipping payment insertion to avoid duplicates');
+      return;
+    }
+
+    // Use insert with conflict handling to prevent duplicates
+    const { data: paymentResult, error: paymentError } = await supabase
+      .from('payments')
+      .insert(paymentData)
+      .select();
+
+    if (paymentError) {
+      console.error('❌ Error inserting payment:', paymentError.message);
+      console.error('❌ Payment data that failed:', JSON.stringify(paymentData, null, 2));
+      
+      // Try to get more details about the error
+      if (paymentError.code === '23505') {
+        console.error('❌ This is a unique constraint violation');
+      } else if (paymentError.code === '23503') {
+        console.error('❌ This is a foreign key constraint violation');
+      }
+    } else {
+      console.log('✅ Payment record inserted successfully');
+      console.log('✅ Payment ID:', paymentResult?.[0]?.payment_id);
+    }
 
     // Update user with next_billing_at
     const nextBillingAt = invoice.lines?.data?.[0]?.period?.end 
@@ -341,10 +446,12 @@ async function handleInvoicePaid(invoice) {
         })
         .eq('user_id', subscriptionData.user_id);
     }
-  } catch (error) {
-    console.error('Error handling invoice paid:', error.message, error.stack);
-    throw error;
-  }
+      } catch (error) {
+      console.error('❌ Error handling invoice paid:', error.message, error.stack);
+      throw error;
+    }
+    
+    console.log('✅ Invoice.paid event processed successfully');
 }
 
 async function handleSubscriptionUpdated(subscription) {

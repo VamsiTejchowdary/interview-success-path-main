@@ -475,75 +475,8 @@ async function handleSubscriptionCreated(subscription) {
       subscriptionId = data?.[0]?.subscription_id;
     }
 
-    // Backfill subscription_id in payments table for initial payment
-    if (subscriptionId) {
-      const invoices = await stripe.invoices.list({
-        subscription: subscription.id,
-        limit: 1,
-        status: 'paid'
-      });
-      if (invoices.data.length > 0) {
-        const latestInvoice = invoices.data[0];
-        console.log('Backfilling payment with subscription_id for invoice:', latestInvoice.id);
-        
-        // First try to update existing payment record
-        const { data: updatedPayment, error: paymentUpdateError } = await supabase
-          .from('payments')
-          .update({ subscription_id: subscriptionId })
-          .eq('stripe_invoice_id', latestInvoice.id)
-          .eq('user_id', userData.user_id)
-          .is('subscription_id', null)
-          .select();
-        
-        // If no payment record was updated, check if one already exists for this invoice
-        if (!updatedPayment || updatedPayment.length === 0) {
-          // Check if payment already exists for this invoice
-          const { data: existingPayment, error: checkError } = await supabase
-            .from('payments')
-            .select('payment_id')
-            .eq('stripe_invoice_id', latestInvoice.id)
-            .single();
-
-          if (existingPayment) {
-            console.log('⚠️ Payment already exists for invoice:', latestInvoice.id);
-            console.log('⚠️ Skipping payment creation to avoid duplicates');
-          } else {
-            console.log('💳 Creating new payment record for subscription creation');
-            const paymentData = {
-              user_id: userData.user_id,
-              subscription_id: subscriptionId,
-              stripe_invoice_id: latestInvoice.id,
-              amount: latestInvoice.amount_paid / 100,
-              currency: latestInvoice.currency.toUpperCase(),
-              status: 'succeeded',
-              payment_method: latestInvoice.payment_method_details?.type || 'card',
-              billing_reason: latestInvoice.billing_reason,
-              paid_at: latestInvoice.paid_at ? new Date(latestInvoice.paid_at * 1000).toISOString() : new Date().toISOString()
-            };
-            
-            // Only add payment_intent_id if it exists
-            if (latestInvoice.payment_intent) {
-              paymentData.stripe_payment_intent_id = latestInvoice.payment_intent;
-            }
-            
-            const { data: newPayment, error: insertError } = await supabase
-              .from('payments')
-              .insert(paymentData)
-              .select();
-            
-            if (insertError) {
-              console.error('❌ Error creating payment record:', insertError.message);
-            } else {
-              console.log('✅ Created payment record for subscription:', newPayment?.[0]?.payment_id);
-            }
-          }
-        } else {
-          console.log('✅ Updated existing payment record with subscription_id');
-        }
-        
-        console.log('Backfilled payment with subscription_id:', { subscriptionId, invoiceId: latestInvoice.id, error: paymentUpdateError?.message });
-      }
-    }
+    // Only update user status, don't create payment records here
+    // Payment records will be created by invoice.paid event
 
     // Update user with next_billing_at
     const nextBillingAt = currentPeriodEnd;

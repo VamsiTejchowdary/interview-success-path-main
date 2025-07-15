@@ -7,6 +7,19 @@ import { supabase } from "@/lib/supabase";
 import { Linkedin, CheckCircle, Shield, Check, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+// Card brand logo mapping (using SimpleIcons CDN)
+const cardBrandLogos: Record<string, string> = {
+  visa: '/src/resources/card-logos/visa.svg',
+  mastercard: '/src/resources/card-logos/mastercard.svg',
+  amex: '/src/resources/card-logos/amex.svg',
+  discover: '/src/resources/card-logos/discover.svg',
+  diners: '/src/resources/card-logos/diners.svg',
+  jcb: '/src/resources/card-logos/jcb.svg',
+  unionpay: '/src/resources/card-logos/unionpay.svg',
+  // Add more as needed
+};
+const defaultCardLogo = '/src/resources/card-logos/defaultcard.svg';
+
 const ProfileTab = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userDb, setUserDb] = useState<any>(null);
@@ -169,7 +182,7 @@ const ProfileTab = () => {
       return <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">Active</Badge>;
     }
     if (userDb.status === "on_hold") {
-      return <Badge className="bg-yellow-500 text-white">On Hold</Badge>;
+      return <Badge className="bg-yellow-500 text-white">Hold</Badge>;
     }
     return null;
   };
@@ -416,13 +429,27 @@ const ProfileTab = () => {
           <div className="flex flex-col sm:flex-row gap-2 mt-4">
             {editMode ? (
               <>
-                <Button className="bg-purple-500 hover:bg-purple-600 text-white w-full sm:w-auto" onClick={handleSave} disabled={loading}>
+                <Button
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 text-sm rounded-md w-full sm:w-auto min-w-[120px]"
+                  onClick={handleSave}
+                  disabled={loading}
+                >
                   {loading ? "Saving..." : "Save"}
                 </Button>
-                <Button variant="outline" className="border-gray-300 text-gray-700 hover:bg-gray-50 w-full sm:w-auto" onClick={handleCancel} disabled={loading}>Cancel</Button>
+                <Button
+                  variant="outline"
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm rounded-md w-full sm:w-auto min-w-[120px]"
+                  onClick={handleCancel}
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
               </>
             ) : (
-              <Button className="w-full bg-purple-500 hover:bg-purple-600 text-white" onClick={handleEdit}>
+              <Button
+                className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 text-sm rounded-md w-full sm:w-auto min-w-[120px]"
+                onClick={handleEdit}
+              >
                 Edit Profile
               </Button>
             )}
@@ -489,11 +516,12 @@ const ProfileTab = () => {
               ) : paymentMethod ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                      <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
-                      </svg>
-                    </div>
+                    <img
+                      src={cardBrandLogos[paymentMethod.card?.brand] || defaultCardLogo}
+                      alt={paymentMethod.card?.brand || 'Card'}
+                      className="w-8 h-8 object-contain"
+                      style={{ display: 'inline-block', verticalAlign: 'middle' }}
+                    />
                     <div>
                       <p className="font-medium text-gray-800">
                         •••• •••• •••• {paymentMethod.card?.last4 || '****'}
@@ -544,6 +572,21 @@ const ProfileTab = () => {
               </p>
             </div>
           )}
+          {/* Add support and cancel subscription options below payment method */}
+          <div className="mt-4 space-y-2">
+            <div className="text-sm text-gray-600">
+              To update your payment method, please contact <a href="mailto:support@jobsmartly.com" className="text-blue-600 underline">support@jobsmartly.com</a>.
+            </div>
+            <button
+              className="w-full sm:w-auto px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md shadow transition-all duration-150 min-w-[160px]"
+              onClick={() => {
+                // TODO: Implement cancel subscription logic
+                alert('Cancel subscription functionality coming soon!');
+              }}
+            >
+              Cancel Subscription
+            </button>
+          </div>
         </CardContent>
       </Card>
       {/* Resume Modal */}

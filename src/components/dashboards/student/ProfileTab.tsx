@@ -202,8 +202,9 @@ const ProfileTab = () => {
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Payment method data:', data);
-        setPaymentMethod(data.paymentMethod);
+        console.log('Payment methods data:', data);
+        // Use the first payment method (most recent)
+        setPaymentMethod(data.paymentMethods && data.paymentMethods.length > 0 ? data.paymentMethods[0] : null);
       } else {
         const errorData = await response.text();
         console.error('Failed to fetch payment method:', response.status, errorData);

@@ -14,50 +14,33 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Customer ID is required' });
     }
 
-    // Get the customer's default payment method
-    const customer = await stripe.customers.retrieve(customerId, {
-      expand: ['invoice_settings.default_payment_method', 'sources']
+    // Get all card payment methods for the customer, most recent first
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: customerId,
+      type: 'card',
     });
-    
-    let paymentMethodId = null;
-    
-    // Check for default payment method first (preferred)
-    if (customer.invoice_settings?.default_payment_method) {
-      paymentMethodId = customer.invoice_settings.default_payment_method;
-    } else if (customer.default_source) {
-      // Fallback to default source (older method)
-      paymentMethodId = customer.default_source;
-    } else {
-      // If no default is set, try to get the first available payment method
-      const paymentMethods = await stripe.paymentMethods.list({
-        customer: customerId,
-        type: 'card',
-      });
-      
-      if (paymentMethods.data.length > 0) {
-        paymentMethodId = paymentMethods.data[0].id;
-      } else {
-        return res.status(404).json({ error: 'No payment method found' });
-      }
+
+    if (paymentMethods.data.length === 0) {
+      return res.status(404).json({ error: 'No payment method found' });
     }
 
-    // Retrieve the payment method details
-    const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+    // Map all payment methods to return relevant card details
+    const paymentMethodsData = paymentMethods.data.map(pm => ({
+      id: pm.id,
+      type: pm.type,
+      card: pm.card ? {
+        brand: pm.card.brand,
+        last4: pm.card.last4,
+        exp_month: pm.card.exp_month,
+        exp_year: pm.card.exp_year,
+        country: pm.card.country
+      } : null,
+      billing_details: pm.billing_details
+    }));
 
-    // Return the payment method data
+    // Return all payment methods (most recent first)
     return res.status(200).json({
-      paymentMethod: {
-        id: paymentMethod.id,
-        type: paymentMethod.type,
-        card: paymentMethod.card ? {
-          brand: paymentMethod.card.brand,
-          last4: paymentMethod.card.last4,
-          exp_month: paymentMethod.card.exp_month,
-          exp_year: paymentMethod.card.exp_year,
-          country: paymentMethod.card.country
-        } : null,
-        billing_details: paymentMethod.billing_details
-      }
+      paymentMethods: paymentMethodsData
     });
 
   } catch (error) {

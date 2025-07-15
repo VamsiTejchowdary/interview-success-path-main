@@ -966,83 +966,50 @@ app.post('/create-checkout-session', async (req, res) => {
 app.post('/get-payment-method', async (req, res) => {
   console.log('🔍 Payment method request received');
   console.log('📋 Request body:', req.body);
-  
+
   try {
     const { customerId } = req.body;
-    let paymentMethodId = null;
 
     if (!customerId) {
       console.log('❌ No customer ID provided');
       return res.status(400).json({ error: 'Customer ID is required' });
     }
 
-    console.log('🔍 Fetching customer from Stripe:', customerId);
-    
-    // Get the customer's default payment method
-    const customer = await stripe.customers.retrieve(customerId, {
-      expand: ['invoice_settings.default_payment_method', 'sources']
+    // Get all card payment methods for the customer, most recent first
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: customerId,
+      type: 'card',
     });
-    
-    // Check for default payment method first (preferred)
-    if (customer.invoice_settings?.default_payment_method) {
-      paymentMethodId = customer.invoice_settings.default_payment_method;
-    } else if (customer.default_source) {
-      // Fallback to default source (older method)
-      paymentMethodId = customer.default_source;
-    } else {
-      // If no default is set, try to get the first available payment method
-      try {
-        const paymentMethods = await stripe.paymentMethods.list({
-          customer: customerId,
-          type: 'card',
-        });
-        
-        if (paymentMethods.data.length > 0) {
-          paymentMethodId = paymentMethods.data[0].id;
-        } else {
-          // If no payment methods, check sources (older Stripe method)
-          if (customer.sources && customer.sources.data.length > 0) {
-            const cardSource = customer.sources.data.find(source => source.object === 'card');
-            if (cardSource) {
-              paymentMethodId = cardSource.id;
-            }
-          }
-          
-          if (!paymentMethodId) {
-            console.log('❌ No payment methods or sources found for customer');
-            return res.status(404).json({ error: 'No payment method found' });
-          }
-        }
-      } catch (pmError) {
-        console.log('❌ Error checking payment methods:', pmError.message);
-        return res.status(500).json({ error: 'Error checking payment methods' });
-      }
+
+    if (paymentMethods.data.length === 0) {
+      console.log('❌ No payment methods found for customer');
+      return res.status(404).json({ error: 'No payment method found' });
     }
 
-    // Retrieve the payment method details
-    const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+    // Map all payment methods to return relevant card details
+    const paymentMethodsData = paymentMethods.data.map(pm => ({
+      id: pm.id,
+      type: pm.type,
+      card: pm.card ? {
+        brand: pm.card.brand,
+        last4: pm.card.last4,
+        exp_month: pm.card.exp_month,
+        exp_year: pm.card.exp_year,
+        country: pm.card.country
+      } : null,
+      billing_details: pm.billing_details
+    }));
 
-    // Return the payment method data
+    // Return all payment methods (most recent first)
     return res.status(200).json({
-      paymentMethod: {
-        id: paymentMethod.id,
-        type: paymentMethod.type,
-        card: paymentMethod.card ? {
-          brand: paymentMethod.card.brand,
-          last4: paymentMethod.card.last4,
-          exp_month: paymentMethod.card.exp_month,
-          exp_year: paymentMethod.card.exp_year,
-          country: paymentMethod.card.country
-        } : null,
-        billing_details: paymentMethod.billing_details
-      }
+      paymentMethods: paymentMethodsData
     });
 
   } catch (error) {
     console.error('Error fetching payment method:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: 'Failed to fetch payment method',
-      details: error.message 
+      details: error.message
     });
   }
 });

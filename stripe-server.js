@@ -295,60 +295,44 @@ app.post('/get-payment-method', async (req, res) => {
 // Stripe Webhook Handler
 app.post('/api/stripe-webhook', bodyParser.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
   let event;
+
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    console.log('✅ Webhook signature verified successfully');
-    console.log('📨 Received event type:', event.type);
-    console.log('📋 Event data:', JSON.stringify(event.data.object, null, 2));
   } catch (err) {
-    console.error('❌ Webhook signature verification failed:', err.message);
+    console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
   try {
-    console.log('🔄 Processing event type:', event.type);
     switch (event.type) {
       case 'customer.subscription.created':
-        console.log('📅 Handling subscription.created...');
         await handleSubscriptionCreated(event.data.object);
         break;
       case 'customer.subscription.updated':
-        console.log('📅 Handling subscription.updated...');
         await handleSubscriptionUpdated(event.data.object);
         break;
       case 'customer.subscription.deleted':
-        console.log('📅 Handling subscription.deleted...');
         await handleSubscriptionDeleted(event.data.object);
         break;
-      case 'invoice.payment_succeeded':
-        console.log('💰 Handling invoice.payment_succeeded...');
-        await handleInvoicePaymentSucceeded(event.data.object);
+      case 'invoice.paid':
+        await handleInvoicePaid(event.data.object);
         break;
       case 'invoice.payment_failed':
-        console.log('💰 Handling invoice.payment_failed...');
         await handleInvoicePaymentFailed(event.data.object);
         break;
       case 'invoice.upcoming':
-        console.log('💰 Handling invoice.upcoming...');
         await handleInvoiceUpcoming(event.data.object);
         break;
       default:
-        console.log(`⚠️ Unhandled event type: ${event.type}`);
+        console.log('⚠️ Unhandled event type:', event.type);
     }
-    // Log the event for tracking
-    await supabase
-      .from('subscription_events')
-      .insert({
-        stripe_event_id: event.id,
-        event_type: event.type,
-        event_data: event.data.object,
-        processed: true
-      });
-    res.status(200).send('Webhook processed');
+    await logSubscriptionEvent(event);
+    res.json({ received: true });
   } catch (error) {
-    console.error('Webhook processing error:', error);
-    res.status(500).send('Webhook processing failed');
+    console.error('Error processing webhook:', error);
+    res.status(500).json({ error: 'Webhook processing failed' });
   }
 });
 

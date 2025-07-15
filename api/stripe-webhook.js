@@ -48,9 +48,6 @@ export default async function handler(req, res) {
       case 'invoice.paid':
         await handleInvoicePaid(event.data.object);
         break;
-      case 'invoice.payment_succeeded':
-        await handleInvoicePaid(event.data.object);
-        break;
       case 'invoice.payment_failed':
         await handleInvoicePaymentFailed(event.data.object);
         break;

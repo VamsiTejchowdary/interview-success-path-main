@@ -7,18 +7,18 @@ import { supabase } from "@/lib/supabase";
 import { Linkedin, CheckCircle, Shield, Check, Crown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Card brand logo mapping (using SimpleIcons CDN)
+// Card brand logo mapping (SVGs should be placed in public/card-logos/ for dev and prod compatibility)
 const cardBrandLogos: Record<string, string> = {
-  visa: '/src/resources/card-logos/visa.svg',
-  mastercard: '/src/resources/card-logos/mastercard.svg',
-  amex: '/src/resources/card-logos/amex.svg',
-  discover: '/src/resources/card-logos/discover.svg',
-  diners: '/src/resources/card-logos/diners.svg',
-  jcb: '/src/resources/card-logos/jcb.svg',
-  unionpay: '/src/resources/card-logos/unionpay.svg',
+  visa: '/card-logos/visa.svg',
+  mastercard: '/card-logos/mastercard.svg',
+  amex: '/card-logos/amex.svg',
+  discover: '/card-logos/discover.svg',
+  diners: '/card-logos/diners.svg',
+  jcb: '/card-logos/jcb.svg',
+  unionpay: '/card-logos/unionpay.svg',
   // Add more as needed
 };
-const defaultCardLogo = '/src/resources/card-logos/defaultcard.svg';
+const defaultCardLogo = '/card-logos/defaultcard.svg';
 
 const ProfileTab = () => {
   const [user, setUser] = useState<AuthUser | null>(null);

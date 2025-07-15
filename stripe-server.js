@@ -988,15 +988,61 @@ async function handleInvoiceUpcoming(invoice) {
 
 async function logSubscriptionEvent(event) {
   try {
+    let subscriptionId = null;
+    
+    // Extract subscription_id based on event type
+    switch (event.type) {
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        // For subscription events, the event data is the subscription object
+        subscriptionId = event.data.object.id;
+        break;
+        
+      case 'invoice.paid':
+      case 'invoice.payment_failed':
+      case 'invoice.upcoming':
+        // For invoice events, get subscription_id from the invoice
+        subscriptionId = event.data.object.subscription;
+        break;
+        
+      default:
+        // For other events, try to find subscription_id in the event data
+        subscriptionId = event.data.object.subscription || event.data.object.id;
+        break;
+    }
+
+    // If we have a subscription_id, try to get the local subscription_id from our database
+    let localSubscriptionId = null;
+    if (subscriptionId) {
+      try {
+        const { data: subscriptionData } = await supabase
+          .from('subscriptions')
+          .select('subscription_id')
+          .eq('stripe_subscription_id', subscriptionId)
+          .single();
+        
+        if (subscriptionData) {
+          localSubscriptionId = subscriptionData.subscription_id;
+        }
+      } catch (error) {
+        console.log('Could not find local subscription_id for stripe_subscription_id:', subscriptionId);
+      }
+    }
+
     const { error } = await supabase
       .from('subscription_events')
       .insert({
         stripe_event_id: event.id,
         event_type: event.type,
         event_data: event.data.object,
+        subscription_id: localSubscriptionId,
         processed: true
       });
-    console.log('Logged subscription event:', event.id, event.type, { error: error?.message });
+    console.log('Logged subscription event:', event.id, event.type, { 
+      subscriptionId: localSubscriptionId,
+      error: error?.message 
+    });
   } catch (error) {
     console.error('Error logging subscription event:', error.message, error.stack);
   }

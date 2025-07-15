@@ -16,7 +16,7 @@ async function setupWebhook() {
     
     const webhookUrl = process.env.NODE_ENV === 'production'
       ? 'https://your-domain.com/api/stripe-webhook' // Replace with your actual domain
-      : 'http://localhost:3000/api/stripe-webhook';
+      : 'http://localhost:4242/api/stripe-webhook';
 
     const existingWebhook = existingWebhooks.find(webhook => 
       webhook.url === webhookUrl

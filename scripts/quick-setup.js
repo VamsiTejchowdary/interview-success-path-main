@@ -111,7 +111,7 @@ async function setupWebhookEndpoint() {
   try {
     const webhookUrl = process.env.NODE_ENV === 'production'
       ? 'https://your-domain.com/api/stripe-webhook' // Replace with your actual domain
-      : 'http://localhost:3000/api/stripe-webhook';
+      : 'http://localhost:4242/api/stripe-webhook';
 
     // Check if webhook already exists
     const { data: existingWebhooks } = await stripe.webhookEndpoints.list();

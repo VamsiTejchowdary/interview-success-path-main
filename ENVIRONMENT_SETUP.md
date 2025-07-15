@@ -7,7 +7,7 @@ This guide explains how to set up multiple environments (development, staging, p
 ### **Development Environment**
 - **Purpose**: Local development and testing
 - **Database**: Separate Supabase project
-- **Domain**: `http://localhost:3000`
+- **Domain**: `http://localhost:4242`
 
 ### **Production Environment** 
 - **Purpose**: Live application
@@ -21,7 +21,7 @@ This guide explains how to set up multiple environments (development, staging, p
 VITE_SUPABASE_URL=https://your-dev-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-dev-anon-key
 VITE_ADMIN_KEY=your-dev-admin-key
-VITE_AUTH_REDIRECT_URL=http://localhost:3000
+VITE_AUTH_REDIRECT_URL=http://localhost:4242
 VITE_BLOB_READ_WRITE_TOKEN=your-dev-vercel-blob-token
 ```
 
@@ -51,10 +51,10 @@ VITE_BLOB_READ_WRITE_TOKEN=your-production-vercel-blob-token
 
 ### **3. Configure Supabase Settings**
 1. Go to Authentication → URL Configuration
-2. Set Site URL: `http://localhost:3000`
+2. Set Site URL: `http://localhost:4242`
 3. Add Redirect URLs:
-   - `http://localhost:3000/auth/callback`
-   - `http://localhost:3000/reset-password`
+   - `http://localhost:4242/auth/callback`
+   - `http://localhost:4242/reset-password`
 
 ### **4. Get Environment Variables**
 1. Go to Settings → API

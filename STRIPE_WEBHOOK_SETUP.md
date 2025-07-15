@@ -37,7 +37,7 @@ VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 # Application Configuration
-NEXT_PUBLIC_BASE_URL=http://localhost:3000 # Your app URL
+NEXT_PUBLIC_BASE_URL=http://localhost:4242 # Your app URL
 ```
 
 ## Step 3: Configure Stripe Webhook Endpoint
@@ -53,7 +53,7 @@ stripe login
 
 3. Forward webhooks to your local server:
 ```bash
-stripe listen --forward-to localhost:3000/api/stripe-webhook
+stripe listen --forward-to localhost:4242/api/stripe-webhook
 ```
 
 4. Copy the webhook signing secret from the output and add it to your `.env` file:
@@ -68,7 +68,7 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 2. Click "Add endpoint"
 
 3. Set the endpoint URL:
-   - Development: `http://localhost:3000/api/stripe-webhook`
+   - Development: `http://localhost:4242/api/stripe-webhook`
    - Production: `https://your-domain.com/api/stripe-webhook`
 
 4. Select these events to listen for:

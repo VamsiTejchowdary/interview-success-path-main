@@ -97,23 +97,25 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
 
   // Send email to support and user
   const sendCancellationEmail = async (type: "request" | "revoke") => {
-    const endpoint = "http://localhost:4242/api/send-email";
-    const payload = {
-      to: [localUser.email, "d.vamsitej333@gmail.com"],
-      subject:
-        type === "request"
-          ? "Subscription Cancellation Requested"
-          : "Subscription Cancellation Revoked",
-      text:
-        type === "request"
-          ? `User ${localUser.email} has requested to cancel their subscription. Please reach out to them before processing.`
-          : `User ${localUser.email} has revoked their cancellation request and wishes to keep their subscription active.`
-    };
-    await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
+    try {
+      const userName = `${localUser.first_name || ''} ${localUser.last_name || ''}`.trim() || localUser.email;
+      const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
+      const endpoint = import.meta.env.DEV ? '/api/send-email' : '/api/send-email';
+      const response = await fetch(`${apiBase}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: [localUser.email, "d.vamsitej333@gmail.com"],
+          template: 'subscriptionCancellation',
+          templateData: [localUser.email, userName, type]
+        })
+      });
+      if (!response.ok) {
+        console.error('Failed to send cancellation email');
+      }
+    } catch (error) {
+      console.error('Error sending cancellation email:', error);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

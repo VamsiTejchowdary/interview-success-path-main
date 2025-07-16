@@ -4,7 +4,8 @@ import { Resend } from 'resend';
 import { 
   accountVerifiedTemplate, 
   accountApprovedTemplate, 
-  passwordResetTemplate 
+  passwordResetTemplate,
+  subscriptionCancellationTemplate
 } from '../email-templates/index.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -13,7 +14,8 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const emailTemplates = {
   accountVerified: accountVerifiedTemplate,
   accountApproved: accountApprovedTemplate,
-  passwordReset: passwordResetTemplate
+  passwordReset: passwordResetTemplate,
+  subscriptionCancellation: subscriptionCancellationTemplate
 };
 
 // Email sending function
@@ -21,7 +23,7 @@ const sendEmail = async (emailData) => {
   try {
     const { data, error } = await resend.emails.send({
       from: emailData.from || 'noreply@jobsmartly.com',
-      to: [emailData.to],
+      to: emailData.to,
       subject: emailData.subject,
       html: emailData.html,
     });
@@ -56,20 +58,33 @@ export default async function handler(req, res) {
     const { to, subject, html, template, templateData } = req.body;
 
     let emailData;
-    
-    if (template && templateData) {
-      const templateFn = emailTemplates[template];
-      if (!templateFn) {
-        return res.status(400).json({ error: 'Template not found' });
+    let recipients = Array.isArray(to) ? to : [to];
+    let results = [];
+    let errors = [];
+
+    for (const recipient of recipients) {
+      if (template && templateData) {
+        const templateFn = emailTemplates[template];
+        if (!templateFn) {
+          return res.status(400).json({ error: 'Template not found' });
+        }
+        emailData = templateFn(...templateData);
+        emailData.to = recipient;
+      } else {
+        emailData = { to: recipient, subject, html };
       }
-      emailData = templateFn(...templateData);
-      emailData.to = to;
-    } else {
-      emailData = { to, subject, html };
+      try {
+        const result = await sendEmail(emailData);
+        results.push(result);
+      } catch (err) {
+        errors.push({ recipient, error: err.message });
+      }
     }
 
-    const result = await sendEmail(emailData);
-    res.status(200).json({ success: true, data: result });
+    if (errors.length > 0) {
+      return res.status(500).json({ error: 'Failed to send to some recipients', details: errors });
+    }
+    res.status(200).json({ success: true, data: results });
   } catch (error) {
     console.error('Email API error:', error);
     res.status(500).json({ error: 'Failed to send email', details: error.message });

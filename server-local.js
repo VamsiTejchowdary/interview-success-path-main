@@ -11,7 +11,8 @@ import bodyParser from 'body-parser'; // <-- Add this import
 import { 
   accountVerifiedTemplate, 
   accountApprovedTemplate, 
-  passwordResetTemplate 
+  passwordResetTemplate ,
+  subscriptionCancellationTemplate
 } from './email-templates/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -98,7 +99,8 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 const emailTemplates = {
   accountVerified: accountVerifiedTemplate,
   accountApproved: accountApprovedTemplate,
-  passwordReset: passwordResetTemplate
+  passwordReset: passwordResetTemplate,
+  subscriptionCancellation: subscriptionCancellationTemplate
 };
 
 // Email sending function
@@ -106,7 +108,7 @@ const sendEmail = async (emailData) => {
   try {
     const { data, error } = await resend.emails.send({
       from: emailData.from || 'noreply@jobsmartly.com',
-      to: [emailData.to],
+      to: Array.isArray(emailData.to) ? emailData.to : [emailData.to],
       subject: emailData.subject,
       html: emailData.html,
     });
@@ -815,7 +817,7 @@ async function logSubscriptionEvent(event) {
 }
 
 // API Routes
-app.post('/send-email', async (req, res) => {
+app.post('/api/send-email', async (req, res) => {
   try {
     const { to, subject, html, template, templateData } = req.body;
 

@@ -85,6 +85,37 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
     fetchActiveSubscription();
   }, [user, userDb]);
 
+  // Helper to update cancellation_requested in DB
+  const updateCancellationRequested = async (value: boolean) => {
+    if (!localUserDb?.user_id) return;
+    await supabase
+      .from("users")
+      .update({ cancellation_requested: value })
+      .eq("user_id", localUserDb.user_id);
+    setUserDb((prev: any) => ({ ...prev, cancellation_requested: value }));
+  };
+
+  // Send email to support and user
+  const sendCancellationEmail = async (type: "request" | "revoke") => {
+    const endpoint = "http://localhost:4242/api/send-email";
+    const payload = {
+      to: [localUser.email, "d.vamsitej333@gmail.com"],
+      subject:
+        type === "request"
+          ? "Subscription Cancellation Requested"
+          : "Subscription Cancellation Revoked",
+      text:
+        type === "request"
+          ? `User ${localUser.email} has requested to cancel their subscription. Please reach out to them before processing.`
+          : `User ${localUser.email} has revoked their cancellation request and wishes to keep their subscription active.`
+    };
+    await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
@@ -220,7 +251,7 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
   // Fetch payment method from Stripe
   const fetchPaymentMethod = async () => {
     if (!localUserDb?.stripe_customer_id) {
-      console.log('No stripe_customer_id found:', localUserDb);
+      //console.log('No stripe_customer_id found:', localUserDb);
       return;
     }
     
@@ -231,8 +262,8 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
       const url = `${apiBase}${endpoint}`;
       const requestBody = { customerId: localUserDb.stripe_customer_id };
       
-      console.log('Fetching payment method from:', url);
-      console.log('Request body:', requestBody);
+      //console.log('Fetching payment method from:', url);
+      //console.log('Request body:', requestBody);
       
       const response = await fetch(url, {
         method: 'POST',
@@ -240,12 +271,12 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
         body: JSON.stringify(requestBody),
       });
       
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
+      // console.log('Response status:', response.status);
+      // console.log('Response headers:', response.headers);
       
       if (response.ok) {
         const data = await response.json();
-        console.log('Payment methods data:', data);
+        //console.log('Payment methods data:', data);
         // Use the first payment method (most recent)
         setPaymentMethod(data.paymentMethods && data.paymentMethods.length > 0 ? data.paymentMethods[0] : null);
       } else {
@@ -276,14 +307,14 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
     setStripeLoading(true);
     try {
       const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
-      console.log('apiBase', apiBase);
+      //console.log('apiBase', apiBase);
       const endpoint = import.meta.env.DEV ? '/create-checkout-session' : '/api/create-checkout-session';
       const response = await fetch(`${apiBase}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userEmail: localUser.email }),
       });
-      console.log('Response status:', response.status);
+      //console.log('Response status:', response.status);
       
       if (!response.ok) {
         const errorData = await response.json();
@@ -293,7 +324,7 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
       }
       
       const data = await response.json();
-      console.log('Response data:', data);
+      //console.log('Response data:', data);
       
       if (data.url) {
         window.location.href = data.url;
@@ -615,6 +646,23 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                   <Shield className="w-4 h-4 text-yellow-600" />
                   <span>Your subscription has been canceled successfully, but you will have access to all features until the end of your billing cycle.</span>
                 </div>
+              ) : userDb?.cancellation_requested ? (
+                <>
+                  <div className="text-sm text-yellow-700 bg-yellow-100 border border-yellow-300 rounded p-3 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-yellow-600" />
+                    <span>We received your cancellation request. Our team will contact you soon to discuss your subscription.</span>
+                  </div>
+                  <Button
+                    className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 text-xs sm:text-sm rounded-md w-auto mx-auto block min-w-[100px] font-semibold shadow transition-all duration-150"
+                    onClick={async () => {
+                      await updateCancellationRequested(false);
+                      await sendCancellationEmail("revoke");
+                      toast({ title: "Cancellation Revoked", description: "Your subscription will remain active.", variant: "default" });
+                    }}
+                  >
+                    Keep my subscription
+                  </Button>
+                </>
               ) : (
                 <>
                   <div className="text-sm text-gray-600">
@@ -622,9 +670,10 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                   </div>
                   <Button
                     className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 text-xs sm:text-sm rounded-md w-auto mx-auto block min-w-[100px] font-semibold shadow transition-all duration-150"
-                    onClick={() => {
-                      // TODO: Implement cancel subscription logic
-                      alert('Cancel subscription functionality coming soon!');
+                    onClick={async () => {
+                      await updateCancellationRequested(true);
+                      await sendCancellationEmail("request");
+                      toast({ title: "Cancellation Requested", description: "We have received your request. Our team will contact you soon.", variant: "default" });
                     }}
                   >
                     Cancel Subscription

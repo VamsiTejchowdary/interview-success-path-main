@@ -50,6 +50,7 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
   const [stripeLoading, setStripeLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<any>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [activeSubscription, setActiveSubscription] = useState<any>(null);
 
   // If user/userDb props change, update local state
   useEffect(() => {
@@ -65,6 +66,23 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
         linkedin_url: user.linkedin_url || "",
       });
     }
+    // Fetch the user's most recent subscription
+    const fetchActiveSubscription = async () => {
+      if (!userDb?.user_id) return;
+      const { data, error } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('user_id', userDb.user_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (!error && data) {
+        setActiveSubscription(data);
+      } else {
+        setActiveSubscription(null);
+      }
+    };
+    fetchActiveSubscription();
   }, [user, userDb]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -162,7 +180,13 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
     setResumeUploading(false);
   };
 
-  const isOverdue = localUserDb && localUserDb.next_billing_at && new Date(localUserDb.next_billing_at) <= new Date();
+  // Stripe invoices can remain in draft for up to 3 days (72 hours) after the billing period ends.
+  // We use a 3-day grace period to avoid showing 'Overdue' during this window.
+  const GRACE_PERIOD_DAYS = 3;
+  const isOverdue =
+    localUserDb &&
+    localUserDb.next_billing_at &&
+    new Date(localUserDb.next_billing_at).getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000 <= new Date().getTime();
 
   const getFeeBadge = () => {
     if (!localUserDb) return null;
@@ -490,7 +514,8 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
               <span className="text-gray-600">Fee Paid</span>
               <span>{getFeeBadge()}</span>
             </div>
-            {localUserDb && localUserDb.next_billing_at && (
+            {/* Hide Next Billing if subscription is set to cancel at period end */}
+            {localUserDb && localUserDb.next_billing_at && !activeSubscription?.cancel_at_period_end && (
               <div className="flex justify-between">
                 <span className="text-gray-600">Next Billing</span>
                 <span className="font-medium text-gray-800">
@@ -504,8 +529,8 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
             )}
           </div>
           
-          {/* Payment Method Card */}
-          {localUserDb && localUserDb.is_paid && (
+          {/* Payment Method Card - Hide if subscription is set to cancel at period end */}
+          {localUserDb && localUserDb.is_paid && !activeSubscription?.cancel_at_period_end && (
             <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-semibold text-gray-800">Payment Method</h4>
@@ -585,18 +610,27 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
           {/* Add support and cancel subscription options below payment method */}
           {localUserDb && localUserDb.status === 'approved' && (
             <div className="mt-4 space-y-2">
-              <div className="text-sm text-gray-600">
-                To update your payment method, please contact <a href="mailto:support@jobsmartly.com" className="text-blue-600 underline">support@jobsmartly.com</a>.
-              </div>
-              <Button
-                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 text-xs sm:text-sm rounded-md w-auto mx-auto block min-w-[100px] font-semibold shadow transition-all duration-150"
-                onClick={() => {
-                  // TODO: Implement cancel subscription logic
-                  alert('Cancel subscription functionality coming soon!');
-                }}
-              >
-                Cancel Subscription
-              </Button>
+              {activeSubscription?.cancel_at_period_end ? (
+                <div className="text-sm text-yellow-700 bg-yellow-100 border border-yellow-300 rounded p-3 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-yellow-600" />
+                  <span>Your subscription has been canceled successfully, but you will have access to all features until the end of your billing cycle.</span>
+                </div>
+              ) : (
+                <>
+                  <div className="text-sm text-gray-600">
+                    To update your payment method, please contact <a href="mailto:support@jobsmartly.com" className="text-blue-600 underline">support@jobsmartly.com</a>.
+                  </div>
+                  <Button
+                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 text-xs sm:text-sm rounded-md w-auto mx-auto block min-w-[100px] font-semibold shadow transition-all duration-150"
+                    onClick={() => {
+                      // TODO: Implement cancel subscription logic
+                      alert('Cancel subscription functionality coming soon!');
+                    }}
+                  >
+                    Cancel Subscription
+                  </Button>
+                </>
+              )}
             </div>
           )}
         </CardContent>

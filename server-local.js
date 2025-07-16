@@ -506,8 +506,7 @@ async function handleInvoicePaid(invoice) {
         subscriptionData = subByCustomer;
         // Update subscription with correct stripe_subscription_id if mismatched
         if (invoice.subscription && subByCustomer.stripe_subscription_id !== invoice.subscription) {
-          console.log('Updating subscription with new stripe_subscription_id:', invoice.subscription);
-          const { error: updateError } = await supabase
+          await supabase
             .from('subscriptions')
             .update({
               stripe_subscription_id: invoice.subscription,
@@ -540,7 +539,7 @@ async function handleInvoicePaid(invoice) {
           
           if (userByEmail) {
             console.log('Found user by email, updating stripe_customer_id...');
-            const { error: updateError } = await supabase
+            await supabase
               .from('users')
               .update({ stripe_customer_id: invoice.customer })
               .eq('user_id', userByEmail.user_id);
@@ -549,7 +548,10 @@ async function handleInvoicePaid(invoice) {
       }
 
       if (userByCustomer) {
-        subscriptionData = { user_id: userByCustomer.user_id };
+        // We do NOT insert payment if we can't find a subscription_id
+        // This ensures we always record subscription_id for every payment
+        console.log('❌ Subscription not found for invoice, will not insert payment. Will retry on next webhook delivery.');
+        return;
       }
     }
     
@@ -566,7 +568,7 @@ async function handleInvoicePaid(invoice) {
       const periodEnd = invoice.lines.data[0].period.end
         ? new Date(invoice.lines.data[0].period.end * 1000).toISOString()
         : null;
-      const { error: subUpdateError } = await supabase
+      await supabase
         .from('subscriptions')
         .update({
           current_period_start: periodStart,
@@ -586,7 +588,8 @@ async function handleInvoicePaid(invoice) {
       status: 'succeeded',
       payment_method: invoice.payment_method_details?.type || 'card',
       billing_reason: invoice.billing_reason,
-      paid_at: invoice.paid_at ? new Date(invoice.paid_at * 1000).toISOString() : new Date().toISOString()
+      paid_at: invoice.paid_at ? new Date(invoice.paid_at * 1000).toISOString() : new Date().toISOString(),
+      subscription_id: subscriptionData.subscription_id // Always set
     };
 
     // Only add payment_intent_id if it exists and is not null
@@ -594,13 +597,7 @@ async function handleInvoicePaid(invoice) {
       paymentData.stripe_payment_intent_id = invoice.payment_intent;
     }
 
-    if (subscriptionData.subscription_id) {
-      paymentData.subscription_id = subscriptionData.subscription_id;
-    }
-
-    console.log('💳 Inserting payment record:', paymentData);
-
-    // Check if payment already exists for this invoice
+    console.log('Inserting payment with data:', paymentData);
     const { data: existingPayment, error: checkError } = await supabase
       .from('payments')
       .select('payment_id')
@@ -613,7 +610,6 @@ async function handleInvoicePaid(invoice) {
       return;
     }
 
-    // Use insert with conflict handling to prevent duplicates
     const { data: paymentResult, error: paymentError } = await supabase
       .from('payments')
       .insert(paymentData)
@@ -622,8 +618,6 @@ async function handleInvoicePaid(invoice) {
     if (paymentError) {
       console.error('❌ Error inserting payment:', paymentError.message);
       console.error('❌ Payment data that failed:', JSON.stringify(paymentData, null, 2));
-      
-      // Try to get more details about the error
       if (paymentError.code === '23505') {
         console.error('❌ This is a unique constraint violation');
       } else if (paymentError.code === '23503') {
@@ -640,7 +634,7 @@ async function handleInvoicePaid(invoice) {
       : null;
     
     if (nextBillingAt) {
-      const { error: userUpdateError } = await supabase
+      await supabase
         .from('users')
         .update({
           is_paid: true,
@@ -648,7 +642,6 @@ async function handleInvoicePaid(invoice) {
           next_billing_at: nextBillingAt
         })
         .eq('user_id', subscriptionData.user_id);
-    } else {
     }
   } catch (error) {
     console.error('Error handling invoice paid:', error.message, error.stack);

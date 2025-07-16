@@ -239,7 +239,7 @@ async function handleInvoicePaid(invoice) {
         subscriptionData = subByCustomer;
         // Update subscription with correct stripe_subscription_id if mismatched
         if (invoice.subscription && subByCustomer.stripe_subscription_id !== invoice.subscription) {
-          const { error: updateError } = await supabase
+          await supabase
             .from('subscriptions')
             .update({
               stripe_subscription_id: invoice.subscription,
@@ -269,12 +269,20 @@ async function handleInvoicePaid(invoice) {
           
           if (userByEmail) {
             userByCustomer = userByEmail;
+            // Optionally update stripe_customer_id for user
+            await supabase
+              .from('users')
+              .update({ stripe_customer_id: invoice.customer })
+              .eq('user_id', userByEmail.user_id);
           }
         }
       }
 
       if (userByCustomer) {
-        subscriptionData = { user_id: userByCustomer.user_id };
+        // We do NOT insert payment if we can't find a subscription_id
+        // This ensures we always record subscription_id for every payment
+        console.log('❌ Subscription not found for invoice, will not insert payment. Will retry on next webhook delivery.');
+        return;
       }
     }
     
@@ -282,6 +290,8 @@ async function handleInvoicePaid(invoice) {
       console.log('❌ No subscription data found for invoice:', invoice.id);
       console.log('❌ Customer ID:', invoice.customer);
       console.log('❌ Subscription ID:', invoice.subscription);
+      // Do not insert payment if subscription_id is not found
+      // Stripe will retry the webhook, so we can process it later
       return;
     }
     
@@ -318,16 +328,13 @@ async function handleInvoicePaid(invoice) {
       status: 'succeeded',
       payment_method: invoice.payment_method_details?.type || 'card',
       billing_reason: invoice.billing_reason,
-      paid_at: invoice.paid_at ? new Date(invoice.paid_at * 1000).toISOString() : new Date().toISOString()
+      paid_at: invoice.paid_at ? new Date(invoice.paid_at * 1000).toISOString() : new Date().toISOString(),
+      subscription_id: subscriptionData.subscription_id // Always set
     };
 
     // Only add payment_intent_id if it exists and is not null
     if (invoice.payment_intent) {
       paymentData.stripe_payment_intent_id = invoice.payment_intent;
-    }
-
-    if (subscriptionData.subscription_id) {
-      paymentData.subscription_id = subscriptionData.subscription_id;
     }
 
     console.log('💳 Inserting payment record:', paymentData);
@@ -354,8 +361,6 @@ async function handleInvoicePaid(invoice) {
     if (paymentError) {
       console.error('❌ Error inserting payment:', paymentError.message);
       console.error('❌ Payment data that failed:', JSON.stringify(paymentData, null, 2));
-      
-      // Try to get more details about the error
       if (paymentError.code === '23505') {
         console.error('❌ This is a unique constraint violation');
       } else if (paymentError.code === '23503') {
@@ -381,12 +386,12 @@ async function handleInvoicePaid(invoice) {
         })
         .eq('user_id', subscriptionData.user_id);
     }
-      } catch (error) {
-      console.error('❌ Error handling invoice paid:', error.message, error.stack);
-      throw error;
-    }
-    
-    console.log('✅ Invoice.paid event processed successfully');
+  } catch (error) {
+    console.error('❌ Error handling invoice paid:', error.message, error.stack);
+    throw error;
+  }
+  
+  console.log('✅ Invoice.paid event processed successfully');
 }
 
 async function handleSubscriptionUpdated(subscription) {

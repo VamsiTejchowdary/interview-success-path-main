@@ -457,7 +457,7 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
               </>
             ) : (
               <Button
-                className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-1.5 text-xs sm:py-2 sm:text-sm rounded-md w-full sm:w-auto min-w-[120px]"
+                className="bg-purple-500 hover:bg-purple-600 text-white px-5 py-2 text-xs sm:text-sm rounded-md w-auto mx-auto block min-w-[100px] font-semibold shadow transition-all duration-150"
                 onClick={handleEdit}
               >
                 Edit Profile
@@ -588,15 +588,15 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
               <div className="text-sm text-gray-600">
                 To update your payment method, please contact <a href="mailto:support@jobsmartly.com" className="text-blue-600 underline">support@jobsmartly.com</a>.
               </div>
-              <button
-                className="w-full sm:w-auto px-4 py-1.5 text-xs sm:py-2 sm:text-sm bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md shadow transition-all duration-150 min-w-[160px]"
+              <Button
+                className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 text-xs sm:text-sm rounded-md w-auto mx-auto block min-w-[100px] font-semibold shadow transition-all duration-150"
                 onClick={() => {
                   // TODO: Implement cancel subscription logic
                   alert('Cancel subscription functionality coming soon!');
                 }}
               >
                 Cancel Subscription
-              </button>
+              </Button>
             </div>
           )}
         </CardContent>

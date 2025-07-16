@@ -151,13 +151,13 @@ const RecruiterSignup = () => {
               <div className="grid grid-cols-3 gap-4 sm:gap-6">
                 <div className="text-center">
                   <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    10,500+
+                    78,000+
                   </div>
                   <div className="text-sm text-slate-600 font-medium">Jobs Applied</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                    89%
+                    96%
                   </div>
                   <div className="text-sm text-slate-600 font-medium">Interview Rate</div>
                 </div>

@@ -24,7 +24,7 @@ const Footer = () => {
             Spend less time applying, more time interviewing.
             </p>
             <a
-              href="https://jobsmartly.com/contact"
+              href="https://www.jobsmartly.com/contact"
               target="_blank"
               rel="noopener noreferrer"
               className="button bg-white text-slate-900 font-semibold px-6 py-3 rounded-lg shadow hover:bg-blue-100 transition"
@@ -41,14 +41,39 @@ const Footer = () => {
         <div>
           <div className="font-semibold mb-2">Follow us</div>
           <div className="flex gap-3">
-            <a href="https://www.linkedin.com/company/send-blue" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="footer_social-icon w-10 h-10 flex items-center justify-center bg-white rounded-full hover:scale-110 transition">
+            <a href="https://www.linkedin.com/company/job-smartly" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" className="footer_social-icon w-10 h-10 flex items-center justify-center bg-white rounded-full hover:scale-110 transition">
               <Linkedin className="text-slate-900 w-5 h-5" />
+            </a>
+            {/* Instagram icon */}
+            <a href="https://www.instagram.com/jobsmartly/" target="_blank" rel="noopener noreferrer" aria-label="Instagram" className="footer_social-icon w-10 h-10 flex items-center justify-center bg-white rounded-full hover:scale-110 transition">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
+                <rect x="2" y="2" width="20" height="20" rx="6" fill="none" stroke="#262626" strokeWidth="2"/>
+                <circle cx="12" cy="12" r="5" fill="none" stroke="#262626" strokeWidth="2"/>
+                <circle cx="17.5" cy="6.5" r="1.5" fill="#262626"/>
+              </svg>
             </a>
             {/* Add more social icons as needed */}
           </div>
         </div>
+        
         {/* Company */}
-       
+        <div>
+          <div className="font-semibold mb-2">Company</div>
+          <div className="flex flex-col gap-2 text-sm">
+            <a href="https://www.jobsmartly.com/contact" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">Contact</a>
+            <a href="https://app.jobsmartly.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">Login</a>
+          </div>
+        </div>
+        
+        {/* Legal */}
+        <div>
+          <div className="font-semibold mb-2">Legal</div>
+          <div className="flex flex-col gap-2 text-sm">
+            <a href="https://www.jobsmartly.com/refundpolicy" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">Refund Policy</a>
+            <a href="https://www.jobsmartly.com/privacypolicy" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">Privacy Policy</a>
+            <a href="https://www.jobsmartly.com/terms" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">Terms & Conditions</a>
+           </div>
+        </div>
       </div>
 
       {/* Bottom Bar */}

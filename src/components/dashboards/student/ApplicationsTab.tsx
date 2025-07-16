@@ -24,8 +24,11 @@ function getStatusStyle(status) {
 
 const PAGE_SIZE = 10;
 
-export default function ApplicationsTab() {
-  const { user } = useAuth();
+interface ApplicationsTabProps {
+  user: any;
+  userDb: any;
+}
+export default function ApplicationsTab({ user, userDb }: ApplicationsTabProps) {
   const { toast } = useToast();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -329,7 +332,11 @@ export default function ApplicationsTab() {
                                   className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-8 px-3"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    window.open(app.job_link, '_blank');
+                                    let url = app.job_link || '';
+                                    if (url && !/^https?:\/\//i.test(url)) {
+                                      url = 'https://' + url;
+                                    }
+                                    window.open(url, '_blank');
                                   }}
                                 >
                                   <ExternalLink className="w-4 h-4 mr-1" />

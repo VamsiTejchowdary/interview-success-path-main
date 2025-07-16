@@ -20,9 +20,16 @@ const cardBrandLogos: Record<string, string> = {
 };
 const defaultCardLogo = '/card-logos/defaultcard.svg';
 
-const ProfileTab = () => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [userDb, setUserDb] = useState<any>(null);
+interface ProfileTabProps {
+  user: any;
+  userDb: any;
+  setUserDb: (db: any) => void;
+  refetchUserDb: () => void;
+}
+
+const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps) => {
+  const [localUser, setLocalUser] = useState<AuthUser | null>(user);
+  const [localUserDb, setLocalUserDb] = useState<any>(userDb);
   const [editMode, setEditMode] = useState(false);
   const [form, setForm] = useState({
     first_name: "",
@@ -44,41 +51,10 @@ const ProfileTab = () => {
   const [paymentMethod, setPaymentMethod] = useState<any>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
+  // If user/userDb props change, update local state
   useEffect(() => {
-    getCurrentUser().then(async (u) => {
-      if (u) {
-        const userInfo = await getUserInfo(u.email);
-        const user_id = userInfo?.user_id || null;
-        setUserId(user_id);
-        setUser(u);
-        setForm({
-          first_name: u.first_name || "",
-          last_name: u.last_name || "",
-          email: u.email || "",
-          phone: u.phone || "",
-          address: u.address || "",
-          linkedin_url: u.linkedin_url || "",
-        });
-        if (user_id) {
-          const { data } = await supabase
-            .from("users")
-            .select("next_billing_at, is_paid, status, stripe_customer_id")
-            .eq("user_id", user_id)
-            .single();
-          setUserDb(data);
-        }
-      }
-    });
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleEdit = () => setEditMode(true);
-  const handleCancel = () => {
-    setEditMode(false);
-    setError(null);
+    setLocalUser(user);
+    setLocalUserDb(userDb);
     if (user) {
       setForm({
         first_name: user.first_name || "",
@@ -89,10 +65,30 @@ const ProfileTab = () => {
         linkedin_url: user.linkedin_url || "",
       });
     }
+  }, [user, userDb]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleEdit = () => setEditMode(true);
+  const handleCancel = () => {
+    setEditMode(false);
+    setError(null);
+    if (localUser) {
+      setForm({
+        first_name: localUser.first_name || "",
+        last_name: localUser.last_name || "",
+        email: localUser.email || "",
+        phone: localUser.phone || "",
+        address: localUser.address || "",
+        linkedin_url: localUser.linkedin_url || "",
+      });
+    }
   };
 
   const handleSave = async () => {
-    if (!user || !userId) return;
+    if (!localUserDb || !localUserDb.user_id) return;
     setLoading(true);
     setError(null);
     const { error } = await supabase
@@ -104,7 +100,7 @@ const ProfileTab = () => {
         address: form.address,
         linkedin_url: form.linkedin_url,
       })
-      .eq("user_id", userId);
+      .eq("user_id", localUserDb.user_id);
     setLoading(false);
     if (error) {
       setError("Failed to update profile. Please try again.");
@@ -112,21 +108,31 @@ const ProfileTab = () => {
       return;
     }
     // Refresh user data
-    const updatedUser = { ...user, ...form };
-    setUser(updatedUser);
+    const updatedUser = { ...localUser, ...form };
+    setLocalUser(updatedUser);
+    // Update parent userDb state
+    setUserDb((prev: any) => ({
+      ...prev,
+      first_name: form.first_name,
+      last_name: form.last_name,
+      phone: form.phone,
+      address: form.address,
+      linkedin_url: form.linkedin_url,
+    }));
     setEditMode(false);
     toast({ title: "Profile Updated", description: "Your profile changes have been saved.", variant: "default" });
+    refetchUserDb();
   };
 
   const handleResumeUpdate = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!user || !userId || !e.target.files || e.target.files.length === 0) return;
+    if (!localUserDb || !localUserDb.user_id || !e.target.files || e.target.files.length === 0) return;
     setResumeUploading(true);
     setResumeUploadError(null);
     const file = e.target.files[0];
     const fileExt = file.name.split('.').pop();
-    const safeFirstName = (user.first_name || '').replace(/[^a-zA-Z0-9]/g, '');
-    const safeLastName = (user.last_name || '').replace(/[^a-zA-Z0-9]/g, '');
-    const safeEmail = (user.email || '').replace(/[^a-zA-Z0-9]/g, '');
+    const safeFirstName = (localUser.first_name || '').replace(/[^a-zA-Z0-9]/g, '');
+    const safeLastName = (localUser.last_name || '').replace(/[^a-zA-Z0-9]/g, '');
+    const safeEmail = (localUser.email || '').replace(/[^a-zA-Z0-9]/g, '');
     const filePath = `${safeFirstName}_${safeLastName}_${safeEmail}/resume_${Date.now()}.${fileExt}`;
     try {
       // 1. Upload new resume
@@ -136,19 +142,19 @@ const ProfileTab = () => {
       const { data: publicUrlData } = supabase.storage.from(resumeBucket).getPublicUrl(filePath);
       const newResumeUrl = publicUrlData.publicUrl;
       // 3. Delete old resume (if exists)
-      if (user.resume_url) {
+      if (localUser.resume_url) {
         // Extract storage key from old URL using the actual bucket name
         const bucketPrefix = `/${resumeBucket}/`;
-        const oldKey = user.resume_url.split(bucketPrefix)[1];
+        const oldKey = localUser.resume_url.split(bucketPrefix)[1];
         if (oldKey) {
           await supabase.storage.from(resumeBucket).remove([oldKey]);
         }
       }
       // 4. Update user table
-      const { error: updateError } = await supabase.from('users').update({ resume_url: newResumeUrl }).eq('user_id', userId);
+      const { error: updateError } = await supabase.from('users').update({ resume_url: newResumeUrl }).eq('user_id', localUserDb.user_id);
       if (updateError) throw updateError;
       // 5. Update local user state
-      setUser({ ...user, resume_url: newResumeUrl });
+      setLocalUser({ ...localUser, resume_url: newResumeUrl });
       setResumeModal(false);
     } catch (err: any) {
       setResumeUploadError(err.message || 'Failed to update resume.');
@@ -156,14 +162,14 @@ const ProfileTab = () => {
     setResumeUploading(false);
   };
 
-  const isOverdue = userDb && userDb.next_billing_at && new Date(userDb.next_billing_at) <= new Date();
+  const isOverdue = localUserDb && localUserDb.next_billing_at && new Date(localUserDb.next_billing_at) <= new Date();
 
   const getFeeBadge = () => {
-    if (!userDb) return null;
-    if (userDb.is_paid && !isOverdue) {
+    if (!localUserDb) return null;
+    if (localUserDb.is_paid && !isOverdue) {
       return <Badge className="bg-green-500 text-white">Paid</Badge>;
     }
-    if (!userDb.is_paid || isOverdue) {
+    if (!localUserDb.is_paid || isOverdue) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-xs font-semibold shadow animate-pulse">
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -177,11 +183,11 @@ const ProfileTab = () => {
   };
 
   const getPlanBadge = () => {
-    if (!userDb) return null;
-    if (userDb.status === "approved") {
+    if (!localUserDb) return null;
+    if (localUserDb.status === "approved") {
       return <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">Active</Badge>;
     }
-    if (userDb.status === "on_hold") {
+    if (localUserDb.status === "on_hold") {
       return <Badge className="bg-yellow-500 text-white">Hold</Badge>;
     }
     return null;
@@ -189,8 +195,8 @@ const ProfileTab = () => {
 
   // Fetch payment method from Stripe
   const fetchPaymentMethod = async () => {
-    if (!userDb?.stripe_customer_id) {
-      console.log('No stripe_customer_id found:', userDb);
+    if (!localUserDb?.stripe_customer_id) {
+      console.log('No stripe_customer_id found:', localUserDb);
       return;
     }
     
@@ -199,7 +205,7 @@ const ProfileTab = () => {
       const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
       const endpoint = import.meta.env.DEV ? '/get-payment-method' : '/api/get-payment-method';
       const url = `${apiBase}${endpoint}`;
-      const requestBody = { customerId: userDb.stripe_customer_id };
+      const requestBody = { customerId: localUserDb.stripe_customer_id };
       
       console.log('Fetching payment method from:', url);
       console.log('Request body:', requestBody);
@@ -231,14 +237,14 @@ const ProfileTab = () => {
 
   // Fetch payment method when user data is loaded
   useEffect(() => {
-    if (userDb?.stripe_customer_id && userDb.is_paid) {
+    if (localUserDb?.stripe_customer_id && localUserDb.is_paid) {
       fetchPaymentMethod();
     }
-  }, [userDb]);
+  }, [localUserDb]);
 
   // Stripe Checkout handler
   const handleStripeCheckout = async () => {
-    if (!user?.email) {
+    if (!localUser?.email) {
       alert('User email not found. Please try again.');
       return;
     }
@@ -251,7 +257,7 @@ const ProfileTab = () => {
       const response = await fetch(`${apiBase}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userEmail: user.email }),
+        body: JSON.stringify({ userEmail: localUser.email }),
       });
       console.log('Response status:', response.status);
       
@@ -278,7 +284,7 @@ const ProfileTab = () => {
     }
   };
 
-  if (!user) {
+  if (!localUser) {
     return <div className="p-6 text-center text-gray-500">Loading profile...</div>;
   }
 
@@ -311,18 +317,22 @@ const ProfileTab = () => {
               </div>
             ) : (
               <div className="flex items-center gap-2">
-                <p className="text-gray-800 font-medium break-words">{user.first_name} {user.last_name}</p>
-                <div className="group relative">
-                  <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-white shadow-lg border border-white ring-1 ring-amber-200 hover:shadow-amber-500/60 transition-all duration-300 hover:scale-105">
-                    <Crown className="w-4 h-4 stroke-[2] fill-current drop-shadow-lg" />
-                  </div>
-                  <div className="absolute -inset-1 bg-gradient-to-br from-amber-300/30 to-yellow-500/30 rounded-full blur-md opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  {/* <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-3 bg-gradient-to-r from-amber-800 to-orange-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-20 shadow-xl">
-                    <div className="font-bold">Elite Gold Job Seeker</div>
-                    <div className="text-xs text-amber-200 mt-1">✓ All Pro features</div>
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-amber-800"></div>
-                  </div> */}
-                </div>
+                <p className="text-gray-800 font-medium break-words">{localUser.first_name} {localUser.last_name}</p>
+                {localUserDb?.status === 'approved' && (
+                  <>
+                    <div className="group relative">
+                      <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-white shadow-lg border border-white ring-1 ring-amber-200 hover:shadow-amber-500/60 transition-all duration-300 hover:scale-105">
+                        <Crown className="w-4 h-4 stroke-[2] fill-current drop-shadow-lg" />
+                      </div>
+                      <div className="absolute -inset-1 bg-gradient-to-br from-amber-300/30 to-yellow-500/30 rounded-full blur-md opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      {/* <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-3 bg-gradient-to-r from-amber-800 to-orange-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-20 shadow-xl">
+                        <div className="font-bold">Elite Gold Job Seeker</div>
+                        <div className="text-xs text-amber-200 mt-1">✓ All Pro features</div>
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-amber-800"></div>
+                      </div> */}
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -348,7 +358,7 @@ const ProfileTab = () => {
                 placeholder="Phone"
               />
             ) : (
-              <p className="text-gray-800 break-words">{user.phone || "Not provided"}</p>
+              <p className="text-gray-800 break-words">{localUser.phone || "Not provided"}</p>
             )}
           </div>
           <div>
@@ -362,7 +372,7 @@ const ProfileTab = () => {
                 placeholder="Address"
               />
             ) : (
-              <p className="text-gray-800 break-words">{user.address || "Not provided"}</p>
+              <p className="text-gray-800 break-words">{localUser.address || "Not provided"}</p>
             )}
           </div>
           <div>
@@ -411,10 +421,10 @@ const ProfileTab = () => {
                   <span className="text-xs text-gray-500">Please add LinkedIn</span>
                 )}
               </div>
-            ) : user.linkedin_url ? (
+            ) : localUser.linkedin_url ? (
               <div className="flex items-center gap-2 min-h-[40px]">
                 <a
-                  href={user.linkedin_url}
+                  href={localUser.linkedin_url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 hover:bg-blue-200 transition"
@@ -430,7 +440,7 @@ const ProfileTab = () => {
             {editMode ? (
               <>
                 <Button
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 text-sm rounded-md w-full sm:w-auto min-w-[120px]"
+                  className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-1.5 text-xs sm:py-2 sm:text-sm rounded-md w-full sm:w-auto min-w-[120px]"
                   onClick={handleSave}
                   disabled={loading}
                 >
@@ -438,7 +448,7 @@ const ProfileTab = () => {
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 text-sm rounded-md w-full sm:w-auto min-w-[120px]"
+                  className="border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-1.5 text-xs sm:py-2 sm:text-sm rounded-md w-full sm:w-auto min-w-[120px]"
                   onClick={handleCancel}
                   disabled={loading}
                 >
@@ -447,7 +457,7 @@ const ProfileTab = () => {
               </>
             ) : (
               <Button
-                className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 text-sm rounded-md w-full sm:w-auto min-w-[120px]"
+                className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-1.5 text-xs sm:py-2 sm:text-sm rounded-md w-full sm:w-auto min-w-[120px]"
                 onClick={handleEdit}
               >
                 Edit Profile
@@ -474,17 +484,17 @@ const ProfileTab = () => {
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-gray-600">Monthly Cost</span>
-              <span className="font-medium text-gray-800">${user.subscription_fee}/month</span>
+              <span className="font-medium text-gray-800">${localUser.subscription_fee}/month</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Fee Paid</span>
               <span>{getFeeBadge()}</span>
             </div>
-            {userDb && userDb.next_billing_at && (
+            {localUserDb && localUserDb.next_billing_at && (
               <div className="flex justify-between">
                 <span className="text-gray-600">Next Billing</span>
                 <span className="font-medium text-gray-800">
-                  {new Date(userDb.next_billing_at).toLocaleDateString("en-US", { 
+                  {new Date(localUserDb.next_billing_at).toLocaleDateString("en-US", { 
                     year: "numeric", 
                     month: "long", 
                     day: "numeric" 
@@ -495,7 +505,7 @@ const ProfileTab = () => {
           </div>
           
           {/* Payment Method Card */}
-          {userDb && userDb.is_paid && (
+          {localUserDb && localUserDb.is_paid && (
             <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="font-semibold text-gray-800">Payment Method</h4>
@@ -551,12 +561,12 @@ const ProfileTab = () => {
           )}
           
           {/* Stripe Subscribe Button - Only show when user is not paid or on hold and not paid */}
-          {userDb && (!userDb.is_paid || (userDb.status === 'on_hold' && !userDb.is_paid)) && (
+          {localUserDb && (!localUserDb.is_paid || (localUserDb.status === 'on_hold' && !localUserDb.is_paid)) && (
             <div className="pt-4">
               <Button
                 onClick={handleStripeCheckout}
                 disabled={stripeLoading}
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold px-4 py-1.5 text-xs sm:py-2 sm:text-sm rounded-md w-full sm:w-auto min-w-[120px] shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
               >
                 {stripeLoading ? (
                   <>
@@ -573,24 +583,26 @@ const ProfileTab = () => {
             </div>
           )}
           {/* Add support and cancel subscription options below payment method */}
-          <div className="mt-4 space-y-2">
-            <div className="text-sm text-gray-600">
-              To update your payment method, please contact <a href="mailto:support@jobsmartly.com" className="text-blue-600 underline">support@jobsmartly.com</a>.
+          {localUserDb && localUserDb.status === 'approved' && (
+            <div className="mt-4 space-y-2">
+              <div className="text-sm text-gray-600">
+                To update your payment method, please contact <a href="mailto:support@jobsmartly.com" className="text-blue-600 underline">support@jobsmartly.com</a>.
+              </div>
+              <button
+                className="w-full sm:w-auto px-4 py-1.5 text-xs sm:py-2 sm:text-sm bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md shadow transition-all duration-150 min-w-[160px]"
+                onClick={() => {
+                  // TODO: Implement cancel subscription logic
+                  alert('Cancel subscription functionality coming soon!');
+                }}
+              >
+                Cancel Subscription
+              </button>
             </div>
-            <button
-              className="w-full sm:w-auto px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white font-semibold rounded-md shadow transition-all duration-150 min-w-[160px]"
-              onClick={() => {
-                // TODO: Implement cancel subscription logic
-                alert('Cancel subscription functionality coming soon!');
-              }}
-            >
-              Cancel Subscription
-            </button>
-          </div>
+          )}
         </CardContent>
       </Card>
       {/* Resume Modal */}
-      {resumeModal && user.resume_url && (
+      {resumeModal && localUser.resume_url && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div className="relative bg-white rounded-lg shadow-2xl w-full max-w-2xl mx-4 p-4">
             <button
@@ -601,7 +613,7 @@ const ProfileTab = () => {
               <span className="text-lg">&times;</span>
             </button>
             <iframe
-              src={user.resume_url}
+              src={localUser.resume_url}
               title="Resume PDF"
               width="100%"
               height="500px"

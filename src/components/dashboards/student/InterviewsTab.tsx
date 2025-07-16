@@ -26,8 +26,11 @@ function getStatusStyle(status) {
   return statusConfig || { color: "bg-gray-50 text-gray-700 border-gray-200", dot: "bg-gray-500" };
 }
 
-export default function InterviewsTab() {
-  const { user } = useAuth();
+interface InterviewsTabProps {
+  user: any;
+  userDb: any;
+}
+export default function InterviewsTab({ user, userDb }: InterviewsTabProps) {
   const { toast } = useToast();
   const [applications, setApplications] = useState([]);
   const [loading, setLoading] = useState(true);

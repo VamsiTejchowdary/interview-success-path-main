@@ -15,7 +15,9 @@ import {
   LogOut,
   Star,
   CheckCircle,
-  BarChart3
+  BarChart3,
+  AlertCircle,
+  X
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import OverviewTab from "./student/OverviewTab";
@@ -24,6 +26,9 @@ import InterviewsTab from "./student/InterviewsTab";
 import ProfileTab from "./student/ProfileTab";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { getCurrentUser, getUserInfo } from "@/lib/auth";
 
 interface StudentDashboardProps {
   onLogout: () => void;
@@ -33,6 +38,39 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
+
+  // User and userDb state
+  const [user, setUser] = useState(null);
+  const [userDb, setUserDb] = useState(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  // Fetch user and userDb on mount or on demand
+  const fetchUserAndDb = async () => {
+    setLoadingUser(true);
+    const u = await getCurrentUser();
+    if (u) {
+      const userInfo = await getUserInfo(u.email);
+      const user_id = userInfo?.user_id || null;
+      setUser(u);
+      if (user_id) {
+        const { data } = await supabase
+          .from("users")
+          .select("user_id, next_billing_at, is_paid, status, stripe_customer_id, first_name, last_name, phone, address, linkedin_url")
+          .eq("user_id", user_id)
+          .single();
+        setUserDb(data);
+      } else {
+        setUserDb(null);
+      }
+    } else {
+      setUser(null);
+      setUserDb(null);
+    }
+    setLoadingUser(false);
+  };
+  useEffect(() => {
+    fetchUserAndDb();
+  }, []);
 
   // Determine active tab from URL
   useEffect(() => {
@@ -58,11 +96,48 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
     }
   };
 
+  // Banner for on_hold status
+  const showHoldBanner = userDb?.status === 'on_hold';
+  const [bannerClosed, setBannerClosed] = useState(false);
+
+  // Reopen banner after 5 seconds if closed
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (bannerClosed) {
+      timer = setTimeout(() => setBannerClosed(false), 5000);
+    }
+    return () => clearTimeout(timer);
+  }, [bannerClosed]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      
+      {/* Notification Banner for Hold Status */}
+      {showHoldBanner && !bannerClosed && (
+        <div className="fixed top-0 left-0 w-full z-50 flex justify-center px-2 sm:px-0 pointer-events-none mt-2">
+          <div className="max-w-2xl w-full flex items-center gap-3 bg-gradient-to-r from-yellow-100 via-yellow-50 to-white border border-yellow-300 rounded-xl shadow-md py-3 px-4 sm:py-3 sm:px-6 pointer-events-auto relative">
+            <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+            <span className="flex-1 text-sm sm:text-base text-yellow-900 font-medium">
+              Your account is on hold. Please complete your payment to activate your dashboard.
+            </span>
+            <button
+              className="ml-2 px-3 py-1.5 sm:py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-xs sm:text-sm font-semibold rounded-md shadow transition-all duration-150"
+              onClick={() => handleTabChange('profile')}
+            >
+              Go to Profile
+            </button>
+            <button
+              className="absolute top-1 right-1 p-1 rounded-full hover:bg-yellow-200 focus:outline-none"
+              aria-label="Close banner"
+              onClick={() => setBannerClosed(true)}
+            >
+              <X className="w-4 h-4 text-yellow-700" />
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-purple-200/50 shadow-sm">
+      <header className={`sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-purple-200/50 shadow-sm ${showHoldBanner ? 'mt-[60px] sm:mt-[70px]' : ''}`}>
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">User Dashboard</h1>
@@ -78,30 +153,39 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="bg-white/60 backdrop-blur-xl border border-purple-200/50">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Overview</TabsTrigger>
-            <TabsTrigger value="applications" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Applications</TabsTrigger>
-            <TabsTrigger value="interviews" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Interviews</TabsTrigger>
-            <TabsTrigger value="profile" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Profile</TabsTrigger>
-          </TabsList>
+        {loadingUser ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <span className="animate-spin w-8 h-8 text-blue-600 mx-auto mb-4 block border-4 border-blue-200 border-t-blue-600 rounded-full"></span>
+              <p className="text-gray-600">Loading your dashboard...</p>
+            </div>
+          </div>
+        ) : (
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+            <TabsList className="bg-white/60 backdrop-blur-xl border border-purple-200/50">
+              <TabsTrigger value="overview" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Overview</TabsTrigger>
+              <TabsTrigger value="applications" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Applications</TabsTrigger>
+              <TabsTrigger value="interviews" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Interviews</TabsTrigger>
+              <TabsTrigger value="profile" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Profile</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="overview">
-            <OverviewTab />
-          </TabsContent>
+            <TabsContent value="overview">
+              <OverviewTab user={user} userDb={userDb} />
+            </TabsContent>
 
-          <TabsContent value="applications">
-            <ApplicationsTab />
-          </TabsContent>
+            <TabsContent value="applications">
+              <ApplicationsTab user={user} userDb={userDb} />
+            </TabsContent>
 
-          <TabsContent value="interviews">
-            <InterviewsTab />
-          </TabsContent>
+            <TabsContent value="interviews">
+              <InterviewsTab user={user} userDb={userDb} />
+            </TabsContent>
 
-          <TabsContent value="profile">
-            <ProfileTab />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="profile">
+              <ProfileTab user={user} userDb={userDb} setUserDb={setUserDb} refetchUserDb={fetchUserAndDb} />
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
     </div>
   );

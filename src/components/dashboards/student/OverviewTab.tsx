@@ -8,8 +8,11 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import WeeklyApplicationChart from './WeeklyApplicationChart';
 
-const OverviewTab = () => {
-  const { user } = useAuth();
+interface OverviewTabProps {
+  user: any;
+  userDb: any;
+}
+const OverviewTab = ({ user, userDb }: OverviewTabProps) => {
   const [metrics, setMetrics] = useState({
     totalApplied: 0,
     prevWeekApplied: 0,
@@ -177,41 +180,52 @@ const OverviewTab = () => {
             <p className="text-xs text-indigo-600">Optimized by recruiter</p>
           </CardContent>
         </Card>
-        <Card className="backdrop-blur-xl bg-white/60 border-white/20 shadow-lg">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Recruiter</CardTitle>
-            <Star className="h-4 w-4 text-yellow-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-2 w-full">
-              {/* Top: Name and stars */}
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="text-2xl font-bold text-gray-800 truncate">{metrics.recruiterName || '-'}</div>
-                <div className="flex items-center ml-2">
-                  {[1,2,3,4,5].map((star) => (
-                    <Star key={star} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  ))}
+
+        {metrics.recruiterName ? (
+          <Card className="backdrop-blur-xl bg-white/60 border-white/20 shadow-lg">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-gray-600">Recruiter</CardTitle>
+              <Star className="h-4 w-4 text-yellow-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-2 w-full">
+                {/* Top: Name and stars */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="text-2xl font-bold text-gray-800 truncate">{metrics.recruiterName}</div>
+                  <div className="flex items-center ml-2">
+                    {[1,2,3,4,5].map((star) => (
+                      <Star key={star} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                </div>
+                {/* Bottom: Email & Phone */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm">
+                  {metrics.recruiterEmail && (
+                    <div className="flex items-center gap-1 text-gray-700">
+                      <Mail className="w-4 h-4 text-blue-500" />
+                      <span className="break-all">{metrics.recruiterEmail}</span>
+                    </div>
+                  )}
+                  {metrics.recruiterPhone && (
+                    <div className="flex items-center gap-1 text-gray-700">
+                      <Phone className="w-4 h-4 text-green-500" />
+                      <span className="break-all">{metrics.recruiterPhone}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-              {/* Bottom: Email & Phone */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm">
-                {metrics.recruiterEmail && (
-                  <div className="flex items-center gap-1 text-gray-700">
-                    <Mail className="w-4 h-4 text-blue-500" />
-                    <span className="break-all">{metrics.recruiterEmail}</span>
-                  </div>
-                )}
-                {metrics.recruiterPhone && (
-                  <div className="flex items-center gap-1 text-gray-700">
-                    <Phone className="w-4 h-4 text-green-500" />
-                    <span className="break-all">{metrics.recruiterPhone}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <p className="text-xs text-yellow-600 mt-2">Your assigned recruiter</p>
-          </CardContent>
-        </Card>
+              <p className="text-xs text-yellow-600 mt-2">Your assigned recruiter</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="backdrop-blur-xl bg-white/60 border-white/20 shadow-lg flex items-center justify-center">
+            <CardContent className="flex flex-col items-center justify-center py-10">
+              <Star className="h-10 w-10 text-gray-300 mb-4" />
+              <div className="text-lg font-semibold text-gray-700 mb-2">No recruiter assigned yet</div>
+              <div className="text-sm text-gray-500 text-center">You will be assigned a recruiter soon. Please check back later or contact support if you have questions.</div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Charts */}

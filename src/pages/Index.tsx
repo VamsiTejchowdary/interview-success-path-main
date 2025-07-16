@@ -154,8 +154,8 @@ const IndexPage = () => {
           {/* Stats */}
           <div className="grid grid-cols-3 gap-6">
             {[
-              { number: "10,500+", label: "Jobs Applied", color: "from-purple-600 to-blue-600" },
-              { number: "89%", label: "Success Rate", color: "from-blue-600 to-indigo-600" },
+              { number: "78,000+", label: "Jobs Applied", color: "from-purple-600 to-blue-600" },
+              { number: "96%", label: "Success Rate", color: "from-blue-600 to-indigo-600" },
               { number: "4.8", label: "User Rating", color: "from-indigo-600 to-purple-600" }
             ].map((stat, index) => (
               <div key={index} className="text-center group">

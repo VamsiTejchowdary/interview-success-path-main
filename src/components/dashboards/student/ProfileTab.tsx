@@ -667,9 +667,16 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                 </>
               ) : (
                 <>
-                  <div className="text-sm text-gray-600">
-                    To update your payment method, please contact <a href="mailto:support@jobsmartly.com" className="text-blue-600 underline">support@jobsmartly.com</a>.
-                  </div>
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                        <p className="text-sm text-blue-700">
+                          To update your payment method, please contact{' '}
+                          <a href="mailto:support@jobsmartly.com" className="font-semibold underline hover:text-blue-800">
+                            support@jobsmartly.com
+                          </a>
+                        </p>
+                      </div>
+
+                
                   <Button
                     className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 text-xs sm:text-sm rounded-md w-auto mx-auto block min-w-[100px] font-semibold shadow transition-all duration-150"
                     onClick={async () => {

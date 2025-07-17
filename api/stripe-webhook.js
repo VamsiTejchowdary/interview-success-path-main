@@ -1,6 +1,10 @@
 import { buffer } from 'micro';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { accountApprovedTemplate } from '../email-templates/accountApproved.js';
+import { subscriptionRenewalTemplate } from '../email-templates/subscriptionRenewal.js';
+import { Resend } from 'resend';
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-06-30.basil' });
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -386,6 +390,60 @@ async function handleInvoicePaid(invoice) {
         })
         .eq('user_id', subscriptionData.user_id);
     }
+
+    // --- EMAIL LOGIC START ---
+    // Fetch user details
+    const { data: user, error: userFetchError } = await supabase
+      .from('users')
+      .select('email, name, role')
+      .eq('user_id', subscriptionData.user_id)
+      .single();
+
+    // Check if this is the first successful payment
+    const { count: paymentCount } = await supabase
+      .from('payments')
+      .select('payment_id', { count: 'exact', head: true })
+      .eq('user_id', subscriptionData.user_id)
+      .eq('status', 'succeeded');
+
+    if (user && user.email) {
+      let emailData;
+      let isFirstPayment = paymentCount === 1; // This payment was just inserted
+      if (isFirstPayment) {
+        // First payment
+        emailData = accountApprovedTemplate(user.name || 'User', user.role || 'user');
+      } else {
+        // Renewal
+        emailData = subscriptionRenewalTemplate(user.name || 'User', user.role || 'user');
+      }
+
+      // Send to user
+      await resend.emails.send({
+        from: 'noreply@jobsmartly.com',
+        to: user.email,
+        subject: emailData.subject,
+        html: emailData.html,
+      });
+
+      // Send to admin
+      await resend.emails.send({
+        from: 'noreply@jobsmartly.com',
+        to: 'd.vamsitej333@gmail.com',
+        subject: isFirstPayment
+          ? `A new user has been approved: ${user.name}`
+          : `Subscription renewed: ${user.name}`,
+        html: `
+          <div>
+            <h2>${isFirstPayment ? 'New User Approved' : 'Subscription Renewed'}</h2>
+            <p>Name: ${user.name}</p>
+            <p>Email: ${user.email}</p>
+            <p>Role: ${user.role}</p>
+            <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>
+          </div>
+        `,
+      });
+    }
+    // --- EMAIL LOGIC END ---
   } catch (error) {
     console.error('❌ Error handling invoice paid:', error.message, error.stack);
     throw error;

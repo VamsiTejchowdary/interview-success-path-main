@@ -1,11 +1,10 @@
-import express from 'express';
-import cors from 'cors';
 import { Resend } from 'resend';
 import { 
   accountVerifiedTemplate, 
   accountApprovedTemplate, 
   passwordResetTemplate,
-  subscriptionCancellationTemplate
+  subscriptionCancellationTemplate,
+  subscriptionRenewalTemplate
 } from '../email-templates/index.js';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -15,7 +14,9 @@ const emailTemplates = {
   accountVerified: accountVerifiedTemplate,
   accountApproved: accountApprovedTemplate,
   passwordReset: passwordResetTemplate,
-  subscriptionCancellation: subscriptionCancellationTemplate
+  subscriptionCancellation: subscriptionCancellationTemplate,
+  subscriptionRenewal: subscriptionRenewalTemplate,
+  // Special: 'subscription' will be handled below
 };
 
 // Email sending function
@@ -23,7 +24,7 @@ const sendEmail = async (emailData) => {
   try {
     const { data, error } = await resend.emails.send({
       from: emailData.from || 'noreply@jobsmartly.com',
-      to: emailData.to,
+      to: emailData.to || "support@jobsmartly.com",
       subject: emailData.subject,
       html: emailData.html,
     });
@@ -55,7 +56,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { to, subject, html, template, templateData } = req.body;
+    const { to, subject, html, template, templateData, isRenewal } = req.body;
 
     let emailData;
     let recipients = Array.isArray(to) ? to : [to];
@@ -64,7 +65,12 @@ export default async function handler(req, res) {
 
     for (const recipient of recipients) {
       if (template && templateData) {
-        const templateFn = emailTemplates[template];
+        let templateFn;
+        if (template === 'subscription') {
+          templateFn = isRenewal ? subscriptionRenewalTemplate : accountApprovedTemplate;
+        } else {
+          templateFn = emailTemplates[template];
+        }
         if (!templateFn) {
           return res.status(400).json({ error: 'Template not found' });
         }

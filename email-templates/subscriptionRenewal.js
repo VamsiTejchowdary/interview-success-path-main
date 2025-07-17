@@ -1,16 +1,16 @@
-export const accountApprovedTemplate = (userName, userRole) => ({
-  subject: 'Account Approved! Welcome to Interview Success Path',
+export const subscriptionRenewalTemplate = (userName, userRole) => ({
+  subject: 'Your Subscription Has Been Renewed!',
   html: `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="text-align: center; margin-bottom: 30px;">
         <img src="https://res.cloudinary.com/dcwnk7s9z/image/upload/v1752174018/b1a2a17b-b3eb-46ff-8ee2-6528160fe25c-copied-media_2_wtccwz.png" alt="Interview Success Path Logo" style="height: 48px; margin-bottom: 10px;"/>
-        <h1 style="color: #059669; margin-bottom: 10px;">✅ Account Approved!</h1>
-        <p style="color: #6B7280; font-size: 16px;">You're all set to start your journey</p>
+        <h1 style="color: #059669; margin-bottom: 10px;">🔄 Subscription Renewed!</h1>
+        <p style="color: #6B7280; font-size: 16px;">Thank you for staying with us</p>
       </div>
       <div style="background-color: #ECFDF5; padding: 25px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #059669;">
-        <h2 style="color: #065F46; margin-top: 0;">Congratulations, ${userName}!</h2>
+        <h2 style="color: #065F46; margin-top: 0;">Hi, ${userName}!</h2>
         <p style="color: #065F46; line-height: 1.6;">
-          Your ${userRole} account has been approved! You can now log in and access all features.
+          Your ${userRole} subscription has been successfully renewed. You can continue enjoying all premium features without interruption.
         </p>
       </div>
       <div style="text-align: center; margin: 30px 0;">

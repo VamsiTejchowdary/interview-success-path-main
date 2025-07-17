@@ -30,7 +30,7 @@ export const accountVerifiedTemplate = (userName = "there", userRole = "User") =
           border-bottom: 1px solid #e5e7eb;
         }
         .header img {
-          width: 120px;
+          width: 72px;
           height: auto;
           margin: 0 auto;
         }

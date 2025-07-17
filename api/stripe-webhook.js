@@ -1,10 +1,11 @@
 import { buffer } from 'micro';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
-import { accountApprovedTemplate } from '../email-templates/accountApproved.js';
-import { subscriptionRenewalTemplate } from '../email-templates/subscriptionRenewal.js';
-import { Resend } from 'resend';
-const resend = new Resend(process.env.RESEND_API_KEY);
+// import { accountApprovedTemplate } from '../email-templates/accountApproved.js';
+// import { subscriptionRenewalTemplate } from '../email-templates/subscriptionRenewal.js';
+// import { Resend } from 'resend';
+// const resend = new Resend(process.env.RESEND_API_KEY);
+import fetch from 'node-fetch';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-06-30.basil' });
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -15,6 +16,7 @@ const supabase = createClient(
 );
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const BASE_URL = process.env.BASE_URL || 'http://localhost:4242';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -407,40 +409,37 @@ async function handleInvoicePaid(invoice) {
       .eq('status', 'succeeded');
 
     if (user && user.email) {
-      let emailData;
       let isFirstPayment = paymentCount === 1; // This payment was just inserted
-      if (isFirstPayment) {
-        // First payment
-        emailData = accountApprovedTemplate(user.name || 'User', user.role || 'user');
-      } else {
-        // Renewal
-        emailData = subscriptionRenewalTemplate(user.name || 'User', user.role || 'user');
-      }
-
-      // Send to user
-      await resend.emails.send({
-        from: 'noreply@jobsmartly.com',
-        to: user.email,
-        subject: emailData.subject,
-        html: emailData.html,
+      // Send to user via /api/send-email
+      await fetch(`${BASE_URL}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          template: isFirstPayment ? 'accountApproved' : 'subscriptionRenewal',
+          templateData: [user.name || 'User', user.role || 'user'],
+          to: user.email
+        })
       });
 
-      // Send to admin
-      await resend.emails.send({
-        from: 'noreply@jobsmartly.com',
-        to: 'd.vamsitej333@gmail.com',
-        subject: isFirstPayment
-          ? `A new user has been approved: ${user.name}`
-          : `Subscription renewed: ${user.name}`,
-        html: `
-          <div>
-            <h2>${isFirstPayment ? 'New User Approved' : 'Subscription Renewed'}</h2>
-            <p>Name: ${user.name}</p>
-            <p>Email: ${user.email}</p>
-            <p>Role: ${user.role}</p>
-            <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>
-          </div>
-        `,
+      // Send to admin via /api/send-email
+      await fetch(`${BASE_URL}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subject: isFirstPayment
+            ? `A new user has been approved: ${user.name}`
+            : `Subscription renewed: ${user.name}`,
+          html: `
+            <div>
+              <h2>${isFirstPayment ? 'New User Approved' : 'Subscription Renewed'}</h2>
+              <p>Name: ${user.name}</p>
+              <p>Email: ${user.email}</p>
+              <p>Role: ${user.role}</p>
+              <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>
+            </div>
+          `,
+          to: 'd.vamsitej333@gmail.com'
+        })
       });
     }
     // --- EMAIL LOGIC END ---

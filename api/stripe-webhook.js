@@ -15,11 +15,8 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-const apiBase =
-  import.meta.env.DEV
-    ? 'http://localhost:4242'
-    : process.env.NEXT_PUBLIC_BASE_URL || ''; // Set this to your deployed domain if needed
+c
+const apiBase = process.env.NEXT_PUBLIC_BASE_URL; 
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

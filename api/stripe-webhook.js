@@ -16,7 +16,10 @@ const supabase = createClient(
 );
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-const BASE_URL = process.env.BASE_URL || 'http://localhost:4242';
+const apiBase =
+  import.meta.env.DEV
+    ? 'http://localhost:4242'
+    : process.env.NEXT_PUBLIC_BASE_URL || ''; // Set this to your deployed domain if needed
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -418,7 +421,7 @@ async function handleInvoicePaid(invoice) {
       let isFirstPayment = paymentCount === 1; // This payment was just inserted
       console.log('[EMAIL] Preparing to send', isFirstPayment ? 'accountApproved' : 'subscriptionRenewal', 'email to user:', user.email, 'user:', fullName);
       try {
-        const userEmailRes = await fetch(`${BASE_URL}/api/send-email`, {
+        const userEmailRes = await fetch(`${apiBase}/api/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -433,7 +436,7 @@ async function handleInvoicePaid(invoice) {
         console.error('[EMAIL] Error sending user email:', err);
       }
       try {
-        const adminEmailRes = await fetch(`${BASE_URL}/api/send-email`, {
+        const adminEmailRes = await fetch(`${apiBase}/api/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

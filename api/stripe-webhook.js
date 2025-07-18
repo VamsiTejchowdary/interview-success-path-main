@@ -397,13 +397,15 @@ async function handleInvoicePaid(invoice) {
     // Fetch user details
     const { data: user, error: userFetchError } = await supabase
       .from('users')
-      .select('email, name, role')
+      .select('email, first_name, last_name, role')
       .eq('user_id', subscriptionData.user_id)
       .single();
 
     if (userFetchError) {
       console.log('[EMAIL] Supabase user fetch error:', userFetchError);
     }
+
+    const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ');
 
     // Check if this is the first successful payment
     const { count: paymentCount } = await supabase
@@ -414,14 +416,14 @@ async function handleInvoicePaid(invoice) {
 
     if (user && user.email) {
       let isFirstPayment = paymentCount === 1; // This payment was just inserted
-      console.log('[EMAIL] Preparing to send', isFirstPayment ? 'accountApproved' : 'subscriptionRenewal', 'email to user:', user.email, 'user:', user.name, 'role:', user.role);
+      console.log('[EMAIL] Preparing to send', isFirstPayment ? 'accountApproved' : 'subscriptionRenewal', 'email to user:', user.email, 'user:', fullName, 'role:', user.role);
       try {
         const userEmailRes = await fetch(`${BASE_URL}/api/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             template: isFirstPayment ? 'accountApproved' : 'subscriptionRenewal',
-            templateData: [user.name || 'User', user.role || 'user'],
+            templateData: [fullName || 'User', user.role || 'user'],
             to: user.email
           })
         });
@@ -436,12 +438,12 @@ async function handleInvoicePaid(invoice) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             subject: isFirstPayment
-              ? `A new user has been approved: ${user.name}`
-              : `Subscription renewed: ${user.name}`,
+              ? `A new user has been approved: ${fullName}`
+              : `Subscription renewed: ${fullName}`,
             html: `
               <div>
                 <h2>${isFirstPayment ? 'New User Approved' : 'Subscription Renewed'}</h2>
-                <p>Name: ${user.name}</p>
+                <p>Name: ${fullName}</p>
                 <p>Email: ${user.email}</p>
                 <p>Role: ${user.role}</p>
                 <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>

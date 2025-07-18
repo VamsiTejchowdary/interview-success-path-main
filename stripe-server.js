@@ -670,9 +670,15 @@ async function handleInvoicePaid(invoice) {
     // Fetch user details
     const { data: user, error: userFetchError } = await supabase
       .from('users')
-      .select('email, name, role')
+      .select('email, first_name, last_name, role')
       .eq('user_id', subscriptionData.user_id)
       .single();
+
+    if (userFetchError) {
+      console.log('[EMAIL] Supabase user fetch error:', userFetchError);
+    }
+
+    const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ');
 
     // Check if this is the first successful payment
     const { count: paymentCount } = await supabase
@@ -683,15 +689,16 @@ async function handleInvoicePaid(invoice) {
 
     if (user && user.email) {
       let isFirstPayment = paymentCount === 1; // This payment was just inserted
-      console.log('[EMAIL] Preparing to send', isFirstPayment ? 'accountApproved' : 'subscriptionRenewal', 'email to user:', user.email, 'user:', user.name, 'role:', user.role);
+      console.log('[EMAIL] Preparing to send', isFirstPayment ? 'accountApproved' : 'subscriptionRenewal', 'email to user:', user.email, 'user:', fullName, 'role:', user.role);
       try {
         const userEmailRes = await sendEmail({
           from: 'noreply@jobsmartly.com',
           to: user.email,
           subject: isFirstPayment ? 'Account Approved! Welcome to Interview Success Path' : 'Your Subscription Has Been Renewed!',
           html: isFirstPayment
-            ? accountApprovedTemplate(user.name || 'User', user.role || 'user').html
-            : subscriptionRenewalTemplate(user.name || 'User', user.role || 'user').html,
+            ? accountApprovedTemplate(fullName || 'User', user.role || 'user').html
+            : subscriptionRenewalTemplate(fullName || 'User', user.role || 'user').html,
+          templateData: [fullName || 'User', user.role || 'user']
         });
         console.log('[EMAIL] sendEmail user response:', userEmailRes);
       } catch (err) {
@@ -702,12 +709,12 @@ async function handleInvoicePaid(invoice) {
           from: 'noreply@jobsmartly.com',
           to: 'd.vamsitej333@gmail.com',
           subject: isFirstPayment
-            ? `A new user has been approved: ${user.name}`
-            : `Subscription renewed: ${user.name}`,
+            ? `A new user has been approved: ${fullName}`
+            : `Subscription renewed: ${fullName}`,
           html: `
             <div>
               <h2>${isFirstPayment ? 'New User Approved' : 'Subscription Renewed'}</h2>
-              <p>Name: ${user.name}</p>
+              <p>Name: ${fullName}</p>
               <p>Email: ${user.email}</p>
               <p>Role: ${user.role}</p>
               <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>

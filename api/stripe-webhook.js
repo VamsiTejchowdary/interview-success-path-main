@@ -401,6 +401,10 @@ async function handleInvoicePaid(invoice) {
       .eq('user_id', subscriptionData.user_id)
       .single();
 
+    if (userFetchError) {
+      console.log('[EMAIL] Supabase user fetch error:', userFetchError);
+    }
+
     // Check if this is the first successful payment
     const { count: paymentCount } = await supabase
       .from('payments')

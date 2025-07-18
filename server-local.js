@@ -652,7 +652,7 @@ async function handleInvoicePaid(invoice) {
     // Fetch user details
     const { data: user, error: userFetchError } = await supabase
       .from('users')
-      .select('email, first_name, last_name, role')
+      .select('email, first_name, last_name')
       .eq('user_id', subscriptionData.user_id)
       .single();
     
@@ -671,16 +671,16 @@ async function handleInvoicePaid(invoice) {
 
     if (user && user.email) {
       let isFirstPayment = paymentCount === 1; // This payment was just inserted
-      console.log('[EMAIL] Preparing to send', isFirstPayment ? 'accountApproved' : 'subscriptionRenewal', 'email to user:', user.email, 'user:', fullName, 'role:', user.role);
+      console.log('[EMAIL] Preparing to send', isFirstPayment ? 'accountApproved' : 'subscriptionRenewal', 'email to user:', user.email, 'user:', fullName);
       try {
         const userEmailRes = await sendEmail({
           from: 'noreply@jobsmartly.com',
           to: user.email,
           subject: isFirstPayment ? 'Account Approved! Welcome to Interview Success Path' : 'Your Subscription Has Been Renewed!',
           html: isFirstPayment
-            ? accountApprovedTemplate(fullName || 'User', user.role || 'user').html
-            : subscriptionRenewalTemplate(fullName || 'User', user.role || 'user').html,
-          templateData: [fullName || 'User', user.role || 'user']
+            ? accountApprovedTemplate(fullName || 'User', 'user').html
+            : subscriptionRenewalTemplate(fullName || 'User',  'user').html,
+          templateData: [fullName || 'User', 'user']
         });
         console.log('[EMAIL] sendEmail user response:', userEmailRes);
       } catch (err) {
@@ -698,7 +698,6 @@ async function handleInvoicePaid(invoice) {
               <h2>${isFirstPayment ? 'New User Approved' : 'Subscription Renewed'}</h2>
               <p>Name: ${fullName}</p>
               <p>Email: ${user.email}</p>
-              <p>Role: ${user.role}</p>
               <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>
             </div>
           `,

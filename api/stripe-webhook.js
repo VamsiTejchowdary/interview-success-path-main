@@ -15,7 +15,7 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-c
+
 const apiBase = process.env.NEXT_PUBLIC_BASE_URL; 
 
 export default async function handler(req, res) {

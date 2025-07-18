@@ -410,37 +410,49 @@ async function handleInvoicePaid(invoice) {
 
     if (user && user.email) {
       let isFirstPayment = paymentCount === 1; // This payment was just inserted
-      // Send to user via /api/send-email
-      await fetch(`${BASE_URL}/api/send-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          template: isFirstPayment ? 'accountApproved' : 'subscriptionRenewal',
-          templateData: [user.name || 'User', user.role || 'user'],
-          to: user.email
-        })
-      });
-
-      // Send to admin via /api/send-email
-      await fetch(`${BASE_URL}/api/send-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subject: isFirstPayment
-            ? `A new user has been approved: ${user.name}`
-            : `Subscription renewed: ${user.name}`,
-          html: `
-            <div>
-              <h2>${isFirstPayment ? 'New User Approved' : 'Subscription Renewed'}</h2>
-              <p>Name: ${user.name}</p>
-              <p>Email: ${user.email}</p>
-              <p>Role: ${user.role}</p>
-              <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>
-            </div>
-          `,
-          to: 'd.vamsitej333@gmail.com'
-        })
-      });
+      console.log('[EMAIL] Preparing to send', isFirstPayment ? 'accountApproved' : 'subscriptionRenewal', 'email to user:', user.email, 'user:', user.name, 'role:', user.role);
+      try {
+        const userEmailRes = await fetch(`${BASE_URL}/api/send-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            template: isFirstPayment ? 'accountApproved' : 'subscriptionRenewal',
+            templateData: [user.name || 'User', user.role || 'user'],
+            to: user.email
+          })
+        });
+        const userEmailText = await userEmailRes.text();
+        console.log('[EMAIL] /api/send-email user response:', userEmailRes.status, userEmailText);
+      } catch (err) {
+        console.error('[EMAIL] Error sending user email:', err);
+      }
+      try {
+        const adminEmailRes = await fetch(`${BASE_URL}/api/send-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject: isFirstPayment
+              ? `A new user has been approved: ${user.name}`
+              : `Subscription renewed: ${user.name}`,
+            html: `
+              <div>
+                <h2>${isFirstPayment ? 'New User Approved' : 'Subscription Renewed'}</h2>
+                <p>Name: ${user.name}</p>
+                <p>Email: ${user.email}</p>
+                <p>Role: ${user.role}</p>
+                <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>
+              </div>
+            `,
+            to: 'd.vamsitej333@gmail.com'
+          })
+        });
+        const adminEmailText = await adminEmailRes.text();
+        console.log('[EMAIL] /api/send-email admin response:', adminEmailRes.status, adminEmailText);
+      } catch (err) {
+        console.error('[EMAIL] Error sending admin email:', err);
+      }
+    } else {
+      console.log('[EMAIL] No user found for email sending:', { user, subscriptionData });
     }
     // --- EMAIL LOGIC END ---
   } catch (error) {

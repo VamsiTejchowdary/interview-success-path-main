@@ -664,41 +664,44 @@ async function handleInvoicePaid(invoice) {
       .eq('status', 'succeeded');
 
     if (user && user.email) {
-      let emailData;
       let isFirstPayment = paymentCount === 1; // This payment was just inserted
-      if (isFirstPayment) {
-        // First payment
-        emailData = accountApprovedTemplate(user.name || 'User', user.role || 'user');
-      } else {
-        // Renewal
-        emailData = subscriptionRenewalTemplate(user.name || 'User', user.role || 'user');
+      console.log('[EMAIL] Preparing to send', isFirstPayment ? 'accountApproved' : 'subscriptionRenewal', 'email to user:', user.email, 'user:', user.name, 'role:', user.role);
+      try {
+        const userEmailRes = await sendEmail({
+          from: 'noreply@jobsmartly.com',
+          to: user.email,
+          subject: isFirstPayment ? 'Account Approved! Welcome to Interview Success Path' : 'Your Subscription Has Been Renewed!',
+          html: isFirstPayment
+            ? accountApprovedTemplate(user.name || 'User', user.role || 'user').html
+            : subscriptionRenewalTemplate(user.name || 'User', user.role || 'user').html,
+        });
+        console.log('[EMAIL] sendEmail user response:', userEmailRes);
+      } catch (err) {
+        console.error('[EMAIL] Error sending user email:', err);
       }
-
-      // Send to user
-      await sendEmail({
-        from: 'noreply@jobsmartly.com',
-        to: user.email,
-        subject: emailData.subject,
-        html: emailData.html,
-      });
-
-      // Send to admin
-      await sendEmail({
-        from: 'noreply@jobsmartly.com',
-        to: 'd.vamsitej333@gmail.com',
-        subject: isFirstPayment
-          ? `A new user has been approved: ${user.name}`
-          : `Subscription renewed: ${user.name}`,
-        html: `
-          <div>
-            <h2>${isFirstPayment ? 'New User Approved' : 'Subscription Renewed'}</h2>
-            <p>Name: ${user.name}</p>
-            <p>Email: ${user.email}</p>
-            <p>Role: ${user.role}</p>
-            <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>
-          </div>
-        `,
-      });
+      try {
+        const adminEmailRes = await sendEmail({
+          from: 'noreply@jobsmartly.com',
+          to: 'd.vamsitej333@gmail.com',
+          subject: isFirstPayment
+            ? `A new user has been approved: ${user.name}`
+            : `Subscription renewed: ${user.name}`,
+          html: `
+            <div>
+              <h2>${isFirstPayment ? 'New User Approved' : 'Subscription Renewed'}</h2>
+              <p>Name: ${user.name}</p>
+              <p>Email: ${user.email}</p>
+              <p>Role: ${user.role}</p>
+              <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>
+            </div>
+          `,
+        });
+        console.log('[EMAIL] sendEmail admin response:', adminEmailRes);
+      } catch (err) {
+        console.error('[EMAIL] Error sending admin email:', err);
+      }
+    } else {
+      console.log('[EMAIL] No user found for email sending:', { user, subscriptionData });
     }
     // --- EMAIL LOGIC END ---
   } catch (error) {

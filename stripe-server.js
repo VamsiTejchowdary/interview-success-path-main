@@ -666,6 +666,63 @@ async function handleInvoicePaid(invoice) {
       console.log('Could not determine next billing date from invoice:', invoice.id);
     }
 
+    // --- EMAIL LOGIC START ---
+    // Fetch user details
+    const { data: user, error: userFetchError } = await supabase
+      .from('users')
+      .select('email, name, role')
+      .eq('user_id', subscriptionData.user_id)
+      .single();
+
+    // Check if this is the first successful payment
+    const { count: paymentCount } = await supabase
+      .from('payments')
+      .select('payment_id', { count: 'exact', head: true })
+      .eq('user_id', subscriptionData.user_id)
+      .eq('status', 'succeeded');
+
+    if (user && user.email) {
+      let isFirstPayment = paymentCount === 1; // This payment was just inserted
+      console.log('[EMAIL] Preparing to send', isFirstPayment ? 'accountApproved' : 'subscriptionRenewal', 'email to user:', user.email, 'user:', user.name, 'role:', user.role);
+      try {
+        const userEmailRes = await sendEmail({
+          from: 'noreply@jobsmartly.com',
+          to: user.email,
+          subject: isFirstPayment ? 'Account Approved! Welcome to Interview Success Path' : 'Your Subscription Has Been Renewed!',
+          html: isFirstPayment
+            ? accountApprovedTemplate(user.name || 'User', user.role || 'user').html
+            : subscriptionRenewalTemplate(user.name || 'User', user.role || 'user').html,
+        });
+        console.log('[EMAIL] sendEmail user response:', userEmailRes);
+      } catch (err) {
+        console.error('[EMAIL] Error sending user email:', err);
+      }
+      try {
+        const adminEmailRes = await sendEmail({
+          from: 'noreply@jobsmartly.com',
+          to: 'd.vamsitej333@gmail.com',
+          subject: isFirstPayment
+            ? `A new user has been approved: ${user.name}`
+            : `Subscription renewed: ${user.name}`,
+          html: `
+            <div>
+              <h2>${isFirstPayment ? 'New User Approved' : 'Subscription Renewed'}</h2>
+              <p>Name: ${user.name}</p>
+              <p>Email: ${user.email}</p>
+              <p>Role: ${user.role}</p>
+              <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>
+            </div>
+          `,
+        });
+        console.log('[EMAIL] sendEmail admin response:', adminEmailRes);
+      } catch (err) {
+        console.error('[EMAIL] Error sending admin email:', err);
+      }
+    } else {
+      console.log('[EMAIL] No user found for email sending:', { user, subscriptionData });
+    }
+    // --- EMAIL LOGIC END ---
+
     console.log('Invoice paid processed successfully:', invoice.id);
   } catch (error) {
     console.error('Error handling invoice paid:', error.message, error.stack);

@@ -567,30 +567,20 @@ async function handleInvoicePaid(invoice) {
       }
     }
 
-    // If subscription not found, try finding by stripe_customer_id
+    // Fallback: If still not found, try by customer (most recent subscription)
     if (!subscriptionData && invoice.customer) {
-      console.log('Subscription not found by stripe_subscription_id, trying stripe_customer_id:', invoice.customer);
       const { data: subByCustomer, error: subError } = await supabase
         .from('subscriptions')
         .select('subscription_id, user_id')
         .eq('stripe_customer_id', invoice.customer)
-        .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
-
       if (subByCustomer) {
         subscriptionData = subByCustomer;
-        // Update subscription with correct stripe_subscription_id if mismatched
-        if (invoice.subscription && subByCustomer.stripe_subscription_id !== invoice.subscription) {
-          await supabase
-            .from('subscriptions')
-            .update({
-              stripe_subscription_id: invoice.subscription,
-              updated_at: new Date().toISOString()
-            })
-            .eq('subscription_id', subByCustomer.subscription_id);
-        }
+        console.log('✅ Fallback: Found subscription by customer:', subscriptionData.subscription_id);
+      } else {
+        console.log('❌ Fallback: No subscription found for customer:', invoice.customer);
       }
     }
 

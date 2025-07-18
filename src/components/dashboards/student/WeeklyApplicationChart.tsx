@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Calendar, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { supabase } from "@/lib/supabase";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface WeeklyData {
   day: string;
@@ -15,8 +14,11 @@ interface WeeklyData {
   displayLabel: string;
 }
 
-export default function WeeklyApplicationChart() {
-  const { user } = useAuth();
+interface WeeklyApplicationChartProps {
+  user: { email: string }
+}
+
+export default function WeeklyApplicationChart({ user }: WeeklyApplicationChartProps) {
   const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([]);
   const [selectedWeek, setSelectedWeek] = useState<Date>(new Date());
   const [loading, setLoading] = useState(true);
@@ -26,11 +28,9 @@ export default function WeeklyApplicationChart() {
     const start = new Date(date);
     start.setDate(date.getDate() - date.getDay());
     start.setHours(0, 0, 0, 0);
-    
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
     end.setHours(23, 59, 59, 999);
-    
     return { start, end };
   };
 
@@ -40,7 +40,6 @@ export default function WeeklyApplicationChart() {
     for (let i = 0; i < 7; i++) {
       const date = new Date(weekStart);
       date.setDate(weekStart.getDate() + i);
-      
       days.push({
         day: date.toLocaleDateString('en-US', { weekday: 'short' }),
         applications: 0,
@@ -56,7 +55,6 @@ export default function WeeklyApplicationChart() {
   // Fetch applications for the selected week
   const fetchWeeklyData = async (weekStart: Date) => {
     if (!user?.email) return;
-    
     setLoading(true);
     try {
       // Get user_id
@@ -65,15 +63,12 @@ export default function WeeklyApplicationChart() {
         .select('user_id')
         .eq('email', user.email)
         .single();
-      
       if (!userData?.user_id) {
         setWeeklyData(generateWeekDays(weekStart));
         setLoading(false);
         return;
       }
-
       const { start, end } = getWeekBounds(weekStart);
-      
       // Fetch applications for the week
       const { data: applications } = await supabase
         .from('job_applications')
@@ -81,10 +76,8 @@ export default function WeeklyApplicationChart() {
         .eq('user_id', userData.user_id)
         .gte('applied_at', start.toISOString())
         .lte('applied_at', end.toISOString());
-
       // Generate week structure
       const weekDays = generateWeekDays(start);
-      
       // Count applications per day
       if (applications) {
         applications.forEach(app => {
@@ -95,7 +88,6 @@ export default function WeeklyApplicationChart() {
           }
         });
       }
-      
       setWeeklyData(weekDays);
     } catch (error) {
       console.error('Error fetching weekly data:', error);
@@ -149,44 +141,34 @@ export default function WeeklyApplicationChart() {
               </CardDescription>
             </div>
           </div>
-          
-          {/* Week Navigation - Enhanced Mobile Design */}
-          <div className="flex items-center justify-between bg-white/60 rounded-2xl p-3 border border-white/40 shadow-sm">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToPreviousWeek}
-              className="h-10 w-10 p-0 rounded-xl border-purple-200/60 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:shadow-md transition-all duration-200 bg-white/70"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            
-            <div className="flex-1 text-center px-2 sm:px-4">
-              <div className="text-sm sm:text-base font-bold text-gray-800 mb-1">
-                {weekLabel}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={goToCurrentWeek}
-                className="text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50/80 h-6 px-3 rounded-lg transition-all duration-200 font-medium"
+          {/* Week Navigation - Centered, Simple Layout with Matching Colors */}
+          <div className="flex items-center justify-center">
+            <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-50 via-blue-50 to-purple-100/80 backdrop-blur-sm rounded-xl sm:rounded-2xl p-2 shadow-lg border border-purple-200/40">
+              <button
+                onClick={goToPreviousWeek}
+                className="p-2 rounded-lg hover:bg-purple-100/80 focus:bg-purple-200/80 transition-all duration-200 text-purple-700 hover:text-purple-900 focus:text-purple-900"
               >
-                This Week
-              </Button>
+                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
+              <div className="text-center px-2 sm:px-4">
+                <p className="text-xs sm:text-sm font-semibold text-purple-900 whitespace-nowrap">{weekLabel}</p>
+                <button
+                  onClick={goToCurrentWeek}
+                  className="text-xs text-purple-600 hover:text-purple-800 font-medium transition-colors"
+                >
+                  Current Week
+                </button>
+              </div>
+              <button
+                onClick={goToNextWeek}
+                className="p-2 rounded-lg hover:bg-purple-100/80 focus:bg-purple-200/80 transition-all duration-200 text-purple-700 hover:text-purple-900 focus:text-purple-900"
+              >
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+              </button>
             </div>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToNextWeek}
-              className="h-10 w-10 p-0 rounded-xl border-purple-200/60 text-purple-600 hover:bg-purple-50 hover:border-purple-300 hover:shadow-md transition-all duration-200 bg-white/70"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
           </div>
         </div>
       </CardHeader>
-      
       <CardContent className="p-4 sm:p-6">
         {loading ? (
           <div className="flex items-center justify-center h-[320px] sm:h-[370px]">
@@ -219,13 +201,12 @@ export default function WeeklyApplicationChart() {
                   </linearGradient>
                   <filter id="glow">
                     <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-                    <feMerge> 
+                    <feMerge>
                       <feMergeNode in="coloredBlur"/>
                       <feMergeNode in="SourceGraphic"/>
                     </feMerge>
                   </filter>
                 </defs>
-                
                 <CartesianGrid 
                   strokeDasharray="2 4" 
                   stroke="#e0e7ff" 
@@ -233,7 +214,6 @@ export default function WeeklyApplicationChart() {
                   horizontal={true}
                   vertical={false}
                 />
-                
                 <XAxis 
                   dataKey="day" 
                   stroke="#6b7280"
@@ -247,7 +227,6 @@ export default function WeeklyApplicationChart() {
                   tickMargin={20}
                   height={60}
                 />
-                
                 <YAxis 
                   stroke="#6b7280"
                   tick={{ 
@@ -260,7 +239,6 @@ export default function WeeklyApplicationChart() {
                   allowDecimals={false}
                   tickMargin={12}
                 />
-                
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: 'rgba(255,255,255,0.96)', 
@@ -285,7 +263,7 @@ export default function WeeklyApplicationChart() {
                   labelFormatter={(label, payload) => {
                     if (payload && payload[0] && payload[0].payload) {
                       const data = payload[0].payload;
-                      return `${data.day}, ${data.fullDate}`;
+                      return `${data.day}, ${data.fullDate}`
                     }
                     return label;
                   }}
@@ -296,7 +274,6 @@ export default function WeeklyApplicationChart() {
                     strokeDasharray: '5 5'
                   }}
                 />
-                
                 <Line 
                   type="monotone" 
                   dataKey="applications" 

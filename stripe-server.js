@@ -687,7 +687,8 @@ async function handleInvoicePaid(invoice) {
         .update({
           is_paid: true,
           status: 'approved',
-          next_billing_at: nextBillingAt
+          next_billing_at: nextBillingAt,
+          cancellation_requested: false // Reset cancellation_requested after payment
         })
         .eq('user_id', subscriptionData.user_id);
       console.log('User update:', { user_id: subscriptionData.user_id, next_billing_at: nextBillingAt, error: userUpdateError?.message });

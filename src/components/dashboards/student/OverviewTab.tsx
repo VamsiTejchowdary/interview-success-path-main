@@ -230,7 +230,7 @@ const OverviewTab = ({ user, userDb }: OverviewTabProps) => {
 
       {/* Charts */}
       <div className="grid lg:grid-cols-1 gap-8">
-        <WeeklyApplicationChart />
+        <WeeklyApplicationChart user={user} />
       </div>
     </>
   );

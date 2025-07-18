@@ -152,7 +152,11 @@ export const accountApprovedTemplate = (userName = "there", userRole = "User") =
             <span class="status-title">Account Status: Approved</span>
             <span class="status-subtitle">Welcome to Interview Success Path! Start your journey now.</span>
           </div>
-          <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://app.jobsmartly.com'}" class="cta-button">Go to Dashboard</a>
+          <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://app.jobsmartly.com'}"
+             class="cta-button"
+             style="background: #4f46e5; color: #fff !important; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.15); text-align: center; padding: 12px 24px; border-radius: 6px; font-size: 14px; text-decoration: none; display: block; margin: 0 auto 20px auto; max-width: 250px;">
+            Go to Dashboard
+          </a>
         </div>
         <div class="footer">
           <h5>Team JobSmartly</h5>

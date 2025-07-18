@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 // import { Resend } from 'resend';
 // const resend = new Resend(process.env.RESEND_API_KEY);
 import fetch from 'node-fetch';
+import { cancellationScheduledTemplate, cancellationEndedTemplate } from '../email-templates/subscriptionCancellationNotice.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-06-30.basil' });
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -377,6 +378,17 @@ async function handleInvoicePaid(invoice) {
       console.log('✅ Payment ID:', paymentResult?.[0]?.payment_id);
     }
 
+    // Update subscription status to active after successful payment
+    if (subscriptionData.subscription_id) {
+      await supabase
+        .from('subscriptions')
+        .update({
+          status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('subscription_id', subscriptionData.subscription_id);
+    }
+
     // Update user with next_billing_at
     const nextBillingAt = invoice.lines?.data?.[0]?.period?.end 
       ? new Date(invoice.lines.data[0].period.end * 1000).toISOString() 
@@ -423,7 +435,7 @@ async function handleInvoicePaid(invoice) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             template: isFirstPayment ? 'accountApproved' : 'subscriptionRenewal',
-            templateData: [fullName || 'User', 'user'],
+            templateData: [fullName || 'User', 'User'],
             to: user.email
           })
         });
@@ -612,6 +624,69 @@ async function handleSubscriptionUpdated(subscription) {
         .update(userUpdate)
         .eq('user_id', subscriptionData.user_id);
     }
+
+    // Fetch user details
+    const { data: user, error: userFetchError } = await supabase
+      .from('users')
+      .select('email, first_name, last_name')
+      .eq('stripe_customer_id', subscription.customer)
+      .single();
+    const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ');
+
+    // Send cancellation scheduled email
+    if (subscription.cancel_at_period_end) {
+      const { subject, html } = cancellationScheduledTemplate(fullName);
+      await fetch(`${apiBase}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: user.email, subject, html })
+      });
+      // Admin email
+      const adminSubject = `[ADMIN] Subscription Cancellation Scheduled for ${fullName}`;
+      const adminHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #eab308; margin-bottom: 10px;">Subscription Cancellation Scheduled</h2>
+          <p><strong>User:</strong> ${fullName}</p>
+          <p><strong>Email:</strong> ${user.email}</p>
+          <p><strong>Status:</strong> Scheduled</p>
+          <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+          <hr style="margin: 20px 0;">
+          <p>The user has requested to cancel their subscription at the end of the current billing period. They will retain access until then.</p>
+        </div>
+      `;
+      await fetch(`${apiBase}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: 'd.vamsitej333@gmail.com', subject: adminSubject, html: adminHtml })
+      });
+    }
+    // Send cancellation ended email
+    if (subscription.status === 'canceled') {
+      const { subject, html } = cancellationEndedTemplate(fullName);
+      await fetch(`${apiBase}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: user.email, subject, html })
+      });
+      // Admin email
+      const adminSubject = `[ADMIN] Subscription Cancelled for ${fullName}`;
+      const adminHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #ef4444; margin-bottom: 10px;">Subscription Cancelled</h2>
+          <p><strong>User:</strong> ${fullName}</p>
+          <p><strong>Email:</strong> ${user.email}</p>
+          <p><strong>Status:</strong> Completed</p>
+          <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+          <hr style="margin: 20px 0;">
+          <p>The user’s subscription has been fully cancelled and access has ended.</p>
+        </div>
+      `;
+      await fetch(`${apiBase}/api/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: 'd.vamsitej333@gmail.com', subject: adminSubject, html: adminHtml })
+      });
+    }
   } catch (error) {
     console.error('Error handling subscription updated:', error.message, error.stack);
     throw error;
@@ -645,6 +720,39 @@ async function handleSubscriptionDeleted(subscription) {
         })
         .eq('user_id', subscriptionData.user_id);
     }
+
+    // Fetch user details
+    const { data: user, error: userFetchError } = await supabase
+      .from('users')
+      .select('email, first_name, last_name')
+      .eq('stripe_customer_id', subscription.customer)
+      .single();
+    const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ');
+    // Send cancellation ended email
+    const { subject, html } = cancellationEndedTemplate(fullName);
+    await fetch(`${apiBase}/api/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: user.email, subject, html })
+    });
+    // Admin email
+    const adminSubject = `[ADMIN] Subscription Cancelled for ${fullName}`;
+    const adminHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #ef4444; margin-bottom: 10px;">Subscription Cancelled</h2>
+        <p><strong>User:</strong> ${fullName}</p>
+        <p><strong>Email:</strong> ${user.email}</p>
+        <p><strong>Status:</strong> Completed</p>
+        <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+        <hr style="margin: 20px 0;">
+        <p>The user’s subscription has been fully cancelled and access has ended.</p>
+      </div>
+    `;
+    await fetch(`${apiBase}/api/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: 'd.vamsitej333@gmail.com', subject: adminSubject, html: adminHtml })
+    });
   } catch (error) {
     console.error('Error handling subscription deleted:', error.message, error.stack);
     throw error;

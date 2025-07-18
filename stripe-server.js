@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import bodyParser from 'body-parser';
 import { createClient } from '@supabase/supabase-js';
+const { cancellationScheduledTemplate, cancellationEndedTemplate } = require('./email-templates/subscriptionCancellationNotice.js');
 
 dotenv.config({ path: '.env.local' });
 
@@ -647,6 +648,17 @@ async function handleInvoicePaid(invoice) {
       console.log('✅ Payment ID:', paymentResult?.[0]?.payment_id);
     }
 
+    // Update subscription status to active after successful payment
+    if (subscriptionData.subscription_id) {
+      await supabase
+        .from('subscriptions')
+        .update({
+          status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('subscription_id', subscriptionData.subscription_id);
+    }
+
     // Update user with next_billing_at
     const nextBillingAt = invoice.lines?.data?.[0]?.period?.end 
       ? new Date(invoice.lines.data[0].period.end * 1000).toISOString() 
@@ -696,8 +708,8 @@ async function handleInvoicePaid(invoice) {
           to: user.email,
           subject: isFirstPayment ? 'Account Approved! Welcome to Interview Success Path' : 'Your Subscription Has Been Renewed!',
           html: isFirstPayment
-            ? accountApprovedTemplate(fullName || 'User', 'user').html
-            : subscriptionRenewalTemplate(fullName || 'User', 'user').html,
+            ? accountApprovedTemplate(fullName || 'User', 'User').html
+            : subscriptionRenewalTemplate(fullName || 'User', 'User').html,
           templateData: [fullName || 'User', 'user']
         });
         console.log('[EMAIL] sendEmail user response:', userEmailRes);
@@ -740,223 +752,51 @@ async function handleSubscriptionUpdated(subscription) {
   console.log('Handling subscription updated:', subscription.id, 'Customer:', subscription.customer);
   
   try {
-    // Retrieve the latest subscription data from Stripe
-    const updatedSubscription = await stripe.subscriptions.retrieve(subscription.id);
-    let currentPeriodStart = updatedSubscription.current_period_start 
-      ? new Date(updatedSubscription.current_period_start * 1000).toISOString() 
-      : null;
-    let currentPeriodEnd = updatedSubscription.current_period_end 
-      ? new Date(updatedSubscription.current_period_end * 1000).toISOString() 
-      : null;
-    const canceledAt = updatedSubscription.canceled_at 
-      ? new Date(updatedSubscription.canceled_at * 1000).toISOString() 
-      : null;
-    
-    console.log('Stripe subscription data:', {
-      id: subscription.id,
-      status: updatedSubscription.status,
-      currentPeriodStart,
-      currentPeriodEnd,
-      canceledAt,
-      customer: subscription.customer
-    });
-
-    // Fallback to latest invoice if period dates are missing
-    if (!currentPeriodStart || !currentPeriodEnd) {
-      console.log('Subscription dates are null or missing, checking latest invoice...');
-      const invoices = await stripe.invoices.list({
-        subscription: subscription.id,
-        limit: 1,
-        status: 'paid'
-      });
-      
-      if (invoices.data.length > 0 && invoices.data[0].lines?.data?.[0]) {
-        const latestInvoice = invoices.data[0];
-        console.log('Latest invoice data:', {
-          invoiceId: latestInvoice.id,
-          periodStart: latestInvoice.lines.data[0].period?.start
-            ? new Date(latestInvoice.lines.data[0].period.start * 1000).toISOString()
-            : null,
-          periodEnd: latestInvoice.lines.data[0].period?.end
-            ? new Date(latestInvoice.lines.data[0].period.end * 1000).toISOString()
-            : null
-        });
-        
-        if (!currentPeriodStart && latestInvoice.lines.data[0].period?.start) {
-          currentPeriodStart = new Date(latestInvoice.lines.data[0].period.start * 1000).toISOString();
-          console.log('Using invoice line period start as fallback:', currentPeriodStart);
-        }
-        if (!currentPeriodEnd && latestInvoice.lines.data[0].period?.end) {
-          currentPeriodEnd = new Date(latestInvoice.lines.data[0].period.end * 1000).toISOString();
-          console.log('Using invoice line period end as fallback:', currentPeriodEnd);
-        }
-      } else {
-        console.log('No paid invoices found for subscription:', subscription.id);
-      }
-    }
-
-    // Validate period dates
-    if (!currentPeriodStart || !currentPeriodEnd) {
-      console.error('Cannot update subscription: Missing valid period start or end dates');
-      throw new Error('Missing valid period start or end dates for subscription update');
-    }
-
-    // Try updating subscription by stripe_subscription_id
-    console.log('Attempting to update subscription with:', {
-      stripe_subscription_id: subscription.id,
-      currentPeriodStart,
-      currentPeriodEnd
-    });
-    let { data, error } = await supabase
-      .from('subscriptions')
-      .update({
-        status: updatedSubscription.status,
-        current_period_start: currentPeriodStart,
-        current_period_end: currentPeriodEnd,
-        cancel_at_period_end: updatedSubscription.cancel_at_period_end,
-        canceled_at: canceledAt,
-        updated_at: new Date().toISOString()
-      })
-      .eq('stripe_subscription_id', subscription.id)
-      .select();
-
-    // If no rows updated, try finding subscription by stripe_customer_id
-    if (error || !data?.length) {
-      console.error('Initial subscription update failed:', {
-        error: error?.message,
-        details: error?.details,
-        code: error?.code
-      });
-      console.log('Attempting fallback update using stripe_customer_id:', subscription.customer);
-
-      const { data: subscriptionData, error: subError } = await supabase
-        .from('subscriptions')
-        .select('subscription_id, user_id, stripe_subscription_id')
-        .eq('stripe_customer_id', subscription.customer)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      if (subError || !subscriptionData) {
-        console.error('Fallback subscription lookup failed:', {
-          error: subError?.message,
-          customerId: subscription.customer
-        });
-        // If no active subscription found, create a new one
-        console.log('No active subscription found, creating new subscription record...');
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('user_id')
-          .eq('stripe_customer_id', subscription.customer)
-          .single();
-
-        if (userError || !userData) {
-          console.error('User lookup failed for customer:', subscription.customer, userError?.message);
-          throw new Error(`No user found for customer: ${subscription.customer}`);
-        }
-
-        const { data: newSubData, error: insertError } = await supabase
-          .from('subscriptions')
-          .insert({
-            user_id: userData.user_id,
-            stripe_customer_id: subscription.customer,
-            stripe_subscription_id: subscription.id,
-            stripe_price_id: updatedSubscription.items.data[0]?.price.id,
-            plan_name: 'Premium Plan',
-            amount: updatedSubscription.items.data[0]?.price.unit_amount / 100,
-            currency: updatedSubscription.currency.toUpperCase(),
-            interval: updatedSubscription.items.data[0]?.price.recurring.interval,
-            status: updatedSubscription.status,
-            current_period_start: currentPeriodStart,
-            current_period_end: currentPeriodEnd,
-            cancel_at_period_end: updatedSubscription.cancel_at_period_end,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .select();
-
-        if (insertError || !newSubData?.length) {
-          console.error('Failed to create new subscription:', insertError?.message);
-          throw new Error(`Failed to create subscription: ${insertError?.message}`);
-        }
-
-        data = newSubData;
-        console.log('New subscription created:', {
-          subscriptionId: data[0]?.subscription_id,
-          currentPeriodStart: data[0]?.current_period_start,
-          currentPeriodEnd: data[0]?.current_period_end
-        });
-      } else {
-        // Update existing subscription with new stripe_subscription_id
-        console.log('Found subscription by customer_id, updating with new stripe_subscription_id:', subscription.id);
-        const { data: updateData, error: updateError } = await supabase
-          .from('subscriptions')
-          .update({
-            stripe_subscription_id: subscription.id,
-            status: updatedSubscription.status,
-            current_period_start: currentPeriodStart,
-            current_period_end: currentPeriodEnd,
-            cancel_at_period_end: updatedSubscription.cancel_at_period_end,
-            canceled_at: canceledAt,
-            updated_at: new Date().toISOString()
-          })
-          .eq('subscription_id', subscriptionData.subscription_id)
-          .select();
-
-        if (updateError || !updateData?.length) {
-          console.error('Fallback subscription update failed:', {
-            error: updateError?.message,
-            details: updateError?.details,
-            code: updateError?.code
-          });
-          throw new Error(`Failed to update subscription: ${updateError?.message || 'Unknown error'}`);
-        }
-
-        data = updateData;
-        console.log('Fallback subscription update successful:', {
-          subscriptionId: data[0]?.subscription_id,
-          currentPeriodStart: data[0]?.current_period_start,
-          currentPeriodEnd: data[0]?.current_period_end
-        });
-      }
-    } else {
-      console.log('Subscription updated successfully:', {
-        subscriptionId: data[0]?.subscription_id,
-        currentPeriodStart: data[0]?.current_period_start,
-        currentPeriodEnd: data[0]?.current_period_end
-      });
-    }
-
-    // Update user with next_billing_at
-    const { data: subscriptionData } = await supabase
-      .from('subscriptions')
-      .select('user_id')
-      .eq('stripe_subscription_id', subscription.id)
+    // Fetch user details
+    const { data: user, error: userFetchError } = await supabase
+      .from('users')
+      .select('email, first_name, last_name')
+      .eq('stripe_customer_id', subscription.customer)
       .single();
+    const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ');
 
-    if (subscriptionData) {
-      const userUpdate = {
-        next_billing_at: currentPeriodEnd,
-        is_paid: updatedSubscription.status === 'active',
-        status: updatedSubscription.status === 'active' ? 'approved' : updatedSubscription.status === 'canceled' || updatedSubscription.status === 'unpaid' ? 'on_hold' : 'pending'
-      };
-
-      const { error: userUpdateError } = await supabase
-        .from('users')
-        .update(userUpdate)
-        .eq('user_id', subscriptionData.user_id);
-
-      console.log('User update:', {
-        user_id: subscriptionData.user_id,
-        next_billing_at: currentPeriodEnd,
-        is_paid: userUpdate.is_paid,
-        status: userUpdate.status,
-        error: userUpdateError?.message
-      });
-      console.log('User updated successfully');
-    } else {
-      console.log('No user found for subscription:', subscription.id);
+    // Send cancellation scheduled email
+    if (subscription.cancel_at_period_end) {
+      const { subject, html } = cancellationScheduledTemplate(fullName);
+      await sendEmail({ to: user.email, subject, html });
+      // Admin email
+      const adminSubject = `[ADMIN] Subscription Cancellation Scheduled for ${fullName}`;
+      const adminHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #eab308; margin-bottom: 10px;">Subscription Cancellation Scheduled</h2>
+          <p><strong>User:</strong> ${fullName}</p>
+          <p><strong>Email:</strong> ${user.email}</p>
+          <p><strong>Status:</strong> Scheduled</p>
+          <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+          <hr style="margin: 20px 0;">
+          <p>The user has requested to cancel their subscription at the end of the current billing period. They will retain access until then.</p>
+        </div>
+      `;
+      await sendEmail({ to: 'd.vamsitej333@gmail.com', subject: adminSubject, html: adminHtml });
+    }
+    // Send cancellation ended email
+    if (subscription.status === 'canceled') {
+      const { subject, html } = cancellationEndedTemplate(fullName);
+      await sendEmail({ to: user.email, subject, html });
+      // Admin email
+      const adminSubject = `[ADMIN] Subscription Cancelled for ${fullName}`;
+      const adminHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #ef4444; margin-bottom: 10px;">Subscription Cancelled</h2>
+          <p><strong>User:</strong> ${fullName}</p>
+          <p><strong>Email:</strong> ${user.email}</p>
+          <p><strong>Status:</strong> Completed</p>
+          <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+          <hr style="margin: 20px 0;">
+          <p>The user’s subscription has been fully cancelled and access has ended.</p>
+        </div>
+      `;
+      await sendEmail({ to: 'd.vamsitej333@gmail.com', subject: adminSubject, html: adminHtml });
     }
 
     console.log('Subscription updated successfully for subscription:', subscription.id);
@@ -995,6 +835,31 @@ async function handleSubscriptionDeleted(subscription) {
         })
         .eq('user_id', subscriptionData.user_id);
     }
+
+    // Fetch user details
+    const { data: user, error: userFetchError } = await supabase
+      .from('users')
+      .select('email, first_name, last_name')
+      .eq('stripe_customer_id', subscription.customer)
+      .single();
+    const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ');
+    // Send cancellation ended email
+    const { subject, html } = cancellationEndedTemplate(fullName);
+    await sendEmail({ to: user.email, subject, html });
+    // Admin email
+    const adminSubject = `[ADMIN] Subscription Cancelled for ${fullName}`;
+    const adminHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #ef4444; margin-bottom: 10px;">Subscription Cancelled</h2>
+        <p><strong>User:</strong> ${fullName}</p>
+        <p><strong>Email:</strong> ${user.email}</p>
+        <p><strong>Status:</strong> Completed</p>
+        <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+        <hr style="margin: 20px 0;">
+        <p>The user’s subscription has been fully cancelled and access has ended.</p>
+      </div>
+    `;
+    await sendEmail({ to: 'd.vamsitej333@gmail.com', subject: adminSubject, html: adminHtml });
 
     console.log('Subscription deleted successfully');
   } catch (error) {

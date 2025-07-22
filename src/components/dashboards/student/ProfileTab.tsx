@@ -689,27 +689,7 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
           )}
           
           {/* Only show the old subscribe button for paid users or after payment */}
-          {localUserDb && (localUserDb.is_paid || localUserDb.status !== 'on_hold') && (
-            <div className="pt-4">
-              <Button
-                onClick={handleStripeCheckout}
-                disabled={stripeLoading}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold px-4 py-1.5 text-xs sm:py-2 sm:text-sm rounded-md w-full sm:w-auto min-w-[120px] shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
-              >
-                {stripeLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Redirecting to Stripe...
-                  </>
-                ) : (
-                  <>Subscribe with Stripe</>
-                )}
-              </Button>
-              <p className="text-xs text-gray-500 text-center mt-2">
-                Secure payment powered by Stripe
-              </p>
-            </div>
-          )}
+          
           {/* Add support and cancel subscription options below payment method */}
           {localUserDb && localUserDb.status === 'approved' && (
             <div className="mt-4 space-y-2">

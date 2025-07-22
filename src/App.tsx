@@ -19,6 +19,7 @@ import ContactForm from "./pages/contact.tsx"
 import RecruiterSignup from "./pages/agentSignup.tsx";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import CancelPage from "./pages/cancel";
 
 const queryClient = new QueryClient();
 
@@ -72,6 +73,7 @@ function AppRoutes() {
       <Route path="/success" element={<PaymentSuccess />} />
       <Route path="/contact" element= { <ContactForm /> } />
       <Route path="/agent/signup" element={<RecruiterSignup />} />
+      <Route path="/cancel" element={<CancelPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -332,7 +332,12 @@ const Signup = () => {
                 <CheckCircle className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-2xl font-bold text-slate-800 mb-4">Welcome to JobSmartly!</h2>
-              <p className="text-slate-600 mb-6">Your account has been created successfully. Please check your email to verify your account.</p>
+              <p className="text-slate-600 mb-6">
+                Your account has been created successfully. Please check your email to verify your account.<br />
+                <span className="block mt-4 text-sm text-red-700 bg-red-50 rounded px-2 py-1">
+                  If you do not see our email in your inbox, please check your spam or junk folder. To ensure you receive important updates, mark our emails as "Not Spam" or move them to your inbox.
+                </span>
+              </p>
               <Button
                 onClick={handleSwitchToLogin}
                 className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 h-12 rounded-xl font-semibold"

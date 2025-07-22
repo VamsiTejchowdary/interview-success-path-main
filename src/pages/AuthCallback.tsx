@@ -72,7 +72,12 @@ export default function AuthCallback() {
               setStatus('success');
               const userName = `${userInfo.first_name || ''} ${userInfo.last_name || ''}`.trim() || 'User';
               await sendVerificationEmail(data.session.user.email!, userName, userInfo.role);
-              setMessage('Email verified! Your account is on hold. You can sign in and make the payment to start your process.');
+              setMessage('Email verified! Your account is on hold. You can sign in and make the payment to start your process.\n\nIf you do not see our emails, please check your spam or junk folder. To ensure you receive important updates, mark our emails as "Not Spam" or move them to your inbox.');
+
+              setTimeout(() => {
+                navigate('/');
+                setTimeout(() => { window.location.reload(); }, 500);
+              }, 5000);
             } else {
               // Rejected or other status
               setStatus('error');

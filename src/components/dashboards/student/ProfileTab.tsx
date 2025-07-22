@@ -52,6 +52,14 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [activeSubscription, setActiveSubscription] = useState<any>(null);
 
+  // Coupon logic for first-time sign-in
+  const [couponInput, setCouponInput] = useState("");
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [discount, setDiscount] = useState(0);
+  const BASE_MONTHLY_COST = 200;
+  const HARDCODED_COUPON = "WELCOME50";
+
   // If user/userDb props change, update local state
   useEffect(() => {
     setLocalUser(user);
@@ -84,6 +92,22 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
     };
     fetchActiveSubscription();
   }, [user, userDb]);
+
+  // Remove useEffect and state for setShowCouponSection, setMonthlyCost, extraFee, and monthlyCost
+  // Remove reference to monthlyCost in the coupon section
+
+  const handleApplyCoupon = () => {
+    if (couponInput.trim().toUpperCase() === HARDCODED_COUPON) {
+      setCouponApplied(true);
+      setCouponError("");
+      setDiscount(50);
+      toast({ title: "Coupon Applied", description: "$50 discount applied!", variant: "default" });
+    } else {
+      setCouponError("Invalid coupon code. Please try again.");
+      setCouponApplied(false);
+      setDiscount(0);
+    }
+  };
 
   // Helper to update cancellation_requested in DB
   const updateCancellationRequested = async (value: boolean) => {
@@ -541,26 +565,72 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-gray-600">Monthly Cost</span>
-              <span className="font-medium text-gray-800">${localUser.subscription_fee}/month</span>
+              <span className="font-medium text-gray-800">${BASE_MONTHLY_COST - discount}/month</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Fee Paid</span>
               <span>{getFeeBadge()}</span>
             </div>
-            {/* Hide Next Billing if subscription is set to cancel at period end */}
-            {localUserDb && localUserDb.next_billing_at && !activeSubscription?.cancel_at_period_end && (
-              <div className="flex justify-between">
-                <span className="text-gray-600">Next Billing</span>
-                <span className="font-medium text-gray-800">
-                  {new Date(localUserDb.next_billing_at).toLocaleDateString("en-US", { 
-                    year: "numeric", 
-                    month: "long", 
-                    day: "numeric" 
-                  })}
-                </span>
-              </div>
-            )}
           </div>
+          {/* Product-style Price Breakdown and Coupon Section for unpaid users */}
+          {localUserDb && !localUserDb.is_paid && (
+            <div className="mt-6 mb-4 p-6 rounded-2xl bg-gradient-to-br from-white/80 to-blue-50 border border-blue-200 shadow-md">
+              {/* Price Breakdown */}
+              <div className="mb-4">
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-base text-slate-700 font-medium">Monthly Cost</span>
+                  <span className="text-lg font-bold text-slate-900">$200</span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-base text-slate-700 font-medium">Discount</span>
+                  <span className={`text-lg font-bold ${discount > 0 ? 'text-green-700' : 'text-slate-400'}`}>{discount > 0 ? `- $${discount}` : "$0"}</span>
+                </div>
+                <div className="flex justify-between items-center border-t border-slate-200 mt-2 pt-2">
+                  <span className="text-lg font-bold text-slate-900">Total</span>
+                  <span className="text-lg font-bold text-blue-700">${BASE_MONTHLY_COST - discount}</span>
+                </div>
+              </div>
+              {/* Coupon Section */}
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                <input
+                  type="text"
+                  placeholder="Enter coupon code"
+                  value={couponInput}
+                  onChange={e => setCouponInput(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50 shadow-sm"
+                  disabled={couponApplied}
+                />
+                <Button
+                  onClick={handleApplyCoupon}
+                  disabled={couponApplied}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg shadow"
+                >
+                  {couponApplied ? "Applied" : "Apply"}
+                </Button>
+              </div>
+              {couponError && <div className="text-red-600 text-sm mb-2">{couponError}</div>}
+              {couponApplied && (
+                <div className="text-green-700 text-sm mb-2 font-semibold">$50 discount applied! Your total is now ${BASE_MONTHLY_COST - discount}.</div>
+              )}
+              {/* Subscribe Button */}
+              <Button
+                onClick={handleStripeCheckout}
+                disabled={stripeLoading}
+                className="mt-4 w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold h-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                {stripeLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Redirecting to Stripe...
+                  </>
+                ) : (
+                  <>Subscribe with Stripe</>
+                )}
+              </Button>
+              <p className="text-xs text-slate-500 text-center mt-2">Secure payment powered by Stripe</p>
+            </div>
+          )}
+          {/* End Product-style Price Breakdown and Coupon Section */}
           
           {/* Payment Method Card - Hide if subscription is set to cancel at period end */}
           {localUserDb && localUserDb.is_paid && !activeSubscription?.cancel_at_period_end && (
@@ -618,8 +688,8 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
             </div>
           )}
           
-          {/* Stripe Subscribe Button - Only show when user is not paid or on hold and not paid */}
-          {localUserDb && (!localUserDb.is_paid || (localUserDb.status === 'on_hold' && !localUserDb.is_paid)) && (
+          {/* Only show the old subscribe button for paid users or after payment */}
+          {localUserDb && (localUserDb.is_paid || localUserDb.status !== 'on_hold') && (
             <div className="pt-4">
               <Button
                 onClick={handleStripeCheckout}

@@ -33,6 +33,8 @@ const supabase = createClient(
   process.env.VITE_SUPABASE_ANON_KEY
 );
 
+const apiBase = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:8080';
+
 // Utility function to delay execution
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -540,10 +542,16 @@ async function handleSubscriptionDeleted(subscription) {
 }
 
 async function handleInvoicePaid(invoice) {
-  console.log('Handling invoice paid:', invoice.id, 'Subscription:', invoice.subscription, 'Customer:', invoice.customer);
-  
   try {
+    console.log('💰 Processing invoice.paid event');
+    console.log('📋 Invoice ID:', invoice.id);
+    console.log('📋 Customer ID:', invoice.customer);
+    console.log('📋 Subscription ID:', invoice.subscription);
+    console.log('📋 Amount:', invoice.amount_paid);
+    console.log('📋 Status:', invoice.status);
+    
     let subscriptionData = null;
+    let userData = null;
     let maxRetries = 3;
     let retryCount = 0;
 
@@ -584,28 +592,26 @@ async function handleInvoicePaid(invoice) {
       }
     }
 
-    // If still no subscription, try user lookup by customer_id or email
+    // If subscription not found, try finding user by stripe_customer_id
     if (!subscriptionData && invoice.customer) {
-      console.log('No subscription found, looking for user by customer ID...');
       let { data: userByCustomer, error: userError } = await supabase
         .from('users')
-        .select('user_id')
+        .select('user_id, email, first_name, last_name')
         .eq('stripe_customer_id', invoice.customer)
         .single();
       
       if (!userByCustomer) {
-        console.log('Looking for user by email from customer...');
         const customer = await stripe.customers.retrieve(invoice.customer);
-        
         if (customer.email) {
           const { data: userByEmail, error: emailError } = await supabase
             .from('users')
-            .select('user_id')
+            .select('user_id, email, first_name, last_name')
             .eq('email', customer.email)
             .single();
           
           if (userByEmail) {
-            console.log('Found user by email, updating stripe_customer_id...');
+            userByCustomer = userByEmail;
+            // Update stripe_customer_id for user
             await supabase
               .from('users')
               .update({ stripe_customer_id: invoice.customer })
@@ -615,20 +621,44 @@ async function handleInvoicePaid(invoice) {
       }
 
       if (userByCustomer) {
-        // We do NOT insert payment if we can't find a subscription_id
-        // This ensures we always record subscription_id for every payment
-        console.log('❌ Subscription not found for invoice, will not insert payment. Will retry on next webhook delivery.');
-        return;
+        userData = userByCustomer;
+        console.log('✅ Found user by customer ID:', userData.user_id);
+        
+        // Try to find or create a subscription for this user
+        const { data: existingSub, error: subError } = await supabase
+          .from('subscriptions')
+          .select('subscription_id, user_id')
+          .eq('user_id', userData.user_id)
+          .eq('stripe_customer_id', invoice.customer)
+          .single();
+          
+        if (existingSub) {
+          subscriptionData = existingSub;
+          console.log('✅ Found existing subscription for user:', subscriptionData.subscription_id);
+        }
       }
     }
     
-    if (!subscriptionData) {
-      console.log('No user or subscription found for invoice, skipping payment insertion:', invoice.id);
+    // If we still don't have subscription data but have user data, we'll proceed with payment recording
+    // This ensures payments are recorded even if subscription lookup fails
+    if (!subscriptionData && !userData) {
+      console.log('❌ No subscription or user data found for invoice:', invoice.id);
+      console.log('❌ Customer ID:', invoice.customer);
+      console.log('❌ Subscription ID:', invoice.subscription);
+      // Still return early only if we can't find any user data
       return;
     }
+    
+    const finalUserId = subscriptionData?.user_id || userData?.user_id;
+    const finalSubscriptionId = subscriptionData?.subscription_id || null;
+    
+    console.log('✅ Processing payment with:', {
+      user_id: finalUserId,
+      subscription_id: finalSubscriptionId
+    });
 
     // Update subscription period if subscription exists and invoice has period data
-    if (subscriptionData.subscription_id && invoice.lines?.data?.[0]?.period) {
+    if (finalSubscriptionId && invoice.lines?.data?.[0]?.period) {
       const periodStart = invoice.lines.data[0].period.start
         ? new Date(invoice.lines.data[0].period.start * 1000).toISOString()
         : null;
@@ -643,67 +673,75 @@ async function handleInvoicePaid(invoice) {
           status: invoice.status === 'paid' ? 'active' : 'pending',
           updated_at: new Date().toISOString()
         })
-        .eq('subscription_id', subscriptionData.subscription_id);
+        .eq('subscription_id', finalSubscriptionId);
     }
 
     // Insert payment record with better duplicate prevention
     const paymentData = {
-      user_id: subscriptionData.user_id,
+      user_id: finalUserId,
       stripe_invoice_id: invoice.id,
       amount: invoice.amount_paid / 100,
       currency: invoice.currency.toUpperCase(),
       status: 'succeeded',
       payment_method: invoice.payment_method_details?.type || 'card',
       billing_reason: invoice.billing_reason,
-      paid_at: invoice.paid_at ? new Date(invoice.paid_at * 1000).toISOString() : new Date().toISOString(),
-      subscription_id: subscriptionData.subscription_id // Always set
+      paid_at: invoice.paid_at ? new Date(invoice.paid_at * 1000).toISOString() : new Date().toISOString()
     };
+
+    // Only add subscription_id if it exists
+    if (finalSubscriptionId) {
+      paymentData.subscription_id = finalSubscriptionId;
+    }
 
     // Only add payment_intent_id if it exists and is not null
     if (invoice.payment_intent) {
       paymentData.stripe_payment_intent_id = invoice.payment_intent;
     }
 
-    console.log('Inserting payment with data:', paymentData);
+    console.log('💳 Inserting payment record:', paymentData);
+
+    // Check if payment already exists for this invoice - but be more specific
     const { data: existingPayment, error: checkError } = await supabase
       .from('payments')
-      .select('payment_id')
+      .select('payment_id, status')
       .eq('stripe_invoice_id', invoice.id)
       .single();
 
-    if (existingPayment) {
-      console.log('⚠️ Payment already exists for invoice:', invoice.id);
+    if (existingPayment && existingPayment.status === 'succeeded') {
+      console.log('⚠️ Successful payment already exists for invoice:', invoice.id);
       console.log('⚠️ Skipping payment insertion to avoid duplicates');
-      return;
-    }
-
-    const { data: paymentResult, error: paymentError } = await supabase
-      .from('payments')
-      .insert(paymentData)
-      .select();
-
-    if (paymentError) {
-      console.error('❌ Error inserting payment:', paymentError.message);
-      console.error('❌ Payment data that failed:', JSON.stringify(paymentData, null, 2));
-      if (paymentError.code === '23505') {
-        console.error('❌ This is a unique constraint violation');
-      } else if (paymentError.code === '23503') {
-        console.error('❌ This is a foreign key constraint violation');
-      }
+      // Still proceed with email logic in case email wasn't sent
     } else {
-      console.log('✅ Payment record inserted successfully');
-      console.log('✅ Payment ID:', paymentResult?.[0]?.payment_id);
+      // Use insert with conflict handling to prevent duplicates
+      const { data: paymentResult, error: paymentError } = await supabase
+        .from('payments')
+        .insert(paymentData)
+        .select();
+
+      if (paymentError) {
+        console.error('❌ Error inserting payment:', paymentError.message);
+        console.error('❌ Payment data that failed:', JSON.stringify(paymentData, null, 2));
+        if (paymentError.code === '23505') {
+          console.error('❌ This is a unique constraint violation');
+        } else if (paymentError.code === '23503') {
+          console.error('❌ This is a foreign key constraint violation');
+        }
+        // Don't return early - still try to send email
+      } else {
+        console.log('✅ Payment record inserted successfully');
+        console.log('✅ Payment ID:', paymentResult?.[0]?.payment_id);
+      }
     }
 
     // Update subscription status to active after successful payment
-    if (subscriptionData.subscription_id) {
+    if (finalSubscriptionId) {
       await supabase
         .from('subscriptions')
         .update({
           status: 'active',
           updated_at: new Date().toISOString()
         })
-        .eq('subscription_id', subscriptionData.subscription_id);
+        .eq('subscription_id', finalSubscriptionId);
     }
 
     // Update user with next_billing_at
@@ -720,49 +758,58 @@ async function handleInvoicePaid(invoice) {
           next_billing_at: nextBillingAt,
           cancellation_requested: false // Reset cancellation_requested after payment
         })
-        .eq('user_id', subscriptionData.user_id);
+        .eq('user_id', finalUserId);
     }
 
     // --- EMAIL LOGIC START ---
-    // Fetch user details
-    const { data: user, error: userFetchError } = await supabase
-      .from('users')
-      .select('email, first_name, last_name')
-      .eq('user_id', subscriptionData.user_id)
-      .single();
-    
+    // Fetch user details if we don't have them already
+    let user = userData;
+    if (!user) {
+      const { data: fetchedUser, error: userFetchError } = await supabase
+        .from('users')
+        .select('email, first_name, last_name')
+        .eq('user_id', finalUserId)
+        .single();
+
       if (userFetchError) {
         console.log('[EMAIL] Supabase user fetch error:', userFetchError);
+      } else {
+        user = fetchedUser;
       }
+    }
 
     const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ');
 
-    // Check if this is the first successful payment
+    // Check if this is the first successful payment - improved logic
     const { count: paymentCount } = await supabase
       .from('payments')
       .select('payment_id', { count: 'exact', head: true })
-      .eq('user_id', subscriptionData.user_id)
+      .eq('user_id', finalUserId)
       .eq('status', 'succeeded');
 
     if (user && user.email) {
-      let isFirstPayment = paymentCount === 1; // This payment was just inserted
+      let isFirstPayment = paymentCount <= 1; // Consider this the first if count is 1 or less
+      console.log('[EMAIL] Payment count for user:', paymentCount, 'isFirstPayment:', isFirstPayment);
       console.log('[EMAIL] Preparing to send', isFirstPayment ? 'accountApproved' : 'subscriptionRenewal', 'email to user:', user.email, 'user:', fullName);
+      
       try {
-        const userEmailRes = await sendEmail({
+        const userEmailTemplate = isFirstPayment ? accountApprovedTemplate : subscriptionRenewalTemplate;
+        const emailData = userEmailTemplate(fullName || 'User', 'User');
+        
+        const userEmailResult = await resend.emails.send({
           from: 'noreply@jobsmartly.com',
           to: user.email,
-          subject: isFirstPayment ? 'Account Approved! Welcome to Interview Success Path' : 'Your Subscription Has Been Renewed!',
-          html: isFirstPayment
-            ? accountApprovedTemplate(fullName || 'User', 'user').html
-            : subscriptionRenewalTemplate(fullName || 'User',  'user').html,
-          templateData: [fullName || 'User', 'user']
+          subject: emailData.subject,
+          html: emailData.html,
         });
-        console.log('[EMAIL] sendEmail user response:', userEmailRes);
+        
+        console.log('[EMAIL] User email sent successfully:', userEmailResult);
       } catch (err) {
         console.error('[EMAIL] Error sending user email:', err);
       }
+      
       try {
-        const adminEmailRes = await sendEmail({
+        const adminEmailResult = await resend.emails.send({
           from: 'noreply@jobsmartly.com',
           to: 'd.vamsitej333@gmail.com',
           subject: isFirstPayment
@@ -777,18 +824,21 @@ async function handleInvoicePaid(invoice) {
             </div>
           `,
         });
-        console.log('[EMAIL] sendEmail admin response:', adminEmailRes);
+        
+        console.log('[EMAIL] Admin email sent successfully:', adminEmailResult);
       } catch (err) {
         console.error('[EMAIL] Error sending admin email:', err);
       }
     } else {
-      console.log('[EMAIL] No user found for email sending:', { user, subscriptionData });
+      console.log('[EMAIL] No user found for email sending:', { user, finalUserId });
     }
     // --- EMAIL LOGIC END ---
   } catch (error) {
-    console.error('Error handling invoice paid:', error.message, error.stack);
+    console.error('❌ Error handling invoice paid:', error.message, error.stack);
     throw error;
   }
+  
+  console.log('✅ Invoice.paid event processed successfully');
 }
 
 async function handleInvoicePaymentFailed(invoice) {

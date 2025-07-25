@@ -27,11 +27,17 @@ const PAGE_SIZE = 10;
 interface ApplicationsTabProps {
   user: any;
   userDb: any;
+  userId: string | null;
+  applications: any[];
+  setApplications: React.Dispatch<React.SetStateAction<any[]>>;
+  loading: boolean;
+  refetchApplications: () => Promise<void>;
 }
-export default function ApplicationsTab({ user, userDb }: ApplicationsTabProps) {
+export default function ApplicationsTab({ user, userDb, userId, applications, setApplications, loading, refetchApplications }: ApplicationsTabProps) {
   const { toast } = useToast();
-  const [applications, setApplications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Remove internal applications state and fetching logic
+  // const [applications, setApplications] = useState([]);
+  // const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -47,114 +53,18 @@ export default function ApplicationsTab({ user, userDb }: ApplicationsTabProps) 
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
     searchTimeout.current = setTimeout(() => {
       setDebouncedSearch(search);
-    }, 1250); // 2 seconds
+    }, 1250);
     return () => clearTimeout(searchTimeout.current);
   }, [search]);
 
-  // Use useCallback to memoize fetchApplications
-  const fetchApplications = useCallback(async () => {
-    setRefreshing(true);
-    setLoading(true);
-    if (!user?.email) {
-      setApplications([]);
-      setLoading(false);
-      setStatusCounts({});
-      setRefreshing(false);
-      return;
-    }
-    // Get user_id for current user
-    const { data: userData } = await supabase
-      .from("users")
-      .select("user_id")
-      .eq("email", user.email)
-      .single();
-    if (!userData?.user_id) {
-      setApplications([]);
-      setLoading(false);
-      setStatusCounts({});
-      setRefreshing(false);
-      return;
-    }
-    // Build query
-    let query = supabase
-      .from("job_applications")
-      .select("*, company_name, resumes(*), recruiters(name)", { count: "exact" })
-      .eq("user_id", userData.user_id)
-      .order("applied_at", { ascending: false });
-    if (debouncedSearch.trim()) {
-      query = query.ilike("company_name", `%${debouncedSearch.trim()}%`);
-    }
-    // Get total count
-    const { count: totalCount } = await query;
-    setTotal(totalCount || 0);
-    // Fetch paginated applications
-    const { data: apps, error } = await query
-      .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
-    if (error) {
-      setApplications([]);
-      setLoading(false);
-      setStatusCounts({});
-      setRefreshing(false);
-      return;
-    }
-    // Enrich with recruiter name and resume info
-    const enriched = await Promise.all((apps || []).map(async (app) => {
-      let recruiterName = "-";
-      if (app.recruiter_id) {
-        const { data: recruiter } = await supabase
-          .from("recruiters")
-          .select("name")
-          .eq("recruiter_id", app.recruiter_id)
-          .single();
-        recruiterName = recruiter?.name || "-";
-      }
-      let resumeUrl = "";
-      let resumeName = "Resume";
-      if (app.resume_id) {
-        const { data: resume } = await supabase
-          .from("resumes")
-          .select("storage_key, name")
-          .eq("resume_id", app.resume_id)
-          .single();
-        resumeUrl = resume?.storage_key || "";
-        resumeName = resume?.name || "Resume";
-      }
-      return {
-        ...app,
-        recruiterName,
-        resumeUrl,
-        resumeName,
-      };
-    }));
-    setApplications(enriched);
-    setLoading(false);
-    setRefreshing(false);
-  }, [user?.email, page, debouncedSearch]);
-
-  // Update useEffect to use fetchApplications
-  useEffect(() => {
-    fetchApplications();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchApplications]);
-
   // Fetch status counts for all applications (not just current page, and NOT filtered by search)
   const fetchStatusCounts = useCallback(async () => {
-    if (!user?.email) return;
-    // Get user_id for current user
-    const { data: userData } = await supabase
-      .from("users")
-      .select("user_id")
-      .eq("email", user.email)
-      .single();
-    if (!userData?.user_id) {
-      setStatusCounts({});
-      return;
-    }
+    if (!userId) return;
     // For 'applied', count all applications (no status filter)
     const { count: totalCount } = await supabase
       .from("job_applications")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", userData.user_id);
+      .eq("user_id", userId);
     const counts = { applied: totalCount || 0 };
     // For other statuses, count by status
     for (const status of STATUS_OPTIONS) {
@@ -162,17 +72,53 @@ export default function ApplicationsTab({ user, userDb }: ApplicationsTabProps) 
       let query = supabase
         .from("job_applications")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", userData.user_id)
+        .eq("user_id", userId)
         .eq("status", status.value);
       const { count } = await query;
       counts[status.value] = count || 0;
     }
     setStatusCounts(counts);
-  }, [user?.email]);
+  }, [userId]);
 
   useEffect(() => {
     fetchStatusCounts();
   }, [fetchStatusCounts]);
+
+  // Realtime subscription: refetch applications on new INSERT for this user
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel('job_applications_realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'job_applications', filter: `user_id=eq.${userId}` },
+        (payload) => {
+          refetchApplications();
+          fetchStatusCounts && fetchStatusCounts();
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, refetchApplications, fetchStatusCounts]);
+
+  // Update total for pagination (filtered by search)
+  useEffect(() => {
+    if (!debouncedSearch.trim()) {
+      setTotal(applications.length);
+    } else {
+      setTotal(applications.filter(app => app.company_name?.toLowerCase().includes(debouncedSearch.trim().toLowerCase())).length);
+    }
+    setPage(1);
+  }, [applications, debouncedSearch]);
+
+  // Filtered and paginated applications
+  const PAGE_SIZE = 10;
+  const filteredApps = debouncedSearch.trim()
+    ? applications.filter(app => app.company_name?.toLowerCase().includes(debouncedSearch.trim().toLowerCase()))
+    : applications;
+  const paginatedApps = filteredApps.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleStatusChange = async (applicationId, newStatus) => {
     setUpdatingStatus(applicationId);
@@ -211,12 +157,12 @@ export default function ApplicationsTab({ user, userDb }: ApplicationsTabProps) 
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
-                onClick={fetchApplications}
+                onClick={refetchApplications}
                 className="ml-2 p-2 h-10 w-10 flex items-center justify-center border border-gray-200 text-gray-700 hover:bg-gray-100"
                 disabled={refreshing || loading}
                 aria-label="Refresh applications"
               >
-                {refreshing ? (
+                {refreshing || loading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582M20 20v-5h-.581M5.582 9A7.003 7.003 0 0112 5c3.314 0 6.13 2.165 6.818 5M18.418 15A7.003 7.003 0 0112 19c-3.314 0-6.13-2.165-6.818-5" /></svg>
@@ -255,7 +201,7 @@ export default function ApplicationsTab({ user, userDb }: ApplicationsTabProps) 
             <p className="text-gray-600">Loading your applications...</p>
           </div>
         </div>
-      ) : !applications.length ? (
+      ) : !paginatedApps.length ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 max-w-md mx-auto">
             <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-6">
@@ -277,7 +223,7 @@ export default function ApplicationsTab({ user, userDb }: ApplicationsTabProps) 
       ) : (
         <>
           <div className="space-y-3">
-            {applications.map(app => {
+            {paginatedApps.map(app => {
               const statusStyle = getStatusStyle(app.status);
               const isExpanded = expanded === app.application_id;
               

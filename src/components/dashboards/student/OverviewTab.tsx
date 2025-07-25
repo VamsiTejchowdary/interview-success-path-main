@@ -11,8 +11,12 @@ import WeeklyApplicationChart from './WeeklyApplicationChart';
 interface OverviewTabProps {
   user: any;
   userDb: any;
+  applications: any[];
+  setApplications: React.Dispatch<React.SetStateAction<any[]>>;
+  loading: boolean;
+  refetchApplications: () => Promise<void>;
 }
-const OverviewTab = ({ user, userDb }: OverviewTabProps) => {
+const OverviewTab = ({ user, userDb, applications, setApplications, loading, refetchApplications }: OverviewTabProps) => {
   const [metrics, setMetrics] = useState({
     totalApplied: 0,
     prevWeekApplied: 0,
@@ -28,15 +32,13 @@ const OverviewTab = ({ user, userDb }: OverviewTabProps) => {
   useEffect(() => {
     if (!user) return;
     const fetchMetrics = async () => {
-      // Get user_id
+      // Get recruiter info
       const { data: userData } = await supabase
         .from('users')
-        .select('user_id, recruiter_id')
+        .select('recruiter_id')
         .eq('email', user.email)
         .single();
-      const user_id = userData?.user_id;
       const recruiter_id = userData?.recruiter_id;
-      // Get recruiter name
       let recruiterName = '';
       let recruiterEmail = '';
       let recruiterPhone = '';
@@ -64,27 +66,24 @@ const OverviewTab = ({ user, userDb }: OverviewTabProps) => {
       endOfPrevWeek.setDate(startOfWeek.getDate() - 1);
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      // Fetch all applications
-      const { data: allApps } = await supabase
-        .from('job_applications')
-        .select('*')
-        .eq('user_id', user_id);
+      // Use applications prop for metrics
+      const allApps = applications || [];
       // Total applied
-      const totalApplied = allApps?.length || 0;
+      const totalApplied = allApps.length;
       // This week
-      const thisWeekApplied = (allApps || []).filter(app => {
+      const thisWeekApplied = allApps.filter(app => {
         const applied = new Date(app.applied_at);
         return applied >= startOfWeek && applied <= endOfWeek;
       }).length;
       // Previous week
-      const prevWeekApplied = (allApps || []).filter(app => {
+      const prevWeekApplied = allApps.filter(app => {
         const applied = new Date(app.applied_at);
         return applied >= startOfPrevWeek && applied <= endOfPrevWeek;
       }).length;
       // Interviewed
-      const interviewed = (allApps || []).filter(app => app.status === 'interviewed').length;
+      const interviewed = allApps.filter(app => app.status === 'interviewed').length;
       // This month
-      const thisMonthApplied = (allApps || []).filter(app => {
+      const thisMonthApplied = allApps.filter(app => {
         const applied = new Date(app.applied_at);
         return applied >= startOfMonth && applied <= endOfMonth;
       }).length;
@@ -94,7 +93,7 @@ const OverviewTab = ({ user, userDb }: OverviewTabProps) => {
       const { data: resumes } = await supabase
         .from('resumes')
         .select('resume_id')
-        .eq('user_id', user_id);
+        .eq('user_id', userDb?.user_id);
       const resumeVersions = resumes?.length || 0;
       setMetrics({
         totalApplied,
@@ -110,7 +109,7 @@ const OverviewTab = ({ user, userDb }: OverviewTabProps) => {
       });
     };
     fetchMetrics();
-  }, [user]);
+  }, [user, applications, userDb?.user_id]);
   return (
     <>
       {/* Welcome Section */}

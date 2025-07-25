@@ -25,7 +25,7 @@ import ApplicationsTab from "./student/ApplicationsTab";
 import InterviewsTab from "./student/InterviewsTab";
 import ProfileTab from "./student/ProfileTab";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser, getUserInfo } from "@/lib/auth";
@@ -43,6 +43,10 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
   const [user, setUser] = useState(null);
   const [userDb, setUserDb] = useState(null);
   const [loadingUser, setLoadingUser] = useState(true);
+
+  // Applications state for instant load
+  const [applications, setApplications] = useState([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(true);
 
   // Fetch user and userDb on mount or on demand
   const fetchUserAndDb = async () => {
@@ -68,9 +72,68 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
     }
     setLoadingUser(false);
   };
+
+  const fetchApplications = useCallback(async () => {
+    setApplicationsLoading(true);
+    if (!userDb?.user_id) {
+      setApplications([]);
+      setApplicationsLoading(false);
+      return;
+    }
+    // Fetch applications (same logic as ApplicationsTab, but here)
+    let query = supabase
+      .from("job_applications")
+      .select("*, company_name, resumes(*), recruiters(name)", { count: "exact" })
+      .eq("user_id", userDb.user_id)
+      .order("applied_at", { ascending: false });
+    const { data: apps, error } = await query;
+    if (error) {
+      setApplications([]);
+      setApplicationsLoading(false);
+      return;
+    }
+    // Enrich with recruiter name and resume info
+    const enriched = await Promise.all((apps || []).map(async (app) => {
+      let recruiterName = "-";
+      if (app.recruiter_id) {
+        const { data: recruiter } = await supabase
+          .from("recruiters")
+          .select("name")
+          .eq("recruiter_id", app.recruiter_id)
+          .single();
+        recruiterName = recruiter?.name || "-";
+      }
+      let resumeUrl = "";
+      let resumeName = "Resume";
+      if (app.resume_id) {
+        const { data: resume } = await supabase
+          .from("resumes")
+          .select("storage_key, name")
+          .eq("resume_id", app.resume_id)
+          .single();
+        resumeUrl = resume?.storage_key || "";
+        resumeName = resume?.name || "Resume";
+      }
+      return {
+        ...app,
+        recruiterName,
+        resumeUrl,
+        resumeName,
+      };
+    }));
+    setApplications(enriched);
+    setApplicationsLoading(false);
+  }, [userDb?.user_id]);
+
   useEffect(() => {
     fetchUserAndDb();
   }, []);
+
+  useEffect(() => {
+    if (userDb?.user_id) {
+      fetchApplications();
+    }
+  }, [userDb?.user_id, fetchApplications]);
 
   // Determine active tab from URL
   useEffect(() => {
@@ -89,6 +152,9 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
   // Handle tab changes
   const handleTabChange = (value: string) => {
     setActiveTab(value);
+    // if (value === "applications") {
+    //   fetchApplications();
+    // }
     if (value === "overview") {
       navigate("/student");
     } else {
@@ -170,11 +236,26 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
             </TabsList>
 
             <TabsContent value="overview">
-              <OverviewTab user={user} userDb={userDb} />
+              <OverviewTab
+                user={user}
+                userDb={userDb}
+                applications={applications}
+                setApplications={setApplications}
+                loading={applicationsLoading}
+                refetchApplications={fetchApplications}
+              />
             </TabsContent>
 
             <TabsContent value="applications">
-              <ApplicationsTab user={user} userDb={userDb} />
+              <ApplicationsTab
+                user={user}
+                userDb={userDb}
+                userId={userDb?.user_id || null}
+                applications={applications}
+                setApplications={setApplications}
+                loading={applicationsLoading}
+                refetchApplications={fetchApplications}
+              />
             </TabsContent>
 
             <TabsContent value="interviews">

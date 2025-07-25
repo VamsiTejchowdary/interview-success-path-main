@@ -59,7 +59,7 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
       if (user_id) {
         const { data } = await supabase
           .from("users")
-          .select("user_id, next_billing_at, is_paid, status, stripe_customer_id, first_name, last_name, phone, address, linkedin_url, cancellation_requested")
+          .select("user_id, next_billing_at, is_paid, status, stripe_customer_id, first_name, last_name, phone, address, linkedin_url, cancellation_requested, subscription_fee")
           .eq("user_id", user_id)
           .single();
         setUserDb(data);

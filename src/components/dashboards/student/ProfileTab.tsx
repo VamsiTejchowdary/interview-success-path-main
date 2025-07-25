@@ -57,7 +57,6 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState("");
   const [discount, setDiscount] = useState(0);
-  const BASE_MONTHLY_COST = 200;
   const HARDCODED_COUPON = "WELCOME50";
 
   // If user/userDb props change, update local state
@@ -565,7 +564,7 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-gray-600">Monthly Cost</span>
-              <span className="font-medium text-gray-800">${BASE_MONTHLY_COST - discount}/month</span>
+              <span className="font-medium text-gray-800">${(localUserDb?.subscription_fee ?? 200) - discount}/month</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Fee Paid</span>
@@ -579,7 +578,7 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
               <div className="mb-4">
                 <div className="flex justify-between items-center py-1">
                   <span className="text-base text-slate-700 font-medium">Monthly Cost</span>
-                  <span className="text-lg font-bold text-slate-900">$200</span>
+                  <span className="text-lg font-bold text-slate-900">${localUserDb?.subscription_fee ?? 200}</span>
                 </div>
                 <div className="flex justify-between items-center py-1">
                   <span className="text-base text-slate-700 font-medium">Discount</span>
@@ -587,7 +586,7 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                 </div>
                 <div className="flex justify-between items-center border-t border-slate-200 mt-2 pt-2">
                   <span className="text-lg font-bold text-slate-900">Total</span>
-                  <span className="text-lg font-bold text-blue-700">${BASE_MONTHLY_COST - discount}</span>
+                  <span className="text-lg font-bold text-blue-700">${(localUserDb?.subscription_fee ?? 200) - discount}</span>
                 </div>
               </div>
               {/* Coupon Section */}
@@ -610,7 +609,7 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
               </div>
               {couponError && <div className="text-red-600 text-sm mb-2">{couponError}</div>}
               {couponApplied && (
-                <div className="text-green-700 text-sm mb-2 font-semibold">$50 discount applied! Your total is now ${BASE_MONTHLY_COST - discount}.</div>
+                <div className="text-green-700 text-sm mb-2 font-semibold">$50 discount applied! Your total is now ${(localUserDb?.subscription_fee ?? 200) - discount}.</div>
               )}
               {/* Subscribe Button */}
               <Button

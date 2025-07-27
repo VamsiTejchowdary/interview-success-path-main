@@ -112,7 +112,7 @@ const emailTemplates = {
 const sendEmail = async (emailData) => {
   try {
     const { data, error } = await resend.emails.send({
-      from: emailData.from || 'noreply@jobsmartly.com',
+      from: emailData.from || 'JobSmartly <noreply@jobsmartly.com>',
       to: Array.isArray(emailData.to) ? emailData.to : [emailData.to],
       subject: emailData.subject,
       html: emailData.html,
@@ -797,7 +797,7 @@ async function handleInvoicePaid(invoice) {
         const emailData = userEmailTemplate(fullName || 'User', 'User');
         
         const userEmailResult = await resend.emails.send({
-          from: 'noreply@jobsmartly.com',
+          from: 'JobSmartly <noreply@jobsmartly.com>',
           to: user.email,
           subject: emailData.subject,
           html: emailData.html,
@@ -810,7 +810,7 @@ async function handleInvoicePaid(invoice) {
       
       try {
         const adminEmailResult = await resend.emails.send({
-          from: 'noreply@jobsmartly.com',
+          from: 'JobSmartly <noreply@jobsmartly.com>',
           to: 'd.vamsitej333@gmail.com',
           subject: isFirstPayment
             ? `A new user has been approved: ${fullName}`

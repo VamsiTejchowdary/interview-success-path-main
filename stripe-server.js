@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import bodyParser from 'body-parser';
 import { createClient } from '@supabase/supabase-js';
+import { Resend } from 'resend';
 const { cancellationScheduledTemplate, cancellationEndedTemplate } = require('./email-templates/subscriptionCancellationNotice.js');
 
 dotenv.config({ path: '.env.local' });
@@ -61,6 +62,30 @@ const supabase = createClient(
   process.env.VITE_SUPABASE_URL,
   process.env.VITE_SUPABASE_ANON_KEY
 );
+
+// Initialize Resend
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// Email sending function
+const sendEmail = async (emailData) => {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: emailData.from || 'JobSmartly <noreply@jobsmartly.com>',
+      to: emailData.to || "support@jobsmartly.com",
+      subject: emailData.subject,
+      html: emailData.html,
+    });
+
+    if (error) {
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Email sending failed:', error);
+    throw error;
+  }
+};
 
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 

@@ -23,7 +23,7 @@ const emailTemplates = {
 const sendEmail = async (emailData) => {
   try {
     const { data, error } = await resend.emails.send({
-      from: emailData.from || 'noreply@jobsmartly.com',
+      from: emailData.from || 'JobSmartly <noreply@jobsmartly.com>',
       to: emailData.to || "support@jobsmartly.com",
       subject: emailData.subject,
       html: emailData.html,

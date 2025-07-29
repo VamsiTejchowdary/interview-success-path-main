@@ -41,6 +41,16 @@ export interface UserData {
   subscription_fee: number
 }
 
+export interface AffiliateData {
+  affiliate_user_id: string
+  name: string
+  email: string
+  phone: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  user_count: number
+}
+
 export const getDashboardStats = async (): Promise<DashboardStats> => {
   try {
     // Get active students (users with approved status)
@@ -284,4 +294,120 @@ export const updateUserSubscriptionFee = async (userId: string, subscriptionFee:
     .update({ subscription_fee: subscriptionFee })
     .eq('user_id', userId);
   if (error) throw error;
-}; 
+};
+
+export const getAffiliatesList = async (): Promise<AffiliateData[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('affiliates')
+      .select('affiliate_user_id, name, email, phone, status, created_at')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    // Get user count for each affiliate (users who used their coupons)
+    const affiliatesWithUserCount = await Promise.all(
+      data.map(async (affiliate) => {
+        // Count users who used this affiliate's coupons
+        const { data: couponUsages, error: usagesError } = await supabase
+          .from('coupon_usages')
+          .select(`
+            coupon_id,
+            coupons!inner(affiliate_user_id)
+          `)
+          .eq('coupons.affiliate_user_id', affiliate.affiliate_user_id)
+
+        if (usagesError) {
+          console.error('Error fetching coupon usages for affiliate:', usagesError)
+          return { ...affiliate, user_count: 0 }
+        }
+
+        return {
+          ...affiliate,
+          user_count: couponUsages?.length || 0
+        }
+      })
+    )
+
+    return affiliatesWithUserCount
+  } catch (error) {
+    console.error('Error fetching affiliates list:', error)
+    throw error
+  }
+}
+
+export const updateAffiliateStatus = async (
+  affiliateId: string, 
+  status: 'pending' | 'approved' | 'rejected'
+): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('affiliates')
+      .update({ 
+        status,
+      })
+      .eq('affiliate_user_id', affiliateId)
+
+    if (error) throw error
+  } catch (error) {
+    console.error('Error updating affiliate status:', error)
+    throw error
+  }
+}
+
+export const createCouponForAffiliate = async (
+  affiliateId: string, 
+  couponCode: string
+): Promise<void> => {
+  try {
+    // Check if coupon code already exists
+    const { data: existingCoupon, error: checkError } = await supabase
+      .from('coupons')
+      .select('coupon_id')
+      .eq('code', couponCode)
+      .single()
+
+    if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
+      throw checkError
+    }
+
+    if (existingCoupon) {
+      throw new Error('Coupon code already exists')
+    }
+
+    // Create new coupon
+    const { error } = await supabase
+      .from('coupons')
+      .insert({
+        code: couponCode,
+        affiliate_user_id: affiliateId,
+        no_of_coupon_used: 0
+      })
+
+    if (error) throw error
+  } catch (error) {
+    console.error('Error creating coupon:', error)
+    throw error
+  }
+}
+
+export const getAffiliateCoupons = async (affiliateId: string): Promise<{
+  coupon_id: string;
+  code: string;
+  no_of_coupon_used: number;
+  created_at: string;
+}[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('coupons')
+      .select('coupon_id, code, no_of_coupon_used, created_at')
+      .eq('affiliate_user_id', affiliateId)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Error fetching affiliate coupons:', error)
+    throw error
+  }
+} 

@@ -24,6 +24,7 @@ const IndexPage = () => {
       if (user.role === 'admin') navigate('/admin/dashboard');
       else if (user.role === 'recruiter') navigate('/recruiter/dashboard');
       else if (user.role === 'user') navigate('/student');
+      else if (user.role === 'affiliate') navigate('/affiliate/dashboard');
     }
   }, [user, navigate]);
 

@@ -85,6 +85,7 @@ export default async function handler(req, res) {
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL}/cancel`,
       customer: customerId, // Use existing or new customer ID
+      allow_promotion_codes: true, 
     });
 
     console.log('Checkout session created:', session.id, 'Customer:', session.customer);

@@ -33,9 +33,13 @@ import {
   updateUserStatus, 
   assignRecruiterToUser,
   getApprovedRecruiters,
+  getAffiliatesList,
+  updateAffiliateStatus,
+  createCouponForAffiliate,
   type DashboardStats,
   type RecruiterData,
   type UserData,
+  type AffiliateData,
   updateUserPaid,
   updateUserNextBilling
 } from "@/lib/admin";
@@ -43,6 +47,7 @@ import AdminUsersTab from "./admin/AdminUsersTab";
 import AdminOverviewTab from "./admin/AdminOverviewTab";
 import AdminAnalyticsTab from "./admin/AdminAnalyticsTab";
 import AdminRecruitersTab from "./admin/AdminRecruitersTab";
+import AdminAffiliatesTab from "./admin/AdminAffiliatesTab";
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -52,6 +57,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recruiters, setRecruiters] = useState<RecruiterData[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
+  const [affiliates, setAffiliates] = useState<AffiliateData[]>([]);
   const [approvedRecruiters, setApprovedRecruiters] = useState<{ recruiter_id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
@@ -82,16 +88,18 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [statsData, recruitersData, usersData, approvedRecruitersData] = await Promise.all([
+      const [statsData, recruitersData, usersData, affiliatesData, approvedRecruitersData] = await Promise.all([
         getDashboardStats(),
         getRecruitersList(),
         getUsersList(),
+        getAffiliatesList(),
         getApprovedRecruiters()
       ]);
       
       setStats(statsData);
       setRecruiters(recruitersData);
       setUsers(usersData);
+      setAffiliates(affiliatesData);
       setApprovedRecruiters(approvedRecruitersData);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -168,6 +176,45 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     }
   };
 
+  const handleAffiliateStatusUpdate = async (affiliateId: string, status: 'pending' | 'approved' | 'rejected') => {
+    try {
+      setUpdating(affiliateId);
+      await updateAffiliateStatus(affiliateId, status);
+      await loadData(); // Reload data to reflect changes
+      toast({
+        title: "Success",
+        description: `Affiliate status updated to ${status}`,
+      });
+    } catch (error) {
+      console.error('Error updating affiliate status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update affiliate status",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleCreateCoupon = async (affiliateId: string, couponCode: string) => {
+    try {
+      await createCouponForAffiliate(affiliateId, couponCode);
+      toast({
+        title: "Success",
+        description: "Coupon created successfully",
+      });
+    } catch (error) {
+      console.error('Error creating coupon:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to create coupon",
+        variant: "destructive",
+      });
+      throw error; // Re-throw to let the component handle it
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
@@ -233,7 +280,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
       <div className="container mx-auto px-4 py-6 sm:py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-slate-800/50 border border-slate-700 p-1 grid w-full grid-cols-2 sm:grid-cols-4 gap-1">
+          <TabsList className="bg-slate-800/50 border border-slate-700 p-1 grid w-full grid-cols-2 sm:grid-cols-5 gap-1">
             <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors">
               Overview
             </TabsTrigger>
@@ -242,6 +289,9 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
             </TabsTrigger>
             <TabsTrigger value="recruiters" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors">
               Recruiters
+            </TabsTrigger>
+            <TabsTrigger value="affiliates" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors">
+              Affiliates
             </TabsTrigger>
             <TabsTrigger value="users" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors">
               Users
@@ -258,6 +308,10 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
           <TabsContent value="recruiters">
             <AdminRecruitersTab recruiters={recruiters} updating={updating} handleRecruiterStatusUpdate={handleRecruiterStatusUpdate} />
+          </TabsContent>
+
+          <TabsContent value="affiliates">
+            <AdminAffiliatesTab affiliates={affiliates} updating={updating} handleAffiliateStatusUpdate={handleAffiliateStatusUpdate} handleCreateCoupon={handleCreateCoupon} />
           </TabsContent>
 
           <TabsContent value="users">

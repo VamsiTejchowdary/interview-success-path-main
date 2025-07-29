@@ -23,7 +23,6 @@ interface OverviewTabProps {
     totalCouponsUsed: number;
     activeUsers: number;
     totalRevenue: number;
-    monthlyGrowth: number;
   };
   coupons: Array<{
     coupon_id: string;
@@ -68,9 +67,6 @@ const OverviewTab = ({ affiliateId, stats, coupons }: OverviewTabProps) => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-800">{stats.totalCouponsUsed}</div>
-            <p className="text-xs text-green-600">
-              +{stats.monthlyGrowth} this month
-            </p>
           </CardContent>
         </Card>
 
@@ -82,7 +78,7 @@ const OverviewTab = ({ affiliateId, stats, coupons }: OverviewTabProps) => {
           <CardContent>
             <div className="text-2xl font-bold text-gray-800">{stats.activeUsers}</div>
             <p className="text-xs text-blue-600">
-              Users using your coupons
+              Approved users using your coupons
             </p>
           </CardContent>
         </Card>
@@ -102,15 +98,15 @@ const OverviewTab = ({ affiliateId, stats, coupons }: OverviewTabProps) => {
 
         <Card className="backdrop-blur-xl bg-white/60 border-green-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Conversion Rate</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">Current Month Revenue</CardTitle>
             <TrendingUp className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-gray-800">
-              {stats.totalCouponsUsed > 0 ? Math.round((stats.activeUsers / stats.totalCouponsUsed) * 100) : 0}%
+            ${ stats.activeUsers * 30}
             </div>
             <p className="text-xs text-purple-600">
-              Success rate
+              Monthly Revenue 
             </p>
           </CardContent>
         </Card>
@@ -138,7 +134,7 @@ const OverviewTab = ({ affiliateId, stats, coupons }: OverviewTabProps) => {
             <div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-600">Active Users</span>
-                <span className="text-sm text-gray-500">{stats.activeUsers} users</span>
+                <span className="text-sm text-gray-500">{stats.activeUsers} approved users</span>
               </div>
               <Progress value={Math.min((stats.activeUsers / 50) * 100, 100)} className="h-2" />
             </div>

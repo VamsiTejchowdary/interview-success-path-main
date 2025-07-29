@@ -30,8 +30,7 @@ const AffiliateDashboard = ({ onLogout }: AffiliateDashboardProps) => {
   const [stats, setStats] = useState({
     totalCouponsUsed: 0,
     activeUsers: 0,
-    totalRevenue: 0,
-    monthlyGrowth: 0
+    totalRevenue: 0
   });
   const [coupons, setCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -73,6 +72,7 @@ const AffiliateDashboard = ({ onLogout }: AffiliateDashboardProps) => {
                 const { data: couponUsages, error: usagesError } = await supabase
                   .from('coupon_usages')
                   .select(`
+                    user_id,
                     coupon_id,
                     coupons!inner(affiliate_user_id)
                   `)
@@ -81,13 +81,29 @@ const AffiliateDashboard = ({ onLogout }: AffiliateDashboardProps) => {
                 if (usagesError) {
                   console.error('Error fetching coupon usages:', usagesError);
                 } else {
-                  const activeUsers = couponUsages?.length || 0;
+                  // Get unique user IDs from coupon usages
+                  const userIds = [...new Set(couponUsages?.map(usage => usage.user_id) || [])];
+                  
+                  // Check user status for each user who used the affiliate's coupons
+                  let activeUsers = 0;
+                  if (userIds.length > 0) {
+                    const { data: usersData, error: usersError } = await supabase
+                      .from('users')
+                      .select('user_id, status')
+                      .in('user_id', userIds);
+
+                    if (usersError) {
+                      console.error('Error fetching users status:', usersError);
+                    } else {
+                      // Count only users with 'approved' status as active users
+                      activeUsers = usersData?.filter(user => user.status === 'approved').length || 0;
+                    }
+                  }
                   
                   setStats({
                     totalCouponsUsed,
                     activeUsers,
-                    totalRevenue: totalCouponsUsed * 200, // Assuming $200 per user
-                    monthlyGrowth: 0 // You can calculate this based on your business logic
+                    totalRevenue: totalCouponsUsed * 30,
                   });
                 }
               }

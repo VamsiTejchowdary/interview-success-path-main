@@ -4,19 +4,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser, AuthUser, getUserInfo } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { Linkedin, CheckCircle, Shield, Check, Crown } from "lucide-react";
+import { Linkedin, CheckCircle, Shield, Check, Crown, Sparkles, Zap, ArrowRight, Bell, CreditCard, Calendar, DollarSign, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Card brand logo mapping (SVGs should be placed in public/card-logos/ for dev and prod compatibility)
+// Add card brand logos mapping
 const cardBrandLogos: Record<string, string> = {
-  visa: '/card-logos/visa.svg',
-  mastercard: '/card-logos/mastercard.svg',
-  amex: '/card-logos/amex.svg',
+  visa: "https://cdn.jsdelivr.net/gh/aaronfagan/svg-credit-card-payment-icons/flat/visa.svg",
+  mastercard: "https://cdn.jsdelivr.net/gh/aaronfagan/svg-credit-card-payment-icons/flat/mastercard.svg",
+  amex: "https://cdn.jsdelivr.net/gh/aaronfagan/svg-credit-card-payment-icons/flat/amex.svg",
   discover: '/card-logos/discover.svg',
   diners: '/card-logos/diners.svg',
   jcb: '/card-logos/jcb.svg',
   unionpay: '/card-logos/unionpay.svg',
-  // Add more as needed
 };
 const defaultCardLogo = '/card-logos/defaultcard.svg';
 
@@ -51,13 +50,9 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
   const [paymentMethod, setPaymentMethod] = useState<any>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [activeSubscription, setActiveSubscription] = useState<any>(null);
-
-  // Coupon logic for first-time sign-in
-  const [couponInput, setCouponInput] = useState("");
-  const [couponApplied, setCouponApplied] = useState(false);
-  const [couponError, setCouponError] = useState("");
-  const [discount, setDiscount] = useState(0);
-  const HARDCODED_COUPON = "WELCOME50";
+  const [nextInvoice, setNextInvoice] = useState<any>(null);
+  const [nextInvoiceLoading, setNextInvoiceLoading] = useState(false);
+  const [nextInvoiceError, setNextInvoiceError] = useState<string | null>(null);
 
   // If user/userDb props change, update local state
   useEffect(() => {
@@ -91,22 +86,6 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
     };
     fetchActiveSubscription();
   }, [user, userDb]);
-
-  // Remove useEffect and state for setShowCouponSection, setMonthlyCost, extraFee, and monthlyCost
-  // Remove reference to monthlyCost in the coupon section
-
-  const handleApplyCoupon = () => {
-    if (couponInput.trim().toUpperCase() === HARDCODED_COUPON) {
-      setCouponApplied(true);
-      setCouponError("");
-      setDiscount(50);
-      toast({ title: "Coupon Applied", description: "$50 discount applied!", variant: "default" });
-    } else {
-      setCouponError("Invalid coupon code. Please try again.");
-      setCouponApplied(false);
-      setDiscount(0);
-    }
-  };
 
   // Helper to update cancellation_requested in DB
   const updateCancellationRequested = async (value: boolean) => {
@@ -244,34 +223,30 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
     localUserDb.next_billing_at &&
     new Date(localUserDb.next_billing_at).getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000 <= new Date().getTime();
 
-  const getFeeBadge = () => {
-    if (!localUserDb) return null;
-    if (localUserDb.is_paid && !isOverdue) {
-      return <Badge className="bg-green-500 text-white">Paid</Badge>;
-    }
-    if (!localUserDb.is_paid || isOverdue) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-xs font-semibold shadow animate-pulse">
-          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          Overdue
-        </span>
-      );
-    }
-    return null;
-  };
+  const getFeeBadge = () => (
+    localUserDb?.is_paid ? (
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-700 rounded-full text-sm font-semibold border-2 border-emerald-200">
+        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+        Active
+      </div>
+    ) : (
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-red-100 to-pink-100 text-red-700 rounded-full text-sm font-semibold border-2 border-red-200">
+        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+        Inactive
+      </div>
+    )
+  );
 
-  const getPlanBadge = () => {
-    if (!localUserDb) return null;
-    if (localUserDb.status === "approved") {
-      return <Badge className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">Active</Badge>;
-    }
-    if (localUserDb.status === "on_hold") {
-      return <Badge className="bg-yellow-500 text-white">Hold</Badge>;
-    }
-    return null;
-  };
+  const getPlanBadge = () => (
+    <div className="relative">
+      <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full blur opacity-30"></div>
+      <div className="relative px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-full text-sm font-bold flex items-center gap-2 shadow-lg">
+        <Crown className="w-4 h-4" />
+        Premium
+        <Sparkles className="w-3 h-3" />
+      </div>
+    </div>
+  );
 
   // Fetch payment method from Stripe
   const fetchPaymentMethod = async () => {
@@ -322,6 +297,49 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
     }
   }, [localUserDb]);
 
+  // Fetch next invoice from backend API
+  const fetchNextInvoice = async () => {
+    if (!activeSubscription?.stripe_subscription_id) return;
+    setNextInvoiceLoading(true);
+    setNextInvoiceError(null);
+    try {
+      console.log('Fetching next invoice');
+      console.log('activeSubscription.stripe_subscription_id', activeSubscription.stripe_subscription_id);
+      const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
+      const endpoint = import.meta.env.DEV ? '/get-next-invoice' : '/api/get-next-invoice';
+      const response = await fetch(`${apiBase}${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscriptionId: activeSubscription.stripe_subscription_id,
+        }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        setNextInvoiceError(errorData.error || 'Failed to fetch next invoice');
+        setNextInvoice(null);
+        return;
+      }
+      const data = await response.json();
+      setNextInvoice(data);
+      console.log('Next invoice:', data);
+    } catch (err: any) {
+      console.error('Error fetching next invoice:', err);
+      setNextInvoiceError(err.message || 'Failed to fetch next invoice');
+      setNextInvoice(null);
+    } finally {
+      setNextInvoiceLoading(false);
+    }
+  };
+
+  // Fetch next invoice when user is paid and subscription is loaded
+  useEffect(() => {
+    if (localUserDb?.is_paid && activeSubscription?.stripe_subscription_id && localUserDb.stripe_customer_id) {
+      fetchNextInvoice();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localUserDb?.is_paid, activeSubscription?.stripe_subscription_id, localUserDb?.stripe_customer_id]);
+
   // Stripe Checkout handler
   const handleStripeCheckout = async () => {
     if (!localUser?.email) {
@@ -370,165 +388,210 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <Card className="backdrop-blur-xl bg-white/60 border-white/20 shadow-lg">
-        <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
-          <CardDescription className="text-gray-600">Manage your career profile and preferences</CardDescription>
+      <Card className="backdrop-blur-xl bg-white/95 border-white/20 shadow-2xl relative overflow-hidden">
+        {/* Background Glow */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 via-blue-600/5 to-purple-600/5"></div>
+        
+        <CardHeader className="relative bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 backdrop-blur-lg rounded-xl flex items-center justify-center border border-white/30">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div>
+                <CardTitle className="text-white">Profile Information</CardTitle>
+                <CardDescription className="text-white/80">Manage your career profile and preferences</CardDescription>
+              </div>
+            </div>
+            {localUserDb?.status === 'approved' && (
+              <div className="group relative">
+                <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-white shadow-lg border border-white ring-1 ring-amber-200 hover:shadow-amber-500/60 transition-all duration-300 hover:scale-105">
+                  <Crown className="w-4 h-4 stroke-[2] fill-current drop-shadow-lg" />
+                </div>
+                <div className="absolute -inset-1 bg-gradient-to-br from-amber-300/30 to-yellow-500/30 rounded-full blur-md opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </div>
+            )}
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-gray-700">Full Name</label>
+        
+        <CardContent className="relative space-y-4 p-6">
+          {/* Full Name Section */}
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="font-semibold text-gray-800">Full Name</span>
+            </div>
             {editMode ? (
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <input
                   name="first_name"
                   value={form.first_name}
                   onChange={handleChange}
-                  className="w-full sm:w-1/2 px-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-800"
+                  className="flex-1 px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-800 bg-white"
                   placeholder="First Name"
                 />
                 <input
                   name="last_name"
                   value={form.last_name}
                   onChange={handleChange}
-                  className="w-full sm:w-1/2 px-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-800"
+                  className="flex-1 px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-800 bg-white"
                   placeholder="Last Name"
                 />
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <p className="text-gray-800 font-medium break-words">{localUser.first_name} {localUser.last_name}</p>
-                {localUserDb?.status === 'approved' && (
-                  <>
-                    <div className="group relative">
-                      <div className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 via-yellow-500 to-amber-600 text-white shadow-lg border border-white ring-1 ring-amber-200 hover:shadow-amber-500/60 transition-all duration-300 hover:scale-105">
-                        <Crown className="w-4 h-4 stroke-[2] fill-current drop-shadow-lg" />
-                      </div>
-                      <div className="absolute -inset-1 bg-gradient-to-br from-amber-300/30 to-yellow-500/30 rounded-full blur-md opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
-                      {/* <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-3 bg-gradient-to-r from-amber-800 to-orange-800 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 whitespace-nowrap z-20 shadow-xl">
-                        <div className="font-bold">Elite Gold Job Seeker</div>
-                        <div className="text-xs text-amber-200 mt-1">✓ All Pro features</div>
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-amber-800"></div>
-                      </div> */}
-                    </div>
-                  </>
-                )}
-              </div>
+              <p className="text-gray-800 font-medium">{localUser.first_name} {localUser.last_name}</p>
             )}
           </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700">Email</label>
+
+          {/* Email Section */}
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="font-semibold text-gray-800">Email</span>
+            </div>
             <input
               name="email"
               value={form.email}
-              className="w-full px-3 py-2 rounded border border-gray-300 bg-gray-100 text-gray-800"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-800"
               placeholder="Email"
               type="email"
               disabled
             />
           </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700">Phone</label>
+
+          {/* Phone Section */}
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="font-semibold text-gray-800">Phone</span>
+            </div>
             {editMode ? (
               <input
                 name="phone"
                 value={form.phone}
                 onChange={handleChange}
-                className="w-full px-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-800"
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-800 bg-white"
                 placeholder="Phone"
               />
             ) : (
-              <p className="text-gray-800 break-words">{localUser.phone || "Not provided"}</p>
+              <p className="text-gray-800">{localUser.phone || "Not provided"}</p>
             )}
           </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700">Address</label>
+
+          {/* Address Section */}
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="font-semibold text-gray-800">Address</span>
+            </div>
             {editMode ? (
               <input
                 name="address"
                 value={form.address}
                 onChange={handleChange}
-                className="w-full px-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-800"
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-800 bg-white"
                 placeholder="Address"
               />
             ) : (
-              <p className="text-gray-800 break-words">{localUser.address || "Not provided"}</p>
+              <p className="text-gray-800">{localUser.address || "Not provided"}</p>
             )}
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              {editMode ? (
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-gray-700">Update Resume (PDF)</label>
-                  <input
-                    type="file"
-                    accept="application/pdf"
-                    onChange={handleResumeUpdate}
-                    className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
-                    disabled={resumeUploading}
-                  />
-                  {resumeUploading && <span className="text-xs text-gray-500">Uploading...</span>}
-                  {resumeUploadError && <span className="text-xs text-red-500">{resumeUploadError}</span>}
-                  <span className="text-xs text-amber-600 mt-1">After updating your resume, please notify your recruiter.</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    className="border-blue-400 text-blue-700 hover:bg-blue-50 px-3 py-1"
-                    onClick={() => setResumeModal(true)}
-                  >
-                    View Resume
-                  </Button>
-                </div>
-              )}
+
+          {/* Resume Section */}
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="font-semibold text-gray-800">Resume</span>
             </div>
-          </div>
-          <div>
             {editMode ? (
-              <div>
-                <label className="text-sm font-medium text-gray-700">LinkedIn</label>
-                <div className="flex items-center gap-2 min-h-[40px]">
-                  <input
-                    name="linkedin_url"
-                    value={form.linkedin_url}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 rounded border border-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-800"
-                    placeholder="LinkedIn URL"
-                  />
-                </div>
+              <div className="space-y-3">
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handleResumeUpdate}
+                  className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+                  disabled={resumeUploading}
+                />
+                {resumeUploading && <span className="text-xs text-gray-500">Uploading...</span>}
+                {resumeUploadError && <span className="text-xs text-red-500">{resumeUploadError}</span>}
+                <span className="text-xs text-gray-600">After updating your resume, please notify your recruiter.</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  className="border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-lg"
+                  onClick={() => setResumeModal(true)}
+                >
+                  View Resume
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* LinkedIn Section */}
+          <div className="rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="font-semibold text-gray-800">LinkedIn</span>
+            </div>
+            {editMode ? (
+              <div className="space-y-2">
+                <input
+                  name="linkedin_url"
+                  value={form.linkedin_url}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-300 text-gray-800 bg-white"
+                  placeholder="LinkedIn URL"
+                />
                 {!form.linkedin_url && (
                   <span className="text-xs text-gray-500">Please add LinkedIn</span>
                 )}
               </div>
             ) : localUser.linkedin_url ? (
-              <div className="flex items-center gap-2 min-h-[40px]">
+              <div className="flex items-center gap-3">
                 <a
                   href={localUser.linkedin_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 hover:bg-blue-200 transition"
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 transition"
                   title="View LinkedIn Profile"
                 >
-                  <Linkedin className="w-6 h-6 text-blue-600" />
+                  <Linkedin className="w-5 h-5 text-gray-600" />
                 </a>
+                <span className="text-gray-600 text-sm">LinkedIn profile connected</span>
               </div>
-            ) : null}
+            ) : (
+              <p className="text-gray-500 text-sm">No LinkedIn profile connected</p>
+            )}
           </div>
-          {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
-          <div className="flex flex-col sm:flex-row gap-2 mt-4">
+
+          {/* Error Display */}
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+              <div className="flex items-center gap-2">
+                <span className="text-red-600 text-sm">{error}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
             {editMode ? (
               <>
                 <Button
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-1.5 text-xs sm:py-2 sm:text-sm rounded-md w-full sm:w-auto min-w-[120px]"
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
                   onClick={handleSave}
                   disabled={loading}
                 >
-                  {loading ? "Saving..." : "Save"}
+                  {loading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Saving...</span>
+                    </div>
+                  ) : (
+                    'Save Changes'
+                  )}
                 </Button>
                 <Button
                   variant="outline"
-                  className="border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-1.5 text-xs sm:py-2 sm:text-sm rounded-md w-full sm:w-auto min-w-[120px]"
+                  className="flex-1 border-gray-200 text-gray-700 hover:bg-gray-50 py-2 px-4 rounded-lg"
                   onClick={handleCancel}
                   disabled={loading}
                 >
@@ -537,7 +600,7 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
               </>
             ) : (
               <Button
-                className="bg-purple-500 hover:bg-purple-600 text-white px-5 py-2 text-xs sm:text-sm rounded-md w-auto mx-auto block min-w-[100px] font-semibold shadow transition-all duration-150"
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
                 onClick={handleEdit}
               >
                 Edit Profile
@@ -546,202 +609,293 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
           </div>
         </CardContent>
       </Card>
-      <Card className="backdrop-blur-xl bg-white/60 border-white/20 shadow-lg">
-        <CardHeader>
-          <CardTitle>Subscription Plan</CardTitle>
-          <CardDescription className="text-gray-600">Current plan and billing information</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="p-4 rounded-lg bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-200/50">
-            <div className="flex items-center justify-between">
+
+      {/* Modern Subscription Card - Maintains Original Structure */}
+      <Card className="backdrop-blur-xl bg-white/95 border-white/20 shadow-2xl relative overflow-hidden">
+        {/* Background Glow */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-600/5 via-blue-600/5 to-purple-600/5"></div>
+        
+        <CardHeader className="relative bg-gradient-to-br from-purple-600 via-blue-600 to-indigo-700 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 backdrop-blur-lg rounded-xl flex items-center justify-center border border-white/30">
+                <Crown className="w-5 h-5 text-yellow-300" />
+              </div>
               <div>
-                <h3 className="font-semibold text-gray-800">Premium Plan</h3>
-                <p className="text-sm text-gray-600">Unlimited applications & priority support</p>
+                <CardTitle className="text-white">Premium Plan</CardTitle>
+                <CardDescription className="text-white/80">Unlimited applications & priority support</CardDescription>
               </div>
-              {getPlanBadge()}
             </div>
+            {getPlanBadge()}
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Monthly Cost</span>
-              <span className="font-medium text-gray-800">${(localUserDb?.subscription_fee ?? 200) - discount}/month</span>
+        </CardHeader>
+        
+        <CardContent className="relative space-y-4 p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-200/50">
+              <div className="flex items-center gap-2 mb-2">
+                <Zap className="w-4 h-4 text-emerald-600" />
+                <span className="font-semibold text-gray-800">Status</span>
+              </div>
+              {getFeeBadge()}
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Fee Paid</span>
-              <span>{getFeeBadge()}</span>
-            </div>
+            
+            {localUserDb?.is_paid && (
+              <>
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    <span className="font-semibold text-gray-800">Started</span>
+                  </div>
+                  <p className="text-gray-800 font-medium">
+                    {activeSubscription?.created_at ? new Date(activeSubscription.created_at).toLocaleDateString() : '--'}
+                  </p>
+                </div>
+                
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200/50">
+                  <div className="flex items-center gap-2 mb-2">
+                    <DollarSign className="w-4 h-4 text-green-600" />
+                    <span className="font-semibold text-gray-800">Next Billing</span>
+                  </div>
+                  <p className="text-gray-800 font-medium text-sm">
+                    {nextInvoiceLoading ? 'Loading...' :
+                      nextInvoice?.next_billing_date?.iso
+                        ? `${nextInvoice.next_billing_amount.dollars} on ${new Date(nextInvoice.next_billing_date.iso).toLocaleDateString()}`
+                        : (nextInvoice?.lines?.data?.[0]?.period?.end && nextInvoice?.amount_due
+                            ? `${(nextInvoice.amount_due / 100).toLocaleString(undefined, { style: 'currency', currency: nextInvoice.currency?.toUpperCase() || 'USD' })} on ${new Date(nextInvoice.lines.data[0].period.end * 1000).toLocaleDateString()}`
+                            : '--'
+                          )
+                    }
+                  </p>
+                </div>
+              </>
+            )}
           </div>
-          {/* Product-style Price Breakdown and Coupon Section for unpaid users */}
+
+          {/* Subscribe Button for Unpaid Users */}
           {localUserDb && !localUserDb.is_paid && (
-            <div className="mt-6 mb-4 p-6 rounded-2xl bg-gradient-to-br from-white/80 to-blue-50 border border-blue-200 shadow-md">
-              {/* Price Breakdown */}
-              <div className="mb-4">
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-base text-slate-700 font-medium">Monthly Cost</span>
-                  <span className="text-lg font-bold text-slate-900">${localUserDb?.subscription_fee ?? 200}</span>
-                </div>
-                <div className="flex justify-between items-center py-1">
-                  <span className="text-base text-slate-700 font-medium">Discount</span>
-                  <span className={`text-lg font-bold ${discount > 0 ? 'text-green-700' : 'text-slate-400'}`}>{discount > 0 ? `- $${discount}` : "$0"}</span>
-                </div>
-                <div className="flex justify-between items-center border-t border-slate-200 mt-2 pt-2">
-                  <span className="text-lg font-bold text-slate-900">Total</span>
-                  <span className="text-lg font-bold text-blue-700">${(localUserDb?.subscription_fee ?? 200) - discount}</span>
-                </div>
-              </div>
-              {/* Coupon Section */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                <input
-                  type="text"
-                  placeholder="Enter coupon code"
-                  value={couponInput}
-                  onChange={e => setCouponInput(e.target.value)}
-                  className="flex-1 px-3 py-2 rounded-lg border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-200 text-blue-900 bg-blue-50 shadow-sm"
-                  disabled={couponApplied}
-                />
-                <Button
-                  onClick={handleApplyCoupon}
-                  disabled={couponApplied}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg shadow"
-                >
-                  {couponApplied ? "Applied" : "Apply"}
-                </Button>
-              </div>
-              {couponError && <div className="text-red-600 text-sm mb-2">{couponError}</div>}
-              {couponApplied && (
-                <div className="text-green-700 text-sm mb-2 font-semibold">$50 discount applied! Your total is now ${(localUserDb?.subscription_fee ?? 200) - discount}.</div>
-              )}
-              {/* Subscribe Button */}
-              <Button
+            <div className="text-center space-y-3">
+              <button
                 onClick={handleStripeCheckout}
                 disabled={stripeLoading}
-                className="mt-4 w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold h-12 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-purple-400 disabled:to-blue-400 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-3 group"
               >
                 {stripeLoading ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     Redirecting to Stripe...
                   </>
                 ) : (
-                  <>Subscribe with Stripe</>
+                  <>
+                    <Crown className="w-5 h-5" />
+                    Upgrade to Premium
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </>
                 )}
-              </Button>
-              <p className="text-xs text-slate-500 text-center mt-2">Secure payment powered by Stripe</p>
+              </button>
+              <div className="space-y-1">
+                <p className="text-sm text-purple-700 font-semibold flex items-center justify-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Add coupon codes during checkout
+                </p>
+                <p className="text-xs text-gray-500">🔒 Secure payment powered by Stripe</p>
+              </div>
             </div>
           )}
-          {/* End Product-style Price Breakdown and Coupon Section */}
-          
-          {/* Payment Method Card - Hide if subscription is set to cancel at period end */}
+
+          {/* Payment Method Section */}
           {localUserDb && localUserDb.is_paid && !activeSubscription?.cancel_at_period_end && (
-            <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="font-semibold text-gray-800">Payment Method</h4>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
+            <div className="space-y-3">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <div className="w-6 h-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                  <CreditCard className="w-3 h-3 text-white" />
+                </div>
+                Payment Method
+              </h3>
+              
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-200">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-green-500 rounded-lg flex items-center justify-center">
+                      <Check className="w-3 h-3 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900 text-sm">Active Payment Method</h4>
+                      <p className="text-green-600 text-xs">Auto-renewal enabled</p>
+                    </div>
                   </div>
-                  <span className="text-sm font-medium text-green-600">Active</span>
+                  <div className="px-2 py-1 bg-green-500 text-white rounded text-xs font-medium">
+                    ✓ Verified
+                  </div>
+                </div>
+
+                {paymentLoading ? (
+                  <div className="flex items-center justify-center py-3">
+                    <div className="w-5 h-5 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="ml-2 text-sm text-gray-600">Loading...</span>
+                  </div>
+                ) : paymentMethod ? (
+                  <div className="bg-white rounded-lg p-3 border border-green-200">
+                    <div className="flex items-center gap-3 mb-2">
+                      <img
+                        src={cardBrandLogos[paymentMethod.card?.brand] || cardBrandLogos.visa}
+                        alt={paymentMethod.card?.brand || 'Card'}
+                        className="w-6 h-6 object-contain"
+                      />
+                      <div>
+                        <p className="font-semibold text-gray-900 text-sm">
+                          •••• •••• •••• {paymentMethod.card?.last4 || '****'}
+                        </p>
+                        <p className="text-gray-600 text-xs">
+                          {paymentMethod.card?.brand?.toUpperCase() || 'Card'} ending in {paymentMethod.card?.last4 || '****'}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-gray-50 rounded p-2">
+                        <span className="text-gray-600 text-xs">Expires</span>
+                        <p className="font-semibold text-gray-900 text-xs">
+                          {paymentMethod.card?.exp_month}/{paymentMethod.card?.exp_year}
+                        </p>
+                      </div>
+                      <div className="bg-green-50 rounded p-2">
+                        <span className="text-gray-600 text-xs">Status</span>
+                        <p className="font-semibold text-green-600 text-xs">Auto-renew ON</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-3">
+                    <CreditCard className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                    <p className="text-gray-500 text-xs">Payment method not available</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Discount Information */}
+          {nextInvoice?.discount && (
+            <div className="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-xl p-4 border-2 border-amber-200/50">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 bg-gradient-to-r from-amber-500 to-yellow-500 rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-900 text-sm">Active Discount</h4>
+                  <p className="text-amber-700 text-xs">You're saving money!</p>
                 </div>
               </div>
-              {paymentLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <div className="w-6 h-6 border-2 border-green-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="ml-2 text-sm text-gray-600">Loading payment method...</span>
+              <div className="bg-white/80 rounded-lg p-3">
+                <p className="font-bold text-green-600">
+                  {nextInvoice.discount.coupon?.name || nextInvoice.discount.coupon?.id}
+                  {nextInvoice.discount.coupon?.amount_off ?
+                    ` (-${(nextInvoice.discount.coupon.amount_off / 100).toLocaleString(undefined, { style: 'currency', currency: nextInvoice.currency?.toUpperCase() || 'USD' })})`
+                    : nextInvoice.discount.coupon?.percent_off ?
+                      ` (-${nextInvoice.discount.coupon.percent_off}% off)`
+                      : ''}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Subscription Management Actions */}
+          {localUserDb && localUserDb.status === 'approved' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <div className="w-6 h-6 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg flex items-center justify-center">
+                  <Shield className="w-3 h-3 text-white" />
                 </div>
-              ) : paymentMethod ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={cardBrandLogos[paymentMethod.card?.brand] || defaultCardLogo}
-                      alt={paymentMethod.card?.brand || 'Card'}
-                      className="w-8 h-8 object-contain"
-                      style={{ display: 'inline-block', verticalAlign: 'middle' }}
-                    />
+                Account Management
+              </h3>
+
+              {activeSubscription?.cancel_at_period_end ? (
+                <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Bell className="w-4 h-4 text-white" />
+                    </div>
                     <div>
-                      <p className="font-medium text-gray-800">
-                        •••• •••• •••• {paymentMethod.card?.last4 || '****'}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {paymentMethod.card?.brand || 'Card'} ending in {paymentMethod.card?.last4 || '****'}
+                      <h4 className="font-bold text-gray-900 text-sm mb-1">Subscription Ending Soon</h4>
+                      <p className="text-yellow-800 text-xs leading-relaxed">
+                        Your subscription has been canceled but you'll continue to have access to all premium features until the end of your current billing cycle.
                       </p>
                     </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Expires</span>
-                    <span className="font-medium text-gray-800">
-                      {paymentMethod.card?.exp_month}/{paymentMethod.card?.exp_year}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Auto-renewal</span>
-                    <span className="font-medium text-green-600">Enabled</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-sm text-gray-500">Payment method not available</p>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* Only show the old subscribe button for paid users or after payment */}
-          
-          {/* Add support and cancel subscription options below payment method */}
-          {localUserDb && localUserDb.status === 'approved' && (
-            <div className="mt-4 space-y-2">
-              {activeSubscription?.cancel_at_period_end ? (
-                <div className="text-sm text-yellow-700 bg-yellow-100 border border-yellow-300 rounded p-3 flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-yellow-600" />
-                  <span>Your subscription has been canceled successfully, but you will have access to all features until the end of your billing cycle.</span>
                 </div>
               ) : userDb?.cancellation_requested ? (
-                <>
-                  <div className="text-sm text-yellow-700 bg-yellow-100 border border-yellow-300 rounded p-3 flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-yellow-600" />
-                    <span>We received your cancellation request. Our team will contact you soon to discuss your subscription.</span>
+                <div className="space-y-3">
+                  <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Bell className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-gray-900 text-sm mb-1">Cancellation In Progress</h4>
+                        <p className="text-yellow-800 text-xs leading-relaxed">
+                          We've received your cancellation request. Our team will contact you soon to discuss your subscription and ensure a smooth transition.
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <Button
-                    className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 text-xs sm:text-sm rounded-md w-auto mx-auto block min-w-[100px] font-semibold shadow transition-all duration-150"
+                  <button
+                    className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm"
                     onClick={async () => {
                       await updateCancellationRequested(false);
                       await sendCancellationEmail("revoke");
                       toast({ title: "Cancellation Revoked", description: "Your subscription will remain active.", variant: "default" });
                     }}
                   >
-                    Keep my subscription
-                  </Button>
-                </>
+                    <Shield className="w-4 h-4" />
+                    Keep My Subscription
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
               ) : (
-                <>
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                        <p className="text-sm text-blue-700">
-                          To update your payment method, please contact{' '}
-                          <a href="mailto:support@jobsmartly.com" className="font-semibold underline hover:text-blue-800">
-                            support@jobsmartly.com
-                          </a>
-                        </p>
+                <div className="space-y-3">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <CreditCard className="w-4 h-4 text-white" />
                       </div>
-
-                
-                  <Button
-                    className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 text-xs sm:text-sm rounded-md w-auto mx-auto block min-w-[100px] font-semibold shadow transition-all duration-150"
+                      <div>
+                        <h4 className="font-bold text-gray-900 text-sm mb-1">Need to Update Payment?</h4>
+                        <p className="text-blue-800 text-xs leading-relaxed mb-2">
+                          To update your payment method or billing information, please reach out to our support team.
+                        </p>
+                        <a
+                          href="mailto:support@jobsmartly.com"
+                          className="inline-flex items-center gap-1 font-bold text-blue-600 hover:text-blue-700 transition-colors text-xs"
+                        >
+                          support@jobsmartly.com
+                          <ArrowRight className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <button
+                    className="w-full bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center gap-2 text-sm"
                     onClick={async () => {
                       await updateCancellationRequested(true);
                       await sendCancellationEmail("request");
                       toast({ title: "Cancellation Requested", description: "We have received your request. Our team will contact you soon.", variant: "default" });
                     }}
                   >
-                    Cancel Subscription
-                  </Button>
-                </>
+                    <X className="w-4 h-4" />
+                    Request Cancellation
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
               )}
             </div>
           )}
+
+          {nextInvoiceError && <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg">{nextInvoiceError}</div>}
         </CardContent>
       </Card>
+
       {/* Resume Modal */}
       {resumeModal && localUser.resume_url && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">

@@ -5,7 +5,7 @@ interface AuthContextType {
   user: AuthUser | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<boolean>
-  signUp: (email: string, password: string, signupData: SignupData, role: 'admin' | 'recruiter' | 'user', adminKey?: string) => Promise<{ success: boolean; user?: AuthUser }>
+  signUp: (email: string, password: string, signupData: SignupData, role: 'admin' | 'recruiter' | 'user' | 'affiliate', adminKey?: string) => Promise<{ success: boolean; user?: AuthUser }>
   logout: () => Promise<void>
 }
 

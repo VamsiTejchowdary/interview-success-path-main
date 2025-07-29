@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
   address VARCHAR(255) NOT NULL,
   resume_url TEXT NOT NULL,
   linkedin_url TEXT,
-  subscription_fee NUMERIC DEFAULT 150 NOT NULL,
+  subscription_fee NUMERIC DEFAULT 200 NOT NULL,
   recruiter_id uuid REFERENCES recruiters(recruiter_id),
   status VARCHAR(20) DEFAULT 'pending',
   created_at TIMESTAMP DEFAULT NOW(),
@@ -113,3 +113,47 @@ CREATE TABLE IF NOT EXISTS resumes (
   name TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Coupons table (for affiliate/influencer codes)
+CREATE TABLE IF NOT EXISTS coupons (
+  coupon_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code VARCHAR(50) UNIQUE NOT NULL,
+  affiliate_user_id uuid REFERENCES affiliates(affiliate_user_id),
+  no_of_coupon_used INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Coupon usages table (tracks each use of a coupon)
+CREATE TABLE IF NOT EXISTS coupon_usages (
+  usage_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  coupon_id uuid REFERENCES coupons(coupon_id) ON DELETE CASCADE,
+  user_id uuid REFERENCES users(user_id) ON DELETE CASCADE,
+  stripe_invoice_id TEXT,
+  used_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Affiliates table
+CREATE TABLE IF NOT EXISTS affiliates (
+  affiliate_user_id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  phone VARCHAR(20),
+  name VARCHAR(100),
+  status VARCHAR(20) DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Update coupons table to reference affiliates table
+ALTER TABLE coupons
+  DROP CONSTRAINT IF EXISTS coupons_affiliate_user_id_fkey,
+  ADD CONSTRAINT coupons_affiliate_user_id_fkey
+    FOREIGN KEY (affiliate_user_id) REFERENCES affiliates(affiliate_user_id) ON DELETE SET NULL;
+
+-- Optional: Index for fast lookup by code
+CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(code);
+
+-- Optional: Index for fast lookup by affiliate
+CREATE INDEX IF NOT EXISTS idx_coupons_affiliate_user_id ON coupons(affiliate_user_id);
+
+-- Optional: Index for fast lookup by coupon usage
+CREATE INDEX IF NOT EXISTS idx_coupon_usages_coupon_id ON coupon_usages(coupon_id);
+CREATE INDEX IF NOT EXISTS idx_coupon_usages_user_id ON coupon_usages(user_id);

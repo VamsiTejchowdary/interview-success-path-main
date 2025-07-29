@@ -418,6 +418,12 @@ async function handleInvoicePaid(invoice) {
         .eq('user_id', finalUserId);
     }
 
+    // --- COUPON USAGE TRACKING START ---
+    // Coupon usage is now handled in checkout.session.completed webhook
+    // This ensures we capture the coupon information when it's available
+    console.log('📋 Coupon tracking handled in checkout.session.completed webhook');
+    // --- COUPON USAGE TRACKING END ---
+
     // --- EMAIL LOGIC START ---
     // Fetch user details if we don't have them already
     let user = userData;
@@ -499,6 +505,185 @@ async function handleInvoicePaid(invoice) {
   }
   
   console.log('✅ Invoice.paid event processed successfully');
+}
+
+async function handleCheckoutSessionCompleted(checkoutSession) {
+  try {
+    console.log('🛒 Processing checkout.session.completed event');
+    console.log('📋 Checkout Session ID:', checkoutSession.id);
+    console.log('📋 Customer ID:', checkoutSession.customer);
+    console.log('📋 Subscription ID:', checkoutSession.subscription);
+    console.log('📋 Amount Total:', checkoutSession.amount_total);
+    console.log('📋 Amount Subtotal:', checkoutSession.amount_subtotal);
+    
+    // Get the full session with expanded breakdown to access discount details
+    const sessionWithDiscounts = await stripe.checkout.sessions.retrieve(checkoutSession.id, { 
+      expand: ['total_details.breakdown'] 
+    });
+    
+    console.log('🎫 Session with discounts:', JSON.stringify(sessionWithDiscounts.total_details, null, 2));
+    
+    // Check if there are any discounts applied
+    const totalDetails = sessionWithDiscounts.total_details;
+    console.log('🎫 Total Details:', totalDetails);
+    
+    if (totalDetails && totalDetails.breakdown && totalDetails.breakdown.discounts && totalDetails.breakdown.discounts.length > 0) {
+      console.log('🎫 Discounts found in checkout session:', totalDetails.breakdown.discounts);
+      
+      // Process each discount
+      for (const discount of totalDetails.breakdown.discounts) {
+        console.log('🎫 Processing discount:', discount);
+        
+        // Get the discount information
+        const discountInfo = discount.discount;
+        console.log('🎫 Discount info:', discountInfo);
+        
+        if (discountInfo && discountInfo.coupon) {
+          console.log('🎫 Coupon used:', discountInfo.coupon.id);
+          console.log('🎫 Promotion code ID:', discountInfo.promotion_code);
+          
+          let promotionCodeName = null;
+          
+          // If we have a promotion_code ID, fetch the actual promotion code name
+          if (discountInfo.promotion_code) {
+            try {
+              const promotionCode = await stripe.promotionCodes.retrieve(discountInfo.promotion_code);
+              promotionCodeName = promotionCode.code;
+              console.log('🎫 Promotion code name:', promotionCodeName);
+            } catch (error) {
+              console.log('⚠️ Error fetching promotion code:', error.message);
+            }
+          }
+          
+          // Try to find the coupon by promotion code name first, then by coupon ID
+          let couponData = null;
+          let couponError = null;
+          
+          if (promotionCodeName) {
+            console.log('🔍 Searching for coupon by promotion code name:', promotionCodeName);
+            const { data, error } = await supabase
+              .from('coupons')
+              .select('coupon_id, code, affiliate_user_id, no_of_coupon_used')
+              .eq('code', promotionCodeName)
+              .single();
+            couponData = data;
+            couponError = error;
+          }
+          
+          // If not found by promotion code, try by coupon ID
+          if (!couponData && discountInfo.coupon.id) {
+            console.log('🔍 Searching for coupon by coupon ID:', discountInfo.coupon.id);
+            const { data, error } = await supabase
+              .from('coupons')
+              .select('coupon_id, code, affiliate_user_id, no_of_coupon_used')
+              .eq('code', discountInfo.coupon.id)
+              .single();
+            couponData = data;
+            couponError = error;
+          }
+
+          if (couponError && couponError.code !== 'PGRST116') {
+            console.log('⚠️ Error fetching coupon:', couponError.message);
+          } else if (couponData) {
+            console.log('✅ Found coupon in database:', couponData.code);
+            
+            // Get user ID from subscription or customer
+            let userId = null;
+            if (checkoutSession.subscription) {
+              console.log('🔍 Looking for user by subscription ID:', checkoutSession.subscription);
+              const { data: subscriptionData, error: subError } = await supabase
+                .from('subscriptions')
+                .select('user_id')
+                .eq('stripe_subscription_id', checkoutSession.subscription)
+                .single();
+              
+              if (subError) {
+                console.log('⚠️ Error finding subscription:', subError.message);
+              } else if (subscriptionData) {
+                userId = subscriptionData.user_id;
+                console.log('✅ Found user ID from subscription:', userId);
+              }
+            }
+            
+            // If not found by subscription, try by customer ID
+            if (!userId && checkoutSession.customer) {
+              console.log('🔍 Looking for user by customer ID:', checkoutSession.customer);
+              const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('user_id')
+                .eq('stripe_customer_id', checkoutSession.customer)
+                .single();
+              
+              if (userError) {
+                console.log('⚠️ Error finding user by customer:', userError.message);
+              } else if (userData) {
+                userId = userData.user_id;
+                console.log('✅ Found user ID from customer:', userId);
+              }
+            }
+            
+            if (userId) {
+              // Check if this coupon usage already exists
+              const { data: existingUsage, error: usageCheckError } = await supabase
+                .from('coupon_usages')
+                .select('usage_id')
+                .eq('user_id', userId)
+                .eq('coupon_id', couponData.coupon_id)
+                .eq('stripe_invoice_id', checkoutSession.id)
+                .single();
+
+              if (usageCheckError && usageCheckError.code !== 'PGRST116') {
+                console.log('⚠️ Error checking existing coupon usage:', usageCheckError.message);
+              } else if (!existingUsage) {
+                // Insert coupon usage record
+                const { data: usageData, error: usageError } = await supabase
+                  .from('coupon_usages')
+                  .insert({
+                    coupon_id: couponData.coupon_id,
+                    user_id: userId,
+                    stripe_invoice_id: checkoutSession.id, // Using checkout session ID as reference
+                    used_at: new Date().toISOString()
+                  })
+                  .select();
+
+                if (usageError) {
+                  console.error('❌ Error inserting coupon usage:', usageError);
+                } else {
+                  console.log('✅ Coupon usage recorded:', usageData?.[0]?.usage_id);
+                  
+                  // Increment coupon usage count
+                  const { error: updateError } = await supabase
+                    .from('coupons')
+                    .update({
+                      no_of_coupon_used: (couponData.no_of_coupon_used || 0) + 1
+                    })
+                    .eq('coupon_id', couponData.coupon_id);
+
+                  if (updateError) {
+                    console.error('❌ Error updating coupon count:', updateError);
+                  } else {
+                    console.log('✅ Coupon usage count incremented');
+                  }
+                }
+              } else {
+                console.log('⚠️ Coupon usage already recorded for this checkout session');
+              }
+            } else {
+              console.log('⚠️ Could not find user ID for checkout session');
+            }
+          } else {
+            console.log('⚠️ Coupon not found in database:', discountInfo.coupon.id);
+          }
+        } else {
+          console.log('⚠️ No coupon information found in discount');
+        }
+      }
+    } else {
+      console.log('📋 No discounts found in checkout session');
+    }
+  } catch (error) {
+    console.error('❌ Error handling checkout session completed:', error.message, error.stack);
+  }
 }
 
 async function handleSubscriptionUpdated(subscription) {
@@ -853,6 +1038,9 @@ async function logSubscriptionEvent(event) {
     else if (event.type === 'checkout.session.completed') {
       subscriptionId = event.data.object.subscription;
       extractionSource = 'checkout.session.subscription (event.data.object.subscription)';
+      
+      // Handle coupon tracking for checkout sessions
+      await handleCheckoutSessionCompleted(event.data.object);
     }
     else if (event.type.startsWith('payment_intent.')) {
       if (event.data.object.invoice) {

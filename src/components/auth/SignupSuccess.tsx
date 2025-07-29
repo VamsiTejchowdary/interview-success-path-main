@@ -38,6 +38,15 @@ const SignupSuccess = ({ email, role, onBackToLogin }: SignupSuccessProps) => {
           bgColor: 'bg-green-50',
           status: 'Pending Approval'
         };
+      case 'affiliate':
+        return {
+          title: 'Affiliate Account Created',
+          description: 'Your affiliate account has been created and is pending admin approval.',
+          icon: Clock,
+          color: 'text-purple-600',
+          bgColor: 'bg-purple-50',
+          status: 'Pending Approval'
+        };
       default:
         return {
           title: 'Account Created',

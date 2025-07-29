@@ -13,6 +13,7 @@ import SignupSuccessPage from "./pages/SignupSuccessPage";
 import StudentDashboard from "@/components/dashboards/StudentDashboard";
 import AdminDashboard from "@/components/dashboards/AdminDashboard";
 import AgentDashboard from "@/components/dashboards/AgentDashboard";
+import AffiliateDashboard from "@/components/dashboards/AffiliateDashboard";
 import { useNavigate } from "react-router-dom";
 import RegisterForm from "@/components/auth/RegisterForm"
 import ContactForm from "./pages/contact.tsx"
@@ -20,6 +21,7 @@ import RecruiterSignup from "./pages/agentSignup.tsx";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CancelPage from "./pages/cancel";
+import AffiliateSignup from "./pages/AffiliateSignup";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +67,14 @@ function AppRoutes() {
           </ProtectedRoute>
         } 
       />
+      <Route 
+        path="/affiliate/dashboard" 
+        element={
+          <ProtectedRoute requiredRole="affiliate">
+            <AffiliateDashboard onLogout={handleDashboardLogout} />
+          </ProtectedRoute>
+        } 
+      />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/admin/signup" element={<AdminSignup />} />
@@ -74,6 +84,7 @@ function AppRoutes() {
       <Route path="/contact" element= { <ContactForm /> } />
       <Route path="/agent/signup" element={<RecruiterSignup />} />
       <Route path="/cancel" element={<CancelPage />} />
+      <Route path="/affiliate/signup" element={<AffiliateSignup />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

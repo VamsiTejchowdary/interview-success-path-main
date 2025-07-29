@@ -30,12 +30,22 @@ export default function AdminSignup() {
     }
     setIsLoading(true);
     try {
-      const result = await signUp(email, password, { name }, "admin", adminKey);
+      // Split the full name into first and last name for SignupData
+      const signupData = { 
+        email, 
+        name, 
+        phone: "", 
+        address: "",
+        first_name: name, 
+        last_name: "", 
+        resume_url: "" 
+      };
+      const result = await signUp(email, password, signupData , "admin", adminKey);
       if (result.success) {
         toast({
           title: "Signup Successful!",
           description: "Check your email to verify your account.",
-          variant: "success",
+          variant: "default",
         });
         setTimeout(() => {
           navigate("/signup-success", { state: { email, role: "admin" } });
@@ -43,7 +53,7 @@ export default function AdminSignup() {
       } else {
         toast({
           title: "Signup Failed",
-          description: result.error || "Signup failed. Please try again.",
+          description: "Signup failed. Please try again.",
           variant: "destructive",
         });
       }

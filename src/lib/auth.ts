@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export type UserRole = 'admin' | 'recruiter' | 'user' | null
+export type UserRole = 'admin' | 'recruiter' | 'user' | 'affiliate' | null
 
 export interface AuthUser {
   id: string
@@ -55,7 +55,7 @@ export const signInWithEmail = async (email: string, password: string): Promise<
       // Check user role and status in our custom tables
       const userInfo = await getUserInfo(data.user.email!)
       if (userInfo) {
-        // Block sign-in for users/recruiters with status 'pending' or 'rejected'
+        // Block sign-in for users/recruiters/affiliates with status 'pending' or 'rejected'
         if (userInfo.role === 'recruiter') {
           if (userInfo.status !== 'approved') {
             if (userInfo.status === 'pending') {
@@ -73,6 +73,16 @@ export const signInWithEmail = async (email: string, password: string): Promise<
             throw new Error('Your account has been rejected. Please contact support for more information.')
           } else if (userInfo.status !== 'approved' && userInfo.status !== 'on_hold') {
             throw new Error('Your account is not active. Please contact support.')
+          }
+        } else if (userInfo.role === 'affiliate') {
+          if (userInfo.status !== 'approved') {
+            if (userInfo.status === 'pending') {
+              throw new Error('Your affiliate account is pending admin approval. Please wait for approval before signing in.')
+            } else if (userInfo.status === 'rejected') {
+              throw new Error('Your affiliate account has been rejected. Please contact support for more information.')
+            } else {
+              throw new Error('Your affiliate account is not active. Please contact support.')
+            }
           }
         }
         return {
@@ -105,7 +115,7 @@ export const signUpWithEmail = async (
   email: string, 
   password: string, 
   signupData: SignupData,
-  role: 'admin' | 'recruiter' | 'user',
+  role: 'admin' | 'recruiter' | 'user' | 'affiliate',
   adminKey?: string
 ): Promise<{ success: boolean; user?: AuthUser }> => {
   try {
@@ -174,7 +184,22 @@ export const signUpWithEmail = async (
           console.error('Error inserting recruiter:', insertError)
           throw insertError
         }
-      } else {
+      } else if (role === 'affiliate') {
+        const { error: insertError } = await supabase
+          .from('affiliates')
+          .insert([
+            {
+              email: email,
+              name: signupData.name,
+              phone: signupData.phone,
+              status: 'pending'
+            }
+          ])
+        if (insertError) {
+          console.error('Error inserting affiliate:', insertError)
+          throw insertError
+        }
+      }else {
         const { error: insertError } = await supabase
           .from('users')
           .insert([
@@ -187,7 +212,7 @@ export const signUpWithEmail = async (
               recruiter_id: signupData.recruiter_id,
               resume_url: signupData.resume_url,
               linkedin_url: signupData.linkedin_url,
-              subscription_fee: signupData.subscription_fee ?? 150,
+              subscription_fee: signupData.subscription_fee ?? 200,
               status: 'on_hold'
             }
           ])
@@ -212,7 +237,7 @@ export const signUpWithEmail = async (
           recruiter_id: signupData.recruiter_id,
           resume_url: signupData.resume_url,
           linkedin_url: signupData.linkedin_url,
-          subscription_fee: signupData.subscription_fee ?? 150
+          subscription_fee: signupData.subscription_fee ?? 200
         }
       }
     }
@@ -242,7 +267,7 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
     if (user) {
       const userInfo = await getUserInfo(user.email!)
       if (userInfo) {
-        // Check if user is approved (for recruiters and users)
+        // Check if user is approved (for recruiters, users, and affiliates)
         if (
           userInfo.role !== 'admin' &&
           (userInfo.status === 'pending' || userInfo.status === 'rejected')
@@ -316,6 +341,27 @@ export const getUserInfo = async (email: string): Promise<{
         status: recruiterData.status,
         phone: recruiterData.phone,
         address: recruiterData.address,
+        resume_url: '',
+        subscription_fee: 0
+      }
+    }
+
+    // Check affiliates table
+    const { data: affiliateData } = await supabase
+      .from('affiliates')
+      .select('affiliate_user_id, name, status, phone')
+      .eq('email', email)
+      .single()
+
+    if (affiliateData) {
+      return { 
+        user_id: affiliateData.affiliate_user_id,
+        role: 'affiliate', 
+        first_name: affiliateData.name, 
+        last_name: '', 
+        status: affiliateData.status,
+        phone: affiliateData.phone,
+        address: '',
         resume_url: '',
         subscription_fee: 0
       }

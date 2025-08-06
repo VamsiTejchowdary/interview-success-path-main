@@ -81,7 +81,7 @@ export default function AuthCallback() {
             } else {
               // Rejected or other status
               setStatus('error');
-              setMessage('Your account has been rejected. Please contact support.');
+              setMessage('Your account has been deactivated. Please contact us at support@jobsmartly.com.');
             }
           } else {
             setStatus('error');

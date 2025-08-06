@@ -70,7 +70,7 @@ export const signInWithEmail = async (email: string, password: string): Promise<
           if (userInfo.status === 'pending') {
             throw new Error('Your account is pending admin approval. Please wait for approval before signing in.')
           } else if (userInfo.status === 'rejected') {
-            throw new Error('Your account has been rejected. Please contact support for more information.')
+            throw new Error('Your account has been deactivated. Please contact us at support@jobsmartly.com for more information.')
           } else if (userInfo.status !== 'approved' && userInfo.status !== 'on_hold') {
             throw new Error('Your account is not active. Please contact support.')
           }

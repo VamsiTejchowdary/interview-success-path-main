@@ -204,21 +204,41 @@ export const updateUserStatus = async (
   status: 'pending' | 'approved' | 'rejected' | 'on_hold'
 ): Promise<void> => {
   try {
-    let updatePayload: any = { status };
+    const now = new Date();
+    let updatePayload: {
+      status: string;
+      approved_at?: string | null;
+      next_billing_at?: string | null;
+      is_paid?: boolean;
+    } = { status };
 
     if (status === 'approved') {
-      const now = new Date();
-      const nextBilling = new Date(now);
-      nextBilling.setMonth(now.getMonth() + 1);
+      const { data: subscription, error: subscriptionError } = await supabase
+        .from('subscriptions')
+        .select('current_period_end')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .single();
+
+      if (subscriptionError) throw subscriptionError;
+
+      const nextBillingDate = subscription?.current_period_end 
+        ? new Date(subscription.current_period_end).toISOString()
+        : (() => {
+            const nextMonth = new Date(now);
+            nextMonth.setMonth(now.getMonth() + 1);
+            return nextMonth.toISOString();
+          })();
+
       updatePayload = {
-        ...updatePayload,
+        status,
         approved_at: now.toISOString(),
-        next_billing_at: nextBilling.toISOString(),
+        next_billing_at: nextBillingDate,
         is_paid: true
       };
     } else {
       updatePayload = {
-        ...updatePayload,
+        status,
         next_billing_at: null,
         is_paid: false
       };

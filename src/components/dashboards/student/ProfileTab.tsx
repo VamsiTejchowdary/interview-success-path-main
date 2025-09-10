@@ -72,9 +72,6 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
   const [paymentMethod, setPaymentMethod] = useState<any>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [activeSubscription, setActiveSubscription] = useState<any>(null);
-  const [nextInvoice, setNextInvoice] = useState<any>(null);
-  const [nextInvoiceLoading, setNextInvoiceLoading] = useState(false);
-  const [nextInvoiceError, setNextInvoiceError] = useState<string | null>(null);
 
   // If user/userDb props change, update local state
   useEffect(() => {
@@ -303,45 +300,7 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
     }
   }, [localUserDb]);
 
-  // Fetch next invoice from backend API
-  const fetchNextInvoice = async () => {
-    if (!activeSubscription?.stripe_subscription_id) return;
-    setNextInvoiceLoading(true);
-    setNextInvoiceError(null);
-    try {
-      const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
-      const endpoint = import.meta.env.DEV ? '/get-next-invoice' : '/api/get-next-invoice';
-      const response = await fetch(`${apiBase}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subscriptionId: activeSubscription.stripe_subscription_id,
-        }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        setNextInvoiceError(errorData.error || 'Failed to fetch next invoice');
-        setNextInvoice(null);
-        return;
-      }
-      const data = await response.json();
-      setNextInvoice(data);
-    } catch (err: any) {
-      console.error('Error fetching next invoice:', err);
-      setNextInvoiceError(err.message || 'Failed to fetch next invoice');
-      setNextInvoice(null);
-    } finally {
-      setNextInvoiceLoading(false);
-    }
-  };
 
-  // Fetch next invoice when user is paid and subscription is loaded
-  useEffect(() => {
-    if (localUserDb?.is_paid && activeSubscription?.stripe_subscription_id && localUserDb.stripe_customer_id) {
-      fetchNextInvoice();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localUserDb?.is_paid, activeSubscription?.stripe_subscription_id, localUserDb?.stripe_customer_id]);
 
   // Stripe Checkout handler
   const handleStripeCheckout = async () => {
@@ -676,17 +635,13 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                 
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                    <DollarSign className="w-4 h-4" />
+                    <Calendar className="w-4 h-4" />
                     Next Billing
                   </label>
                   <div className="text-sm text-gray-800 text-right">
-                    {nextInvoiceLoading ? 'Loading...' :
-                      nextInvoice?.next_billing_date?.iso
-                        ? `${nextInvoice.next_billing_amount.dollars} on ${new Date(nextInvoice.next_billing_date.iso).toLocaleDateString()}`
-                        : (nextInvoice?.lines?.data?.[0]?.period?.end && nextInvoice?.amount_due
-                            ? `${(nextInvoice.amount_due / 100).toLocaleString(undefined, { style: 'currency', currency: nextInvoice.currency?.toUpperCase() || 'USD' })} on ${new Date(nextInvoice.lines.data[0].period.end * 1000).toLocaleDateString()}`
-                            : '--'
-                          )
+                    {localUserDb?.next_billing_at
+                      ? new Date(localUserDb.next_billing_at).toLocaleDateString()
+                      : '--'
                     }
                   </div>
                 </div>
@@ -770,23 +725,6 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
             </div>
           )}
 
-          {/* Discount Information */}
-          {nextInvoice?.discount && (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles className="w-4 h-4 text-yellow-600" />
-                <h4 className="font-medium text-yellow-900">Active Discount</h4>
-              </div>
-              <p className="text-sm text-yellow-800">
-                {nextInvoice.discount.coupon?.name || nextInvoice.discount.coupon?.id}
-                {nextInvoice.discount.coupon?.amount_off ?
-                  ` (-${(nextInvoice.discount.coupon.amount_off / 100).toLocaleString(undefined, { style: 'currency', currency: nextInvoice.currency?.toUpperCase() || 'USD' })})`
-                  : nextInvoice.discount.coupon?.percent_off ?
-                    ` (-${nextInvoice.discount.coupon.percent_off}% off)`
-                    : ''}
-              </p>
-            </div>
-          )}
 
           {/* Account Management */}
           {localUserDb && localUserDb.status === 'approved' && (
@@ -865,14 +803,6 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
             </div>
           )}
 
-          {nextInvoiceError && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-600" />
-                <span className="text-sm text-red-600">{nextInvoiceError}</span>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 

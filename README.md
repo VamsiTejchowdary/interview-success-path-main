@@ -47,6 +47,12 @@ npm i
 
 # Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
+
+#to run webhook
+stripe listen --forward-to localhost:3000/api/stripe-webhook
+
+#to run api
+node server-local.js
 ```
 
 **Edit a file directly in GitHub**

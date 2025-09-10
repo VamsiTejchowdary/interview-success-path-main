@@ -19,10 +19,18 @@ import {
   TrendingUp,
   Pause,
   X,
-  Edit3
+  Edit3,
+  Filter,
+  Calendar as CalendarIcon,
+  CalendarDays,
+  Sun,
+  CalendarRange
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog as ResumeDialog, DialogContent as ResumeDialogContent } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface JobApplication {
   application_id: string;
@@ -54,6 +62,14 @@ const STATUS_OPTIONS = [
   { value: 'rejected', label: 'Rejected', icon: X, color: 'rose' },
 ];
 
+const DATE_FILTER_OPTIONS = [
+  { value: 'all', label: 'All Time', icon: CalendarRange },
+  { value: 'today', label: 'Today', icon: Sun },
+  { value: 'week', label: 'This Week', icon: CalendarDays },
+  { value: 'month', label: 'This Month', icon: CalendarIcon },
+  { value: 'custom', label: 'Custom Range', icon: Filter },
+];
+
 export default function StudentApplicationsPage({ 
   studentId, 
   studentName, 
@@ -65,6 +81,7 @@ export default function StudentApplicationsPage({
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [totalApplications, setTotalApplications] = useState(0);
+  const [todayApplications, setTodayApplications] = useState(0);
   const [statusCounts, setStatusCounts] = useState({
     applied: 0,
     on_hold: 0,
@@ -74,23 +91,74 @@ export default function StudentApplicationsPage({
   });
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [selectedResume, setSelectedResume] = useState<string | null>(null);
+  const [dateFilter, setDateFilter] = useState('all');
+  const [customDateRange, setCustomDateRange] = useState({
+    startDate: '',
+    endDate: ''
+  });
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     if (studentId) {
       fetchApplications();
       fetchStatusCounts();
+      fetchTodayApplications();
     }
-  }, [studentId, currentPage]);
+  }, [studentId, currentPage, dateFilter, customDateRange]);
+
+  const getDateFilter = () => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    switch (dateFilter) {
+      case 'today':
+        return {
+          gte: today.toISOString(),
+          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString()
+        };
+      case 'week':
+        return {
+          gte: startOfWeek.toISOString(),
+          lt: new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        };
+      case 'month':
+        return {
+          gte: startOfMonth.toISOString(),
+          lt: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString()
+        };
+      case 'custom':
+        if (customDateRange.startDate && customDateRange.endDate) {
+          return {
+            gte: new Date(customDateRange.startDate).toISOString(),
+            lt: new Date(new Date(customDateRange.endDate).getTime() + 24 * 60 * 60 * 1000).toISOString()
+          };
+        }
+        return null;
+      default:
+        return null;
+    }
+  };
 
   const fetchApplications = async () => {
     setLoading(true);
     try {
-      const { count } = await supabase
+      const dateFilterRange = getDateFilter();
+      
+      let query = supabase
         .from('job_applications')
         .select('application_id', { count: 'exact', head: true })
         .eq('user_id', studentId)
         .eq('recruiter_id', recruiterId);
+
+      if (dateFilterRange) {
+        query = query.gte('applied_at', dateFilterRange.gte).lt('applied_at', dateFilterRange.lt);
+      }
+
+      const { count } = await query;
 
       setTotalApplications(count || 0);
       setTotalPages(Math.ceil((count || 0) / ITEMS_PER_PAGE));
@@ -98,7 +166,7 @@ export default function StudentApplicationsPage({
       const from = (currentPage - 1) * ITEMS_PER_PAGE;
       const to = from + ITEMS_PER_PAGE - 1;
 
-      const { data, error } = await supabase
+      let dataQuery = supabase
         .from('job_applications')
         .select(`
           application_id,
@@ -117,6 +185,12 @@ export default function StudentApplicationsPage({
         .eq('recruiter_id', recruiterId)
         .order('applied_at', { ascending: false })
         .range(from, to);
+
+      if (dateFilterRange) {
+        dataQuery = dataQuery.gte('applied_at', dateFilterRange.gte).lt('applied_at', dateFilterRange.lt);
+      }
+
+      const { data, error } = await dataQuery;
 
       if (error) throw error;
       
@@ -138,13 +212,42 @@ export default function StudentApplicationsPage({
     }
   };
 
+  const fetchTodayApplications = async () => {
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+
+      const { count, error } = await supabase
+        .from('job_applications')
+        .select('application_id', { count: 'exact', head: true })
+        .eq('user_id', studentId)
+        .eq('recruiter_id', recruiterId)
+        .gte('applied_at', startOfDay.toISOString())
+        .lt('applied_at', endOfDay.toISOString());
+
+      if (error) throw error;
+      setTodayApplications(count || 0);
+    } catch (error) {
+      console.error('Error fetching today applications:', error);
+    }
+  };
+
   const fetchStatusCounts = async () => {
     try {
-      const { data, error } = await supabase
+      const dateFilterRange = getDateFilter();
+      
+      let query = supabase
         .from('job_applications')
         .select('status')
         .eq('user_id', studentId)
         .eq('recruiter_id', recruiterId);
+
+      if (dateFilterRange) {
+        query = query.gte('applied_at', dateFilterRange.gte).lt('applied_at', dateFilterRange.lt);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -168,6 +271,36 @@ export default function StudentApplicationsPage({
     }
   };
 
+  const handleDateFilterChange = (value: string) => {
+    setDateFilter(value);
+    setCurrentPage(1);
+    if (value === 'custom') {
+      setShowCustomDatePicker(true);
+    } else {
+      setShowCustomDatePicker(false);
+    }
+  };
+
+  const handleCustomDateApply = () => {
+    if (customDateRange.startDate && customDateRange.endDate) {
+      setShowCustomDatePicker(false);
+      setCurrentPage(1);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select both start and end dates",
+      });
+    }
+  };
+
+  const clearDateFilter = () => {
+    setDateFilter('all');
+    setCustomDateRange({ startDate: '', endDate: '' });
+    setShowCustomDatePicker(false);
+    setCurrentPage(1);
+  };
+
   const updateApplicationStatus = async (applicationId: string, newStatus: string) => {
     setUpdatingStatus(applicationId);
     try {
@@ -187,6 +320,7 @@ export default function StudentApplicationsPage({
       );
 
       fetchStatusCounts();
+      fetchTodayApplications();
 
       toast({
         title: "Success",
@@ -292,7 +426,7 @@ export default function StudentApplicationsPage({
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-gradient-to-r from-gray-800/80 to-gray-700/60 backdrop-blur-md rounded-2xl p-6 border border-gray-700/40 shadow-xl">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
             <div className="flex items-center space-x-4">
               <Button
                 variant="ghost"
@@ -310,9 +444,106 @@ export default function StudentApplicationsPage({
                 <p className="text-gray-300">Job Applications Overview</p>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-gray-100">{totalApplications}</div>
-              <div className="text-sm text-gray-400">Total Applications</div>
+            
+            {/* Application Counts */}
+            <div className="flex items-center space-x-6">
+              <div className="text-center">
+                <div className="text-3xl font-bold text-gray-100">{totalApplications}</div>
+                <div className="text-sm text-gray-400">
+                  {dateFilter === 'all' ? 'Total Applications' : 
+                   dateFilter === 'today' ? 'Today' :
+                   dateFilter === 'week' ? 'This Week' :
+                   dateFilter === 'month' ? 'This Month' :
+                   'Custom Range'}
+                </div>
+              </div>
+              {dateFilter !== 'today' && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-amber-400">{todayApplications}</div>
+                  <div className="text-sm text-gray-400">Today</div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Date Filter Section */}
+          <div className="mt-6 pt-6 border-t border-gray-700/40">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center space-x-4">
+                <Label className="text-gray-300 font-medium">Filter by Date:</Label>
+                <Select value={dateFilter} onValueChange={handleDateFilterChange}>
+                  <SelectTrigger className="w-48 bg-gray-800/50 border-gray-600 text-gray-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-600">
+                    {DATE_FILTER_OPTIONS.map((option) => {
+                      const IconComponent = option.icon;
+                      return (
+                        <SelectItem 
+                          key={option.value} 
+                          value={option.value}
+                          className="text-gray-200 hover:bg-gray-700"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <IconComponent className="w-4 h-4" />
+                            <span>{option.label}</span>
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+                
+                {dateFilter !== 'all' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={clearDateFilter}
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700/50"
+                  >
+                    Clear Filter
+                  </Button>
+                )}
+              </div>
+
+              {/* Custom Date Range Picker */}
+              {showCustomDatePicker && (
+                <div className="flex items-center space-x-3 bg-gray-800/50 p-3 rounded-lg border border-gray-600">
+                  <div className="flex items-center space-x-2">
+                    <Label className="text-gray-300 text-sm">From:</Label>
+                    <Input
+                      type="date"
+                      value={customDateRange.startDate}
+                      onChange={(e) => setCustomDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                      className="bg-gray-700 border-gray-600 text-gray-200 w-40"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Label className="text-gray-300 text-sm">To:</Label>
+                    <Input
+                      type="date"
+                      value={customDateRange.endDate}
+                      onChange={(e) => setCustomDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                      className="bg-gray-700 border-gray-600 text-gray-200 w-40"
+                    />
+                  </div>
+                  <Button
+                    onClick={handleCustomDateApply}
+                    size="sm"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    Apply
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCustomDatePicker(false)}
+                    className="border-gray-600 text-gray-300 hover:bg-gray-700/50"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -361,7 +592,22 @@ export default function StudentApplicationsPage({
           ) : (
             <>
               <div className="p-6">
-                <h2 className="text-xl font-bold text-gray-100 mb-4">Job Applications</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-gray-100">Job Applications</h2>
+                  {dateFilter !== 'all' && (
+                    <div className="flex items-center space-x-2 text-sm text-gray-400">
+                      <Filter className="w-4 h-4" />
+                      <span>
+                        Filtered by: {
+                          dateFilter === 'today' ? 'Today' :
+                          dateFilter === 'week' ? 'This Week' :
+                          dateFilter === 'month' ? 'This Month' :
+                          'Custom Range'
+                        }
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <div className="space-y-4">
                   {applications.map((application) => (
                     <div

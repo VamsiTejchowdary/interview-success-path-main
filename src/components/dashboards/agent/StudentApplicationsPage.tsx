@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,7 +97,18 @@ export default function StudentApplicationsPage({
     endDate: ''
   });
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [companySearch, setCompanySearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      setDebouncedSearch(companySearch);
+    }, 500);
+    return () => clearTimeout(searchTimeout.current);
+  }, [companySearch]);
 
   useEffect(() => {
     if (studentId) {
@@ -105,7 +116,7 @@ export default function StudentApplicationsPage({
       fetchStatusCounts();
       fetchTodayApplications();
     }
-  }, [studentId, currentPage, dateFilter, customDateRange]);
+  }, [studentId, currentPage, dateFilter, customDateRange, debouncedSearch]);
 
   const getDateFilter = () => {
     const now = new Date();
@@ -158,6 +169,10 @@ export default function StudentApplicationsPage({
         query = query.gte('applied_at', dateFilterRange.gte).lt('applied_at', dateFilterRange.lt);
       }
 
+      if (debouncedSearch.trim()) {
+        query = query.ilike('company_name', `%${debouncedSearch.trim()}%`);
+      }
+
       const { count } = await query;
 
       setTotalApplications(count || 0);
@@ -188,6 +203,10 @@ export default function StudentApplicationsPage({
 
       if (dateFilterRange) {
         dataQuery = dataQuery.gte('applied_at', dateFilterRange.gte).lt('applied_at', dateFilterRange.lt);
+      }
+
+      if (debouncedSearch.trim()) {
+        dataQuery = dataQuery.ilike('company_name', `%${debouncedSearch.trim()}%`);
       }
 
       const { data, error } = await dataQuery;
@@ -245,6 +264,10 @@ export default function StudentApplicationsPage({
 
       if (dateFilterRange) {
         query = query.gte('applied_at', dateFilterRange.gte).lt('applied_at', dateFilterRange.lt);
+      }
+
+      if (debouncedSearch.trim()) {
+        query = query.ilike('company_name', `%${debouncedSearch.trim()}%`);
       }
 
       const { data, error } = await query;
@@ -499,11 +522,41 @@ export default function StudentApplicationsPage({
                     variant="outline"
                     size="sm"
                     onClick={clearDateFilter}
-                    className="border-gray-600 text-gray-300 hover:bg-gray-700/50"
+                      className="border-indigo-500 text-indigo-200 hover:bg-indigo-700/80 bg-gray-800/40 font-semibold px-4 py-2 rounded-lg transition-colors"
                   >
-                    Clear Filter
+                      Clear Filter
                   </Button>
                 )}
+              </div>
+
+              {/* Company Search Input */}
+              <div className="flex items-center space-x-2">
+                <Label className="text-gray-300 font-medium whitespace-nowrap">Search Company:</Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    type="text"
+                    placeholder="Search by company name..."
+                    value={companySearch}
+                    onChange={e => {
+                      setCompanySearch(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-64 bg-gray-800/50 border-gray-600 text-gray-200 placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                  {companySearch && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setCompanySearch("");
+                        setCurrentPage(1);
+                      }}
+                        className="border-indigo-500 text-indigo-200 hover:bg-indigo-700/80 bg-gray-800/40 font-semibold px-4 py-2 rounded-lg transition-colors"
+                    >
+                        Clear
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Custom Date Range Picker */}

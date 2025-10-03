@@ -212,7 +212,7 @@ export const signUpWithEmail = async (
               recruiter_id: signupData.recruiter_id,
               resume_url: signupData.resume_url,
               linkedin_url: signupData.linkedin_url,
-              subscription_fee: signupData.subscription_fee ?? 200,
+              subscription_fee: signupData.subscription_fee ?? 250,
               status: 'on_hold'
             }
           ])

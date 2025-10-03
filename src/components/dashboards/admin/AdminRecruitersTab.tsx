@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Users, ChevronRight } from "lucide-react";
+import RecruiterDetailsPage from "./RecruiterDetailsPage";
 
 const AdminRecruitersTab = ({ recruiters, updating, handleRecruiterStatusUpdate }) => {
+  const [selectedRecruiter, setSelectedRecruiter] = useState(null);
   // Function to get initials from name
   const getInitials = (name) => {
     return name
@@ -28,7 +32,8 @@ const AdminRecruitersTab = ({ recruiters, updating, handleRecruiterStatusUpdate 
   };
 
   return (
-    <div className="space-y-6 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 min-h-[80vh] rounded-2xl p-6 text-slate-200">
+    <>
+      <div className="space-y-6 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 min-h-[80vh] rounded-2xl p-6 text-slate-200">
       {/* Header */}
       <div className="flex items-center gap-3 pb-4 border-b border-slate-800">
         <div className="p-2 bg-blue-500/10 rounded-lg">
@@ -115,20 +120,33 @@ const AdminRecruitersTab = ({ recruiters, updating, handleRecruiterStatusUpdate 
                           <span className="text-sm">Updating...</span>
                         </div>
                       ) : (
-                        <Select
-                          value={recruiter.status}
-                          onValueChange={(value) => handleRecruiterStatusUpdate(recruiter.recruiter_id, value)}
-                        >
-                          <SelectTrigger className="w-28 bg-slate-800 border-slate-700 text-slate-200 text-sm h-9 hover:bg-slate-700">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-slate-900 border-slate-700 text-slate-200">
-                            <SelectItem value="approved" className="text-green-300 hover:bg-slate-800">Approved</SelectItem>
-                            <SelectItem value="pending" className="text-yellow-300 hover:bg-slate-800">Pending</SelectItem>
-                            <SelectItem value="rejected" className="text-red-300 hover:bg-slate-800">Rejected</SelectItem>
-                            <SelectItem value="on_hold" className="text-slate-300 hover:bg-slate-800">On Hold</SelectItem>
-                          </SelectContent>
-                        </Select>
+                        <div className="flex items-center justify-between gap-4">
+                          <Select
+                            value={recruiter.status}
+                            onValueChange={(value) => handleRecruiterStatusUpdate(recruiter.recruiter_id, value)}
+                          >
+                            <SelectTrigger className="w-28 bg-slate-800 border-slate-700 text-slate-200 text-sm h-9 hover:bg-slate-700">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-900 border-slate-700 text-slate-200">
+                              <SelectItem value="approved" className="text-green-300 hover:bg-slate-800">Approved</SelectItem>
+                              <SelectItem value="pending" className="text-yellow-300 hover:bg-slate-800">Pending</SelectItem>
+                              <SelectItem value="rejected" className="text-red-300 hover:bg-slate-800">Rejected</SelectItem>
+                              <SelectItem value="on_hold" className="text-slate-300 hover:bg-slate-800">On Hold</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRecruiter(recruiter);
+                            }}
+                            className="text-slate-400 hover:text-white hover:bg-slate-800"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -138,7 +156,18 @@ const AdminRecruitersTab = ({ recruiters, updating, handleRecruiterStatusUpdate 
           </div>
         )}
       </div>
+
+      {/* Recruiter Details Page */}
+      {selectedRecruiter && (
+        <div className="fixed inset-0 z-50 bg-black/90">
+          <RecruiterDetailsPage
+            recruiter={selectedRecruiter}
+            onBack={() => setSelectedRecruiter(null)}
+          />
+        </div>
+      )}
     </div>
+    </>
   );
 };
 

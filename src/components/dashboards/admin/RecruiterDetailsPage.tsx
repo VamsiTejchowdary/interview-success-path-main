@@ -519,7 +519,7 @@ export default function RecruiterDetailsPage({
         {/* Filters Section */}
         <div className="bg-gradient-to-br from-indigo-900/80 via-blue-900/70 to-purple-900/80 backdrop-blur-md rounded-xl p-6 border border-blue-500/20 shadow-lg">
           <div className="flex flex-wrap gap-4 items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-gray-400" />
                 <Select value={dateFilter} onValueChange={handleDateFilterChange}>
@@ -537,20 +537,39 @@ export default function RecruiterDetailsPage({
                 </Select>
               </div>
 
+              {/* Active Filter Indicator */}
+              {dateFilter !== 'all' && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <Filter className="w-4 h-4 text-blue-400" />
+                  <span className="text-blue-100 font-medium">
+                    {dateFilter === 'today' && 'Today\'s Applications'}
+                    {dateFilter === 'yesterday' && 'Yesterday\'s Applications'}
+                    {dateFilter === 'week' && 'This Week\'s Applications'}
+                    {dateFilter === 'month' && 'This Month\'s Applications'}
+                    {dateFilter === 'custom' && 'Custom Range Applications'}
+                  </span>
+                  <div className="px-2 py-0.5 bg-blue-500/20 rounded-md ml-2">
+                    <span className="text-blue-300 text-sm">
+                      {filteredStudents.reduce((total, student) => total + student.applications.length, 0)} applications
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {showCustomDatePicker && (
                 <div className="flex items-center gap-2">
                   <Input
                     type="date"
                     value={customDateRange.startDate}
                     onChange={(e) => setCustomDateRange(prev => ({ ...prev, startDate: e.target.value }))}
-                    className="w-40 bg-gray-800/50 border-gray-700"
+                    className="w-40 bg-indigo-900/50 border-blue-500/30 text-blue-100 focus:border-blue-400"
                   />
-                  <span className="text-gray-400">to</span>
+                  <span className="text-blue-300">to</span>
                   <Input
                     type="date"
                     value={customDateRange.endDate}
                     onChange={(e) => setCustomDateRange(prev => ({ ...prev, endDate: e.target.value }))}
-                    className="w-40 bg-gray-800/50 border-gray-700"
+                    className="w-40 bg-indigo-900/50 border-blue-500/30 text-blue-100 focus:border-blue-400"
                   />
                   <Button
                     onClick={handleCustomDateApply}
@@ -559,6 +578,15 @@ export default function RecruiterDetailsPage({
                   >
                     Apply
                   </Button>
+                </div>
+              )}
+              
+              {/* Custom Date Range Active Indicator */}
+              {dateFilter === 'custom' && customDateRange.startDate && customDateRange.endDate && !showCustomDatePicker && (
+                <div className="px-3 py-1.5 bg-indigo-900/50 border border-blue-500/30 rounded-md">
+                  <span className="text-blue-300 text-sm">
+                    {new Date(customDateRange.startDate).toLocaleDateString()} - {new Date(customDateRange.endDate).toLocaleDateString()}
+                  </span>
                 </div>
               )}
 
@@ -646,22 +674,41 @@ export default function RecruiterDetailsPage({
                       </div>
                     </div>
                     <div className="flex items-center gap-8">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-white">{student.total_applications}</div>
-                        <div className="text-sm text-gray-400">Total Applications</div>
+                      <div className="flex gap-8 border-r border-gray-700/40 pr-8">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-white">{student.total_applications}</div>
+                          <div className="text-sm text-gray-400">Total Applications</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-400">{student.today_applications}</div>
+                          <div className="text-sm text-gray-400">Today</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-yellow-400">{student.weekly_applications}</div>
+                          <div className="text-sm text-gray-400">This Week</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-purple-400">{student.total_interviews}</div>
+                          <div className="text-sm text-gray-400">Interviews</div>
+                        </div>
                       </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-blue-400">{student.today_applications}</div>
-                        <div className="text-sm text-gray-400">Today</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-yellow-400">{student.weekly_applications}</div>
-                        <div className="text-sm text-gray-400">This Week</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-purple-400">{student.total_interviews}</div>
-                        <div className="text-sm text-gray-400">Interviews</div>
-                      </div>
+                      
+                      {dateFilter !== 'all' && (
+                        <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                          <Filter className="w-4 h-4 text-blue-400" />
+                          <div>
+                            <div className="text-blue-100 text-lg font-semibold">{student.applications.length}</div>
+                            <div className="text-blue-300 text-sm">
+                              {dateFilter === 'today' && 'Today'}
+                              {dateFilter === 'yesterday' && 'Yesterday'}
+                              {dateFilter === 'week' && 'This Week'}
+                              {dateFilter === 'month' && 'This Month'}
+                              {dateFilter === 'custom' && 'In Range'}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <ChevronDown className={`w-5 h-5 text-gray-400 transform transition-transform ${
                         expandedStudent === student.user_id ? 'rotate-180' : ''
                       }`} />

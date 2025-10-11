@@ -31,3 +31,7 @@ dist-ssr
 .env.local.backup
 .env.local.backup2
 .vercel
+
+#npm run dev
+#node server-local.js
+#stripe listen --forward-to localhost:4242/api/stripe-webhook

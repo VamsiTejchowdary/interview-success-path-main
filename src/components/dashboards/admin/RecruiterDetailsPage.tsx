@@ -9,11 +9,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft,
   Calendar,
   ChevronDown,
   ChevronRight,
   Download,
+  Eye,
+  ExternalLink,
   FileText,
   Filter,
   Loader2,
@@ -46,6 +52,12 @@ interface Application {
   status: string;
   applied_at: string;
   interview_date?: string;
+  job_link?: string;
+  resume?: {
+    resume_id: string;
+    name: string;
+    storage_key: string;
+  } | null;
 }
 
 interface RecruiterDetailsPageProps {
@@ -74,6 +86,7 @@ export default function RecruiterDetailsPage({
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
   const [applicationPages, setApplicationPages] = useState<{ [key: string]: number }>({});
+  const [selectedResume, setSelectedResume] = useState<string | null>(null);
   const APPS_PER_PAGE = 10;
   const [statsLoading, setStatsLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -163,7 +176,14 @@ export default function RecruiterDetailsPage({
         // First, get ALL applications for stats (unfiltered)
         const { data: allApplications, error: allApplicationsError } = await supabase
           .from('job_applications')
-          .select('*')
+          .select(`
+            *,
+            resumes (
+              resume_id,
+              name,
+              storage_key
+            )
+          `)
           .eq('user_id', student.user_id)
           .order('applied_at', { ascending: false });
 
@@ -199,7 +219,14 @@ export default function RecruiterDetailsPage({
         // Get filtered applications based on date range
         let query = supabase
           .from('job_applications')
-          .select('*')
+          .select(`
+            *,
+            resumes (
+              resume_id,
+              name,
+              storage_key
+            )
+          `)
           .eq('user_id', student.user_id)
           .order('applied_at', { ascending: false });
 
@@ -209,6 +236,12 @@ export default function RecruiterDetailsPage({
 
         const { data: filteredApplications, error: applicationsError } = await query;
         if (applicationsError) throw applicationsError;
+        
+        // Map the resumes data to the expected format
+        const mappedApplications = (filteredApplications || []).map((app: any) => ({
+          ...app,
+          resume: app.resumes || null,
+        }));
 
         return {
           ...student,
@@ -219,7 +252,7 @@ export default function RecruiterDetailsPage({
           monthly_applications: overallMonthlyCount,
           total_interviews: overallInterviews,
           // Filtered applications change based on date filter
-          applications: filteredApplications || []
+          applications: mappedApplications || []
         };
       }));
 
@@ -730,6 +763,7 @@ export default function RecruiterDetailsPage({
                             {student.applications.some(app => app.interview_date) && (
                               <th className="py-3 px-4 text-left text-sm font-semibold text-gray-300">Interview Date</th>
                             )}
+                            <th className="py-3 px-4 text-center text-sm font-semibold text-gray-300">Actions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -746,7 +780,7 @@ export default function RecruiterDetailsPage({
                                 (applicationPages[student.user_id] || 1) * APPS_PER_PAGE
                               )
                               .map((app) => (
-                              <tr key={app.application_id} className="border-b border-gray-700/40 last:border-0">
+                              <tr key={app.application_id} className="border-b border-gray-700/40 last:border-0 hover:bg-gray-800/30 transition-colors">
                                 <td className="py-3 px-4">
                                   <span className="font-medium text-gray-200">
                                     {app.company_name || 'N/A'}
@@ -768,6 +802,41 @@ export default function RecruiterDetailsPage({
                                     {app.interview_date ? formatDate(app.interview_date) : '-'}
                                   </td>
                                 )}
+                                <td className="py-3 px-4">
+                                  <div className="flex items-center justify-center gap-2">
+                                    {app.resume && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => setSelectedResume(app.resume!.storage_key)}
+                                        className="h-8 w-8 p-0 hover:bg-indigo-500/20 hover:text-indigo-300 text-gray-400"
+                                        title="View Resume"
+                                      >
+                                        <Eye className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                    {app.job_link && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          let url = app.job_link;
+                                          if (url && !/^https?:\/\//i.test(url)) {
+                                            url = 'https://' + url;
+                                          }
+                                          window.open(url, '_blank');
+                                        }}
+                                        className="h-8 w-8 p-0 hover:bg-blue-500/20 hover:text-blue-300 text-gray-400"
+                                        title="View Job Link"
+                                      >
+                                        <ExternalLink className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                    {!app.resume && !app.job_link && (
+                                      <span className="text-gray-500 text-xs">-</span>
+                                    )}
+                                  </div>
+                                </td>
                               </tr>
                             ))
                           )}
@@ -879,6 +948,33 @@ export default function RecruiterDetailsPage({
             </div>
           )}
         </div>
+
+        {/* Resume Viewer Modal */}
+        <Dialog open={!!selectedResume} onOpenChange={() => setSelectedResume(null)}>
+          <DialogContent className="max-w-4xl h-[90vh] bg-gray-900/95 border border-gray-700/40 p-0 shadow-2xl">
+            <div className="relative w-full h-full flex flex-col">
+              <div className="flex items-center justify-between p-4 border-b border-gray-700/40 bg-gradient-to-r from-gray-800/80 to-gray-700/60">
+                <h3 className="text-lg font-semibold text-gray-100">Resume Preview</h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedResume(null)}
+                  className="text-gray-400 hover:text-gray-200 hover:bg-gray-800/50"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+              {selectedResume && (
+                <iframe
+                  src={selectedResume}
+                  title="Resume PDF"
+                  className="flex-1 w-full"
+                  style={{ minHeight: 0 }}
+                />
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

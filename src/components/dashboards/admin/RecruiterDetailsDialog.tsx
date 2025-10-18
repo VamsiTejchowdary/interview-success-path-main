@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Calendar, ChevronLeft, ChevronRight, Download, Filter, Loader2, Search, X } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Download, Eye, ExternalLink, Filter, Loader2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,6 +33,12 @@ interface Application {
   company_name: string;
   status: string;
   applied_at: string;
+  job_link?: string;
+  resume?: {
+    resume_id: string;
+    name: string;
+    storage_key: string;
+  } | null;
 }
 
 interface RecruiterDetailsDialogProps {
@@ -60,6 +66,7 @@ export default function RecruiterDetailsDialog({
   const [searchTerm, setSearchTerm] = useState('');
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
+  const [selectedResume, setSelectedResume] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && recruiter) {
@@ -121,7 +128,14 @@ export default function RecruiterDetailsDialog({
       const studentsWithApplications = await Promise.all(studentsData.map(async (student) => {
         let query = supabase
           .from('job_applications')
-          .select('*')
+          .select(`
+            *,
+            resumes (
+              resume_id,
+              name,
+              storage_key
+            )
+          `)
           .eq('user_id', student.user_id);
 
         if (dateFilterRange) {
@@ -130,20 +144,26 @@ export default function RecruiterDetailsDialog({
 
         const { data: applications, error: applicationsError } = await query;
         if (applicationsError) throw applicationsError;
+        
+        // Map the resumes data to the expected format
+        const mappedApplications = (applications || []).map((app: any) => ({
+          ...app,
+          resume: app.resumes || null,
+        }));
 
         // Get today's applications count
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const todayApplications = applications?.filter(app => 
+        const todayApplications = mappedApplications?.filter(app => 
           new Date(app.applied_at) >= today && 
           new Date(app.applied_at) < new Date(today.getTime() + 24 * 60 * 60 * 1000)
         ).length || 0;
 
         return {
           ...student,
-          total_applications: applications?.length || 0,
+          total_applications: mappedApplications?.length || 0,
           today_applications: todayApplications,
-          applications: applications || []
+          applications: mappedApplications || []
         };
       }));
 
@@ -402,6 +422,7 @@ export default function RecruiterDetailsDialog({
                               <th className="py-3 px-4 text-left text-sm font-semibold text-slate-300">Job Title</th>
                               <th className="py-3 px-4 text-left text-sm font-semibold text-slate-300">Status</th>
                               <th className="py-3 px-4 text-left text-sm font-semibold text-slate-300">Applied At</th>
+                              <th className="py-3 px-4 text-center text-sm font-semibold text-slate-300">Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -413,7 +434,7 @@ export default function RecruiterDetailsDialog({
                               </tr>
                             ) : (
                               student.applications.map((app) => (
-                                <tr key={app.application_id} className="border-b border-slate-700/50 last:border-0">
+                                <tr key={app.application_id} className="border-b border-slate-700/50 last:border-0 hover:bg-slate-800/30 transition-colors">
                                   <td className="py-3 px-4 text-sm">
                                     <span className="font-medium text-white">
                                       {app.company_name || 'N/A'}
@@ -430,6 +451,41 @@ export default function RecruiterDetailsDialog({
                                   <td className="py-3 px-4 text-sm text-slate-400">
                                     {formatDate(app.applied_at)}
                                   </td>
+                                  <td className="py-3 px-4">
+                                    <div className="flex items-center justify-center gap-2">
+                                      {app.resume && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => setSelectedResume(app.resume!.storage_key)}
+                                          className="h-8 w-8 p-0 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400"
+                                          title="View Resume"
+                                        >
+                                          <Eye className="w-4 h-4" />
+                                        </Button>
+                                      )}
+                                      {app.job_link && (
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            let url = app.job_link;
+                                            if (url && !/^https?:\/\//i.test(url)) {
+                                              url = 'https://' + url;
+                                            }
+                                            window.open(url, '_blank');
+                                          }}
+                                          className="h-8 w-8 p-0 hover:bg-blue-500/20 hover:text-blue-300 text-slate-400"
+                                          title="View Job Link"
+                                        >
+                                          <ExternalLink className="w-4 h-4" />
+                                        </Button>
+                                      )}
+                                      {!app.resume && !app.job_link && (
+                                        <span className="text-slate-500 text-xs">-</span>
+                                      )}
+                                    </div>
+                                  </td>
                                 </tr>
                               ))
                             )}
@@ -444,6 +500,33 @@ export default function RecruiterDetailsDialog({
           )}
         </div>
       </DialogContent>
+
+      {/* Resume Viewer Modal */}
+      <Dialog open={!!selectedResume} onOpenChange={() => setSelectedResume(null)}>
+        <DialogContent className="max-w-4xl h-[90vh] bg-slate-900/95 border border-slate-700 p-0 shadow-2xl">
+          <div className="relative w-full h-full flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-700 bg-slate-800/80">
+              <h3 className="text-lg font-semibold text-white">Resume Preview</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedResume(null)}
+                className="text-slate-400 hover:text-white hover:bg-slate-800/50"
+              >
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            {selectedResume && (
+              <iframe
+                src={selectedResume}
+                title="Resume PDF"
+                className="flex-1 w-full"
+                style={{ minHeight: 0 }}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

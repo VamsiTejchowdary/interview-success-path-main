@@ -797,7 +797,7 @@ async function handleInvoicePaid(invoice) {
                 <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>
               </div>
             `,
-            to: 'd.vamsitej333@gmail.com'
+            to: ['d.vamsitej333@gmail.com', 'saiganesh132@gmail.com']
           })
         });
         const adminEmailText = await adminEmailRes.text();
@@ -1025,7 +1025,7 @@ async function handleSubscriptionUpdated(subscription) {
           <p>The user has requested to cancel their subscription at the end of the current billing period. They will retain access until then.</p>
         </div>
       `;
-      await sendEmail({ to: 'd.vamsitej333@gmail.com', subject: adminSubject, html: adminHtml });
+      await sendEmail({ to: ['d.vamsitej333@gmail.com', 'saiganesh132@gmail.com'], subject: adminSubject, html: adminHtml });
     }
     // Send cancellation ended email
     if (subscription.status === 'canceled') {
@@ -1044,7 +1044,7 @@ async function handleSubscriptionUpdated(subscription) {
           <p>The user’s subscription has been fully cancelled and access has ended.</p>
         </div>
       `;
-      await sendEmail({ to: 'd.vamsitej333@gmail.com', subject: adminSubject, html: adminHtml });
+      await sendEmail({ to: ['d.vamsitej333@gmail.com', 'saiganesh132@gmail.com'], subject: adminSubject, html: adminHtml });
     }
 
     console.log('Subscription updated successfully for subscription:', subscription.id);
@@ -1107,7 +1107,7 @@ async function handleSubscriptionDeleted(subscription) {
         <p>The user’s subscription has been fully cancelled and access has ended.</p>
       </div>
     `;
-    await sendEmail({ to: 'd.vamsitej333@gmail.com', subject: adminSubject, html: adminHtml });
+    await sendEmail({ to: ['d.vamsitej333@gmail.com', 'saiganesh132@gmail.com'], subject: adminSubject, html: adminHtml });
 
     console.log('Subscription deleted successfully');
   } catch (error) {

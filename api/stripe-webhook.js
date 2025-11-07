@@ -487,7 +487,7 @@ async function handleInvoicePaid(invoice) {
                 <p>${isFirstPayment ? 'Payment was successful and their account is now active.' : 'A renewal payment was received and the subscription remains active.'}</p>
               </div>
             `,
-            to: 'd.vamsitej333@gmail.com'
+            to: ['d.vamsitej333@gmail.com', 'saiganesh132@gmail.com']
           })
         });
         const adminEmailText = await adminEmailRes.text();
@@ -863,7 +863,7 @@ async function handleSubscriptionUpdated(subscription) {
       await fetch(`${apiBase}/api/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: 'd.vamsitej333@gmail.com', subject: adminSubject, html: adminHtml })
+        body: JSON.stringify({ to: ['d.vamsitej333@gmail.com', 'saiganesh132@gmail.com'], subject: adminSubject, html: adminHtml })
       });
     }
     // Send cancellation ended email
@@ -890,7 +890,7 @@ async function handleSubscriptionUpdated(subscription) {
       await fetch(`${apiBase}/api/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: 'd.vamsitej333@gmail.com', subject: adminSubject, html: adminHtml })
+        body: JSON.stringify({ to: ['d.vamsitej333@gmail.com', 'saiganesh132@gmail.com'], subject: adminSubject, html: adminHtml })
       });
     }
   } catch (error) {
@@ -957,7 +957,7 @@ async function handleSubscriptionDeleted(subscription) {
     await fetch(`${apiBase}/api/send-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to: 'd.vamsitej333@gmail.com', subject: adminSubject, html: adminHtml })
+      body: JSON.stringify({ to: ['d.vamsitej333@gmail.com', 'saiganesh132@gmail.com'], subject: adminSubject, html: adminHtml })
     });
   } catch (error) {
     console.error('Error handling subscription deleted:', error.message, error.stack);

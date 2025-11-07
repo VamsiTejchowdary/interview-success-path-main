@@ -1,22 +1,28 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getCurrentUser, AuthUser, getUserInfo } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { 
-  Linkedin, 
-  CheckCircle, 
-  Shield, 
-  Check, 
-  Crown, 
-  Sparkles, 
-  Zap, 
-  ArrowRight, 
-  Bell, 
-  CreditCard, 
-  Calendar, 
-  DollarSign, 
+import {
+  Linkedin,
+  CheckCircle,
+  Shield,
+  Check,
+  Crown,
+  Sparkles,
+  Zap,
+  ArrowRight,
+  Bell,
+  CreditCard,
+  Calendar,
+  DollarSign,
   X,
   User,
   Mail,
@@ -25,21 +31,22 @@ import {
   FileText,
   Edit3,
   Save,
-  AlertTriangle
+  AlertTriangle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Add card brand logos mapping
 const cardBrandLogos: Record<string, string> = {
   visa: "https://cdn.jsdelivr.net/gh/aaronfagan/svg-credit-card-payment-icons/flat/visa.svg",
-  mastercard: "https://cdn.jsdelivr.net/gh/aaronfagan/svg-credit-card-payment-icons/flat/mastercard.svg",
+  mastercard:
+    "https://cdn.jsdelivr.net/gh/aaronfagan/svg-credit-card-payment-icons/flat/mastercard.svg",
   amex: "https://cdn.jsdelivr.net/gh/aaronfagan/svg-credit-card-payment-icons/flat/amex.svg",
-  discover: '/card-logos/discover.svg',
-  diners: '/card-logos/diners.svg',
-  jcb: '/card-logos/jcb.svg',
-  unionpay: '/card-logos/unionpay.svg',
+  discover: "/card-logos/discover.svg",
+  diners: "/card-logos/diners.svg",
+  jcb: "/card-logos/jcb.svg",
+  unionpay: "/card-logos/unionpay.svg",
 };
-const defaultCardLogo = '/card-logos/defaultcard.svg';
+const defaultCardLogo = "/card-logos/defaultcard.svg";
 
 interface ProfileTabProps {
   user: any;
@@ -48,7 +55,12 @@ interface ProfileTabProps {
   refetchUserDb: () => void;
 }
 
-const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps) => {
+const ProfileTab = ({
+  user,
+  userDb,
+  setUserDb,
+  refetchUserDb,
+}: ProfileTabProps) => {
   const [localUser, setLocalUser] = useState<AuthUser | null>(user);
   const [localUserDb, setLocalUserDb] = useState<any>(userDb);
   const [editMode, setEditMode] = useState(false);
@@ -65,7 +77,9 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [resumeUploading, setResumeUploading] = useState(false);
-  const [resumeUploadError, setResumeUploadError] = useState<string | null>(null);
+  const [resumeUploadError, setResumeUploadError] = useState<string | null>(
+    null
+  );
   const resumeBucket = import.meta.env.VITE_SUPABASE_RESUME_BUCKET;
   const { toast } = useToast();
   const [stripeLoading, setStripeLoading] = useState(false);
@@ -91,10 +105,10 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
     const fetchActiveSubscription = async () => {
       if (!userDb?.user_id) return;
       const { data, error } = await supabase
-        .from('subscriptions')
-        .select('*')
-        .eq('user_id', userDb.user_id)
-        .order('created_at', { ascending: false })
+        .from("subscriptions")
+        .select("*")
+        .eq("user_id", userDb.user_id)
+        .order("created_at", { ascending: false })
         .limit(1)
         .single();
       if (!error && data) {
@@ -119,40 +133,44 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
   // Send email to user and admin separately
   const sendCancellationEmail = async (type: "request" | "revoke") => {
     try {
-      const userName = `${localUser.first_name || ''} ${localUser.last_name || ''}`.trim() || localUser.email;
-      const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
-      const endpoint = import.meta.env.DEV ? '/api/send-email' : '/api/send-email';
-      
+      const userName =
+        `${localUser.first_name || ""} ${localUser.last_name || ""}`.trim() ||
+        localUser.email;
+      const apiBase = import.meta.env.DEV ? "http://localhost:4242" : "";
+      const endpoint = import.meta.env.DEV
+        ? "/api/send-email"
+        : "/api/send-email";
+
       // Send email to user
       const userResponse = await fetch(`${apiBase}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: [localUser.email],
-          template: 'subscriptionCancellation',
-          templateData: [localUser.email, userName, type]
-        })
+          template: "subscriptionCancellation",
+          templateData: [localUser.email, userName, type],
+        }),
       });
-      
+
       // Send notification to admin separately
       const adminResponse = await fetch(`${apiBase}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          to: ["d.vamsitej333@gmail.com"],
-          template: 'subscriptionCancellation',
-          templateData: [localUser.email, userName, type]
-        })
+          to: ["d.vamsitej333@gmail.com", "saiganesh132@gmail.com"],
+          template: "subscriptionCancellation",
+          templateData: [localUser.email, userName, type],
+        }),
       });
-      
+
       if (!userResponse.ok) {
-        console.error('Failed to send user cancellation email');
+        console.error("Failed to send user cancellation email");
       }
       if (!adminResponse.ok) {
-        console.error('Failed to send admin cancellation notification');
+        console.error("Failed to send admin cancellation notification");
       }
     } catch (error) {
-      console.error('Error sending cancellation email:', error);
+      console.error("Error sending cancellation email:", error);
     }
   };
 
@@ -193,7 +211,11 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
     setLoading(false);
     if (error) {
       setError("Failed to update profile. Please try again.");
-      toast({ title: "Error", description: "Failed to update profile. Please try again.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
       return;
     }
     // Refresh user data
@@ -209,26 +231,46 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
       linkedin_url: form.linkedin_url,
     }));
     setEditMode(false);
-    toast({ title: "Profile Updated", description: "Your profile changes have been saved.", variant: "default" });
+    toast({
+      title: "Profile Updated",
+      description: "Your profile changes have been saved.",
+      variant: "default",
+    });
     refetchUserDb();
   };
 
   const handleResumeUpdate = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!localUserDb || !localUserDb.user_id || !e.target.files || e.target.files.length === 0) return;
+    if (
+      !localUserDb ||
+      !localUserDb.user_id ||
+      !e.target.files ||
+      e.target.files.length === 0
+    )
+      return;
     setResumeUploading(true);
     setResumeUploadError(null);
     const file = e.target.files[0];
-    const fileExt = file.name.split('.').pop();
-    const safeFirstName = (localUser.first_name || '').replace(/[^a-zA-Z0-9]/g, '');
-    const safeLastName = (localUser.last_name || '').replace(/[^a-zA-Z0-9]/g, '');
-    const safeEmail = (localUser.email || '').replace(/[^a-zA-Z0-9]/g, '');
+    const fileExt = file.name.split(".").pop();
+    const safeFirstName = (localUser.first_name || "").replace(
+      /[^a-zA-Z0-9]/g,
+      ""
+    );
+    const safeLastName = (localUser.last_name || "").replace(
+      /[^a-zA-Z0-9]/g,
+      ""
+    );
+    const safeEmail = (localUser.email || "").replace(/[^a-zA-Z0-9]/g, "");
     const filePath = `${safeFirstName}_${safeLastName}_${safeEmail}/resume_${Date.now()}.${fileExt}`;
     try {
       // 1. Upload new resume
-      const { error: uploadError } = await supabase.storage.from(resumeBucket).upload(filePath, file, { upsert: true });
+      const { error: uploadError } = await supabase.storage
+        .from(resumeBucket)
+        .upload(filePath, file, { upsert: true });
       if (uploadError) throw uploadError;
       // 2. Get public URL
-      const { data: publicUrlData } = supabase.storage.from(resumeBucket).getPublicUrl(filePath);
+      const { data: publicUrlData } = supabase.storage
+        .from(resumeBucket)
+        .getPublicUrl(filePath);
       const newResumeUrl = publicUrlData.publicUrl;
       // 3. Delete old resume (if exists)
       if (localUser.resume_url) {
@@ -240,13 +282,16 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
         }
       }
       // 4. Update user table
-      const { error: updateError } = await supabase.from('users').update({ resume_url: newResumeUrl }).eq('user_id', localUserDb.user_id);
+      const { error: updateError } = await supabase
+        .from("users")
+        .update({ resume_url: newResumeUrl })
+        .eq("user_id", localUserDb.user_id);
       if (updateError) throw updateError;
       // 5. Update local user state
       setLocalUser({ ...localUser, resume_url: newResumeUrl });
       setResumeModal(false);
     } catch (err: any) {
-      setResumeUploadError(err.message || 'Failed to update resume.');
+      setResumeUploadError(err.message || "Failed to update resume.");
     }
     setResumeUploading(false);
   };
@@ -257,37 +302,49 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
   const isOverdue =
     localUserDb &&
     localUserDb.next_billing_at &&
-    new Date(localUserDb.next_billing_at).getTime() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000 <= new Date().getTime();
+    new Date(localUserDb.next_billing_at).getTime() +
+      GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000 <=
+      new Date().getTime();
 
   // Fetch payment method from Stripe
   const fetchPaymentMethod = async () => {
     if (!localUserDb?.stripe_customer_id) {
       return;
     }
-    
+
     setPaymentLoading(true);
     try {
-      const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
-      const endpoint = import.meta.env.DEV ? '/get-payment-method' : '/api/get-payment-method';
+      const apiBase = import.meta.env.DEV ? "http://localhost:4242" : "";
+      const endpoint = import.meta.env.DEV
+        ? "/get-payment-method"
+        : "/api/get-payment-method";
       const url = `${apiBase}${endpoint}`;
       const requestBody = { customerId: localUserDb.stripe_customer_id };
-      
+
       const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         // Use the first payment method (most recent)
-        setPaymentMethod(data.paymentMethods && data.paymentMethods.length > 0 ? data.paymentMethods[0] : null);
+        setPaymentMethod(
+          data.paymentMethods && data.paymentMethods.length > 0
+            ? data.paymentMethods[0]
+            : null
+        );
       } else {
         const errorData = await response.text();
-        console.error('Failed to fetch payment method:', response.status, errorData);
+        console.error(
+          "Failed to fetch payment method:",
+          response.status,
+          errorData
+        );
       }
     } catch (error) {
-      console.error('Error fetching payment method:', error);
+      console.error("Error fetching payment method:", error);
     } finally {
       setPaymentLoading(false);
     }
@@ -300,41 +357,41 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
     }
   }, [localUserDb]);
 
-
-
   // Stripe Checkout handler
   const handleStripeCheckout = async () => {
     if (!localUser?.email) {
-      alert('User email not found. Please try again.');
+      alert("User email not found. Please try again.");
       return;
     }
 
     setStripeLoading(true);
     try {
-      const apiBase = import.meta.env.DEV ? 'http://localhost:4242' : '';
-      const endpoint = import.meta.env.DEV ? '/create-checkout-session' : '/api/create-checkout-session';
+      const apiBase = import.meta.env.DEV ? "http://localhost:4242" : "";
+      const endpoint = import.meta.env.DEV
+        ? "/create-checkout-session"
+        : "/api/create-checkout-session";
       const response = await fetch(`${apiBase}${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userEmail: localUser.email }),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('API Error:', errorData);
-        alert(`Payment server error: ${errorData.error || 'Unknown error'}`);
+        console.error("API Error:", errorData);
+        alert(`Payment server error: ${errorData.error || "Unknown error"}`);
         return;
       }
-      
+
       const data = await response.json();
-      
+
       if (data.url) {
         window.location.href = data.url;
       } else {
-        alert('Failed to create Stripe Checkout session.');
+        alert("Failed to create Stripe Checkout session.");
       }
     } catch (err) {
-      console.error('Fetch error:', err);
+      console.error("Fetch error:", err);
       alert(`Error connecting to payment server: ${err.message}`);
     } finally {
       setStripeLoading(false);
@@ -342,7 +399,9 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
   };
 
   if (!localUser) {
-    return <div className="p-6 text-center text-gray-500">Loading profile...</div>;
+    return (
+      <div className="p-6 text-center text-gray-500">Loading profile...</div>
+    );
   }
 
   return (
@@ -356,24 +415,33 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                 <User className="w-5 h-5 text-purple-600" />
               </div>
               <div>
-                <CardTitle className="text-xl text-gray-800">Profile Information</CardTitle>
-                <CardDescription className="text-gray-600">Manage your personal details</CardDescription>
+                <CardTitle className="text-xl text-gray-800">
+                  Profile Information
+                </CardTitle>
+                <CardDescription className="text-gray-600">
+                  Manage your personal details
+                </CardDescription>
               </div>
             </div>
-            {localUserDb?.status === 'approved' && (
-              <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 border-yellow-200">
+            {localUserDb?.status === "approved" && (
+              <Badge
+                variant="secondary"
+                className="bg-yellow-100 text-yellow-700 border-yellow-200"
+              >
                 <Crown className="w-3 h-3 mr-1" />
                 Verified
               </Badge>
             )}
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           {/* Name Fields */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">First Name</label>
+              <label className="text-sm font-medium text-gray-700">
+                First Name
+              </label>
               {editMode ? (
                 <input
                   name="first_name"
@@ -389,7 +457,9 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Last Name</label>
+              <label className="text-sm font-medium text-gray-700">
+                Last Name
+              </label>
               {editMode ? (
                 <input
                   name="last_name"
@@ -525,8 +595,14 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                     className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"
                     disabled={resumeUploading}
                   />
-                  {resumeUploading && <p className="text-xs text-gray-500 mt-1">Uploading...</p>}
-                  {resumeUploadError && <p className="text-xs text-red-500 mt-1">{resumeUploadError}</p>}
+                  {resumeUploading && (
+                    <p className="text-xs text-gray-500 mt-1">Uploading...</p>
+                  )}
+                  {resumeUploadError && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {resumeUploadError}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -591,13 +667,17 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                 <Crown className="w-5 h-5 text-purple-600" />
               </div>
               <div>
-                <CardTitle className="text-xl text-gray-800">Premium Subscription</CardTitle>
-                <CardDescription className="text-gray-600">Manage your subscription and billing</CardDescription>
+                <CardTitle className="text-xl text-gray-800">
+                  Premium Subscription
+                </CardTitle>
+                <CardDescription className="text-gray-600">
+                  Manage your subscription and billing
+                </CardDescription>
               </div>
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent className="space-y-6">
           {/* Subscription Status */}
           <div className="space-y-3">
@@ -613,7 +693,10 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                     Active
                   </Badge>
                 ) : (
-                  <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200">
+                  <Badge
+                    variant="secondary"
+                    className="bg-red-100 text-red-700 border-red-200"
+                  >
                     <div className="w-2 h-2 bg-red-500 rounded-full mr-2"></div>
                     Inactive
                   </Badge>
@@ -629,10 +712,14 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                     Started
                   </label>
                   <div className="text-sm text-gray-800">
-                    {activeSubscription?.created_at ? new Date(activeSubscription.created_at).toLocaleDateString() : '--'}
+                    {activeSubscription?.created_at
+                      ? new Date(
+                          activeSubscription.created_at
+                        ).toLocaleDateString()
+                      : "--"}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
@@ -640,9 +727,10 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                   </label>
                   <div className="text-sm text-gray-800 text-right">
                     {localUserDb?.next_billing_at
-                      ? new Date(localUserDb.next_billing_at).toLocaleDateString()
-                      : '--'
-                    }
+                      ? new Date(
+                          localUserDb.next_billing_at
+                        ).toLocaleDateString()
+                      : "--"}
                   </div>
                 </div>
               </>
@@ -653,9 +741,12 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
           {localUserDb && !localUserDb.is_paid && (
             <div className="space-y-4">
               <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                <h3 className="font-semibold text-purple-900 mb-2">Upgrade to Premium</h3>
+                <h3 className="font-semibold text-purple-900 mb-2">
+                  Upgrade to Premium
+                </h3>
                 <p className="text-sm text-purple-700 mb-4">
-                  Get unlimited applications, priority support, and exclusive features.
+                  Get unlimited applications, priority support, and exclusive
+                  features.
                 </p>
                 <Button
                   onClick={handleStripeCheckout}
@@ -680,54 +771,62 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
           )}
 
           {/* Payment Method */}
-          {localUserDb && localUserDb.is_paid && !activeSubscription?.cancel_at_period_end && (
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <CreditCard className="w-4 h-4" />
-                Payment Method
-              </label>
-              
-              {paymentLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="ml-2 text-sm text-gray-600">Loading payment method...</span>
-                </div>
-              ) : paymentMethod ? (
-                <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={cardBrandLogos[paymentMethod.card?.brand] || defaultCardLogo}
-                      alt={paymentMethod.card?.brand || 'Card'}
-                      className="w-8 h-8 object-contain"
-                    />
-                    <div>
-                      <div className="font-medium text-gray-900">
-                        •••• •••• •••• {paymentMethod.card?.last4 || '****'}
+          {localUserDb &&
+            localUserDb.is_paid &&
+            !activeSubscription?.cancel_at_period_end && (
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  <CreditCard className="w-4 h-4" />
+                  Payment Method
+                </label>
+
+                {paymentLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="w-5 h-5 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                    <span className="ml-2 text-sm text-gray-600">
+                      Loading payment method...
+                    </span>
+                  </div>
+                ) : paymentMethod ? (
+                  <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={
+                          cardBrandLogos[paymentMethod.card?.brand] ||
+                          defaultCardLogo
+                        }
+                        alt={paymentMethod.card?.brand || "Card"}
+                        className="w-8 h-8 object-contain"
+                      />
+                      <div>
+                        <div className="font-medium text-gray-900">
+                          •••• •••• •••• {paymentMethod.card?.last4 || "****"}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {paymentMethod.card?.brand?.toUpperCase() || "Card"} •
+                          Expires {paymentMethod.card?.exp_month}/
+                          {paymentMethod.card?.exp_year}
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-600">
-                        {paymentMethod.card?.brand?.toUpperCase() || 'Card'} • Expires {paymentMethod.card?.exp_month}/{paymentMethod.card?.exp_year}
+                      <div className="ml-auto">
+                        <Badge className="bg-green-100 text-green-700 border-green-200">
+                          <Check className="w-3 h-3 mr-1" />
+                          Active
+                        </Badge>
                       </div>
-                    </div>
-                    <div className="ml-auto">
-                      <Badge className="bg-green-100 text-green-700 border-green-200">
-                        <Check className="w-3 h-3 mr-1" />
-                        Active
-                      </Badge>
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="text-center py-4 text-gray-500">
-                  <CreditCard className="w-8 h-8 mx-auto mb-2 text-gray-400" />
-                  <p className="text-sm">No payment method found</p>
-                </div>
-              )}
-            </div>
-          )}
-
+                ) : (
+                  <div className="text-center py-4 text-gray-500">
+                    <CreditCard className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm">No payment method found</p>
+                  </div>
+                )}
+              </div>
+            )}
 
           {/* Account Management */}
-          {localUserDb && localUserDb.status === 'approved' && (
+          {localUserDb && localUserDb.status === "approved" && (
             <div className="space-y-4">
               <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <Shield className="w-4 h-4" />
@@ -739,9 +838,12 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                   <div className="flex items-start gap-3">
                     <Bell className="w-5 h-5 text-yellow-600 mt-0.5" />
                     <div>
-                      <h4 className="font-medium text-yellow-900 mb-1">Subscription Ending</h4>
+                      <h4 className="font-medium text-yellow-900 mb-1">
+                        Subscription Ending
+                      </h4>
                       <p className="text-sm text-yellow-800 mb-3">
-                        Your subscription is canceled but remains active until the end of your billing cycle.
+                        Your subscription is canceled but remains active until
+                        the end of your billing cycle.
                       </p>
                     </div>
                   </div>
@@ -752,9 +854,12 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                     <div className="flex items-start gap-3">
                       <Bell className="w-5 h-5 text-yellow-600 mt-0.5" />
                       <div>
-                        <h4 className="font-medium text-yellow-900 mb-1">Cancellation Requested</h4>
+                        <h4 className="font-medium text-yellow-900 mb-1">
+                          Cancellation Requested
+                        </h4>
                         <p className="text-sm text-yellow-800">
-                          We've received your cancellation request. Our team will contact you soon.
+                          We've received your cancellation request. Our team
+                          will contact you soon.
                         </p>
                       </div>
                     </div>
@@ -764,7 +869,11 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                     onClick={async () => {
                       await updateCancellationRequested(false);
                       await sendCancellationEmail("revoke");
-                      toast({ title: "Cancellation Revoked", description: "Your subscription will remain active.", variant: "default" });
+                      toast({
+                        title: "Cancellation Revoked",
+                        description: "Your subscription will remain active.",
+                        variant: "default",
+                      });
                     }}
                   >
                     <Shield className="w-4 h-4" />
@@ -774,9 +883,12 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
               ) : (
                 <div className="space-y-3">
                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 className="font-medium text-blue-900 mb-1">Need Help?</h4>
+                    <h4 className="font-medium text-blue-900 mb-1">
+                      Need Help?
+                    </h4>
                     <p className="text-sm text-blue-800 mb-2">
-                      For payment updates or billing questions, contact our support team.
+                      For payment updates or billing questions, contact our
+                      support team.
                     </p>
                     <a
                       href="mailto:support@jobsmartly.com"
@@ -785,14 +897,18 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
                       support@jobsmartly.com
                     </a>
                   </div>
-                  
+
                   <Button
                     variant="destructive"
                     className="w-full sm:w-auto flex items-center justify-center gap-2"
                     onClick={async () => {
                       await updateCancellationRequested(true);
                       await sendCancellationEmail("request");
-                      toast({ title: "Cancellation Requested", description: "Our team will contact you soon.", variant: "default" });
+                      toast({
+                        title: "Cancellation Requested",
+                        description: "Our team will contact you soon.",
+                        variant: "default",
+                      });
                     }}
                   >
                     <X className="w-4 h-4" />
@@ -802,7 +918,6 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
               )}
             </div>
           )}
-
         </CardContent>
       </Card>
 
@@ -811,7 +926,9 @@ const ProfileTab = ({ user, userDb, setUserDb, refetchUserDb }: ProfileTabProps)
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="relative bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-800">Resume Preview</h3>
+              <h3 className="text-lg font-semibold text-gray-800">
+                Resume Preview
+              </h3>
               <Button
                 variant="ghost"
                 size="sm"

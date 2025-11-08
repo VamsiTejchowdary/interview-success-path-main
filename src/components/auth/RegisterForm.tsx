@@ -2,7 +2,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Eye, EyeOff, Upload, Briefcase, Star, CheckCircle, Target, Award, Globe, Shield, Users, GraduationCap } from "lucide-react";
+import {
+  Loader2,
+  Eye,
+  EyeOff,
+  Upload,
+  Star,
+  CheckCircle,
+  GraduationCap,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,7 +23,10 @@ interface RegisterFormProps {
   onSignupSuccess?: (email: string, role: string) => void;
 }
 
-const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) => {
+const RegisterForm = ({
+  onSwitchToLogin,
+  onSignupSuccess,
+}: RegisterFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -50,13 +61,15 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
         setIsLoading(false);
         return;
       }
-      const safeFirstName = (firstName || '').replace(/[^a-zA-Z0-9]/g, '');
-      const safeLastName = (lastName || '').replace(/[^a-zA-Z0-9]/g, '');
-      const safeEmail = (email || '').replace(/[^a-zA-Z0-9]/g, '');
-      const fileExt = resumeFile.name.split('.').pop();
+      const safeFirstName = (firstName || "").replace(/[^a-zA-Z0-9]/g, "");
+      const safeLastName = (lastName || "").replace(/[^a-zA-Z0-9]/g, "");
+      const safeEmail = (email || "").replace(/[^a-zA-Z0-9]/g, "");
+      const fileExt = resumeFile.name.split(".").pop();
       const filePath = `${safeFirstName}_${safeLastName}_${safeEmail}/resume_${Date.now()}.${fileExt}`;
       // Upload to Supabase Storage
-      const { data, error } = await supabase.storage.from(resumeBucket).upload(filePath, resumeFile, { upsert: false });
+      const { data, error } = await supabase.storage
+        .from(resumeBucket)
+        .upload(filePath, resumeFile, { upsert: false });
       if (error) {
         toast({
           title: "Resume Upload Failed",
@@ -66,7 +79,9 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
         setIsLoading(false);
         return;
       }
-      const { data: publicUrlData } = supabase.storage.from(resumeBucket).getPublicUrl(data.path);
+      const { data: publicUrlData } = supabase.storage
+        .from(resumeBucket)
+        .getPublicUrl(data.path);
       const publicUrl = publicUrlData?.publicUrl;
       if (!publicUrl) {
         toast({
@@ -86,14 +101,9 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
         resume_url: publicUrl,
         linkedin_url: linkedin,
       };
-      const result = await signUp(
-        email,
-        password,
-        signupData,
-        'user'
-      );
+      const result = await signUp(email, password, signupData, "user");
       if (result.success) {
-        onSignupSuccess?.(email, 'user');
+        onSignupSuccess?.(email, "user");
       } else {
         toast({
           title: "Signup Failed",
@@ -121,12 +131,17 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
         <h3 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
           Join Our Platform
         </h3>
-        <p className="text-sm sm:text-base text-slate-600 mt-2">Create your student account and start your journey</p>
+        <p className="text-sm sm:text-base text-slate-600 mt-2">
+          Create your student account and start your journey
+        </p>
       </div>
       <div className="space-y-4 mt-6 sm:mt-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="firstName" className="text-slate-700 font-semibold text-sm sm:text-base">
+            <Label
+              htmlFor="firstName"
+              className="text-slate-700 font-semibold text-sm sm:text-base"
+            >
               First Name <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -140,7 +155,10 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="lastName" className="text-slate-700 font-semibold text-sm sm:text-base">
+            <Label
+              htmlFor="lastName"
+              className="text-slate-700 font-semibold text-sm sm:text-base"
+            >
               Last Name <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -155,7 +173,10 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="email" className="text-slate-700 font-semibold text-sm sm:text-base">
+          <Label
+            htmlFor="email"
+            className="text-slate-700 font-semibold text-sm sm:text-base"
+          >
             Email Address <span className="text-red-500">*</span>
           </Label>
           <Input
@@ -170,7 +191,10 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="phone" className="text-slate-700 font-semibold text-sm sm:text-base">
+            <Label
+              htmlFor="phone"
+              className="text-slate-700 font-semibold text-sm sm:text-base"
+            >
               Phone Number <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -184,7 +208,10 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="address" className="text-slate-700 font-semibold text-sm sm:text-base">
+            <Label
+              htmlFor="address"
+              className="text-slate-700 font-semibold text-sm sm:text-base"
+            >
               Address <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -199,7 +226,10 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="resume" className="text-slate-700 font-semibold text-sm sm:text-base">
+          <Label
+            htmlFor="resume"
+            className="text-slate-700 font-semibold text-sm sm:text-base"
+          >
             Resume Upload <span className="text-red-500">*</span>
           </Label>
           <div
@@ -210,9 +240,12 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
               hover:border-green-500 hover:bg-green-100
               cursor-pointer
             `}
-            onClick={() => document.getElementById('resume')?.click()}
-            onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
-            onDrop={e => {
+            onClick={() => document.getElementById("resume")?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onDrop={(e) => {
               e.preventDefault();
               e.stopPropagation();
               if (e.dataTransfer.files && e.dataTransfer.files[0]) {
@@ -225,7 +258,7 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
               id="resume"
               type="file"
               accept="application/pdf"
-              onChange={e => setResumeFile(e.target.files?.[0] || null)}
+              onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
               className="hidden"
               disabled={isLoading}
             />
@@ -242,8 +275,12 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
           </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="linkedin" className="text-slate-700 font-semibold text-sm sm:text-base">
-            LinkedIn Profile <span className="text-slate-400 font-normal">(optional)</span>
+          <Label
+            htmlFor="linkedin"
+            className="text-slate-700 font-semibold text-sm sm:text-base"
+          >
+            LinkedIn Profile{" "}
+            <span className="text-slate-400 font-normal">(optional)</span>
           </Label>
           <Input
             id="linkedin"
@@ -256,7 +293,10 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-slate-700 font-semibold text-sm sm:text-base">
+          <Label
+            htmlFor="password"
+            className="text-slate-700 font-semibold text-sm sm:text-base"
+          >
             Password <span className="text-red-500">*</span>
           </Label>
           <div className="relative">
@@ -276,9 +316,46 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
               disabled={isLoading}
               tabIndex={-1}
             >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
             </button>
           </div>
+        </div>
+        <div className="p-4 bg-slate-50/50 rounded-xl border border-slate-200">
+          <p className="text-sm text-slate-700 leading-relaxed">
+            <span className="text-red-500">*</span> By registering, you agree to
+            our{" "}
+            <a
+              href="https://www.jobsmartly.com/refundpolicy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-purple-600 hover:text-purple-700 font-medium underline transition-colors"
+            >
+              Refund Policy
+            </a>
+            ,{" "}
+            <a
+              href="https://www.jobsmartly.com/privacypolicy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-purple-600 hover:text-purple-700 font-medium underline transition-colors"
+            >
+              Privacy Policy
+            </a>
+            , and{" "}
+            <a
+              href="https://www.jobsmartly.com/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-purple-600 hover:text-purple-700 font-medium underline transition-colors"
+            >
+              Terms & Conditions
+            </a>
+            .
+          </p>
         </div>
         <Button
           onClick={handleSubmit}
@@ -291,7 +368,7 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
               Creating Account...
             </>
           ) : (
-            'Create Account'
+            "Create Account"
           )}
         </Button>
         {onSwitchToLogin && (
@@ -312,10 +389,13 @@ const RegisterForm = ({ onSwitchToLogin, onSignupSuccess }: RegisterFormProps) =
 
 const Signup = () => {
   const navigate = useNavigate();
-  const [signupData, setSignupData] = useState<{ email: string; role: string } | null>(null);
+  const [signupData, setSignupData] = useState<{
+    email: string;
+    role: string;
+  } | null>(null);
 
   const handleSwitchToLogin = () => {
-    navigate('/');
+    navigate("/");
   };
 
   const handleSignupSuccess = (email: string, role: string) => {
@@ -331,11 +411,17 @@ const Signup = () => {
               <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircle className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-4">Welcome to JobSmartly!</h2>
+              <h2 className="text-2xl font-bold text-slate-800 mb-4">
+                Welcome to JobSmartly!
+              </h2>
               <p className="text-slate-600 mb-6">
-                Your account has been created successfully. Please check your email to verify your account.<br />
+                Your account has been created successfully. Please check your
+                email to verify your account.
+                <br />
                 <span className="block mt-4 text-sm text-red-700 bg-red-50 rounded px-2 py-1">
-                  If you do not see our email in your inbox, please check your spam or junk folder. To ensure you receive important updates, mark our emails as "Not Spam" or move them to your inbox.
+                  If you do not see our email in your inbox, please check your
+                  spam or junk folder. To ensure you receive important updates,
+                  mark our emails as "Not Spam" or move them to your inbox.
                 </span>
               </p>
               <Button
@@ -358,14 +444,19 @@ const Signup = () => {
       <nav className="relative z-10 container mx-auto px-4 py-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl flex items-center justify-center">
-              <Briefcase className="w-6 h-6 text-white" />
-            </div>
+            <img
+              src="https://res.cloudinary.com/dcwnk7s9z/image/upload/v1752174018/b1a2a17b-b3eb-46ff-8ee2-6528160fe25c-copied-media_2_wtccwz.png"
+              alt="JobSmartly Logo"
+              className="w-10 h-10 rounded-xl object-contain"
+            />
             <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
               JobSmartly
             </span>
           </div>
-          <Badge variant="secondary" className="px-4 py-2 bg-white/60 backdrop-blur-sm border-white/30 text-slate-700 font-medium">
+          <Badge
+            variant="secondary"
+            className="px-4 py-2 bg-white/60 backdrop-blur-sm border-white/30 text-slate-700 font-medium"
+          >
             Professional Career Services
           </Badge>
         </div>
@@ -383,7 +474,9 @@ const Signup = () => {
               <div className="space-y-6">
                 <div className="inline-flex items-center space-x-2 bg-white/60 backdrop-blur-sm rounded-full px-4 py-2 border border-white/30">
                   <Star className="w-4 h-4 text-yellow-500" />
-                  <span className="text-sm font-medium text-slate-700">#1 Reverse Recruiting Platform</span>
+                  <span className="text-sm font-medium text-slate-700">
+                    #1 Reverse Recruiting Platform
+                  </span>
                 </div>
                 <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight">
                   <span className="bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
@@ -395,7 +488,9 @@ const Signup = () => {
                   </span>
                 </h1>
                 <p className="text-lg sm:text-xl text-slate-600 leading-relaxed max-w-2xl">
-                  Sign up to access our professional reverse recruiting services, personalized job applications, and career coaching to land your dream job.
+                  Sign up to access our professional reverse recruiting
+                  services, personalized job applications, and career coaching
+                  to land your dream job.
                 </p>
               </div>
               {/* Stats */}
@@ -404,19 +499,25 @@ const Signup = () => {
                   <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                     78,000+
                   </div>
-                  <div className="text-sm text-slate-600 font-medium">Jobs Applied</div>
+                  <div className="text-sm text-slate-600 font-medium">
+                    Jobs Applied
+                  </div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                     96%
                   </div>
-                  <div className="text-sm text-slate-600 font-medium">Interview Rate</div>
+                  <div className="text-sm text-slate-600 font-medium">
+                    Interview Rate
+                  </div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                     4.8★
                   </div>
-                  <div className="text-sm text-slate-600 font-medium">Client Rating</div>
+                  <div className="text-sm text-slate-600 font-medium">
+                    Client Rating
+                  </div>
                 </div>
               </div>
             </div>

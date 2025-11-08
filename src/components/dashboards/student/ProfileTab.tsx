@@ -766,6 +766,37 @@ const ProfileTab = ({
                     </>
                   )}
                 </Button>
+                <p className="text-xs text-gray-700 leading-relaxed mt-3">
+                  <span className="text-red-500">*</span> By upgrading, you
+                  agree to our{" "}
+                  <a
+                    href="https://www.jobsmartly.com/refundpolicy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-600 hover:text-purple-700 font-medium underline transition-colors"
+                  >
+                    Refund Policy
+                  </a>
+                  ,{" "}
+                  <a
+                    href="https://www.jobsmartly.com/privacypolicy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-600 hover:text-purple-700 font-medium underline transition-colors"
+                  >
+                    Privacy Policy
+                  </a>
+                  , and{" "}
+                  <a
+                    href="https://www.jobsmartly.com/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-600 hover:text-purple-700 font-medium underline transition-colors"
+                  >
+                    Terms & Conditions
+                  </a>
+                  .
+                </p>
               </div>
             </div>
           )}
@@ -853,17 +884,76 @@ const ProfileTab = ({
                   <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <div className="flex items-start gap-3">
                       <Bell className="w-5 h-5 text-yellow-600 mt-0.5" />
-                      <div>
+                      <div className="flex-1">
                         <h4 className="font-medium text-yellow-900 mb-1">
                           Cancellation Requested
                         </h4>
-                        <p className="text-sm text-yellow-800">
+                        <p className="text-sm text-yellow-800 mb-2">
                           We've received your cancellation request. Our team
                           will contact you soon.
                         </p>
+                        {localUserDb?.cancellation_requested_date && (
+                          <p className="text-xs text-yellow-700">
+                            Requested on:{" "}
+                            <span className="font-medium">
+                              {new Date(
+                                localUserDb.cancellation_requested_date
+                              ).toLocaleString("en-US", {
+                                year: "numeric",
+                                month: "short",
+                                day: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                hour12: true,
+                              })}
+                            </span>
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
+
+                  <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                    <h4 className="font-medium text-orange-900 mb-2">
+                      Cancellation Policy
+                    </h4>
+                    <p className="text-sm text-orange-800 mb-3">
+                      Cancellation requests will not be approved if{" "}
+                      <strong>submitted less than 72 hours</strong> before the
+                      billing date.
+                    </p>
+                    <p className="text-xs text-orange-700">
+                      Check these for more info:{" "}
+                      <a
+                        href="https://www.jobsmartly.com/refundpolicy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-orange-600 hover:text-orange-700 font-medium underline transition-colors"
+                      >
+                        Refund Policy
+                      </a>
+                      ,{" "}
+                      <a
+                        href="https://www.jobsmartly.com/privacypolicy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-orange-600 hover:text-orange-700 font-medium underline transition-colors"
+                      >
+                        Privacy Policy
+                      </a>
+                      , and{" "}
+                      <a
+                        href="https://www.jobsmartly.com/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-orange-600 hover:text-orange-700 font-medium underline transition-colors"
+                      >
+                        Terms & Conditions
+                      </a>
+                      .
+                    </p>
+                  </div>
+
                   <Button
                     className="w-full sm:w-auto bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2"
                     onClick={async () => {
@@ -896,6 +986,47 @@ const ProfileTab = ({
                     >
                       support@jobsmartly.com
                     </a>
+                  </div>
+
+                  <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                    <h4 className="font-medium text-orange-900 mb-2">
+                      Cancellation Policy
+                    </h4>
+                    <p className="text-sm text-orange-800 mb-3">
+                      Cancellation requests will not be approved if{" "}
+                      <strong>submitted less than 72 hours</strong> before the
+                      billing date.
+                    </p>
+                    <p className="text-xs text-orange-700">
+                      Check these for more info:{" "}
+                      <a
+                        href="https://www.jobsmartly.com/refundpolicy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-orange-600 hover:text-orange-700 font-medium underline transition-colors"
+                      >
+                        Refund Policy
+                      </a>
+                      ,{" "}
+                      <a
+                        href="https://www.jobsmartly.com/privacypolicy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-orange-600 hover:text-orange-700 font-medium underline transition-colors"
+                      >
+                        Privacy Policy
+                      </a>
+                      , and{" "}
+                      <a
+                        href="https://www.jobsmartly.com/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-orange-600 hover:text-orange-700 font-medium underline transition-colors"
+                      >
+                        Terms & Conditions
+                      </a>
+                      .
+                    </p>
                   </div>
 
                   <Button

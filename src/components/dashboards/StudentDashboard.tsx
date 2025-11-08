@@ -1,13 +1,19 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
-import { 
-  Briefcase, 
-  Calendar, 
-  Clock, 
-  FileText, 
+import {
+  Briefcase,
+  Calendar,
+  Clock,
+  FileText,
   TrendingUp,
   Target,
   MessageSquare,
@@ -17,9 +23,19 @@ import {
   CheckCircle,
   BarChart3,
   AlertCircle,
-  X
+  X,
 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+} from "recharts";
 import OverviewTab from "./student/OverviewTab";
 import ApplicationsTab from "./student/ApplicationsTab";
 import InterviewsTab from "./student/InterviewsTab";
@@ -59,7 +75,9 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
       if (user_id) {
         const { data } = await supabase
           .from("users")
-          .select("user_id, next_billing_at, is_paid, status, stripe_customer_id, first_name, last_name, phone, address, linkedin_url, cancellation_requested, subscription_fee")
+          .select(
+            "user_id, next_billing_at, is_paid, status, stripe_customer_id, first_name, last_name, phone, address, linkedin_url, cancellation_requested, cancellation_requested_date, subscription_fee"
+          )
           .eq("user_id", user_id)
           .single();
         setUserDb(data);
@@ -83,7 +101,9 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
     // Fetch applications (same logic as ApplicationsTab, but here)
     let query = supabase
       .from("job_applications")
-      .select("*, company_name, resumes(*), recruiters(name)", { count: "exact" })
+      .select("*, company_name, resumes(*), recruiters(name)", {
+        count: "exact",
+      })
       .eq("user_id", userDb.user_id)
       .order("applied_at", { ascending: false });
     const { data: apps, error } = await query;
@@ -93,34 +113,36 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
       return;
     }
     // Enrich with recruiter name and resume info
-    const enriched = await Promise.all((apps || []).map(async (app) => {
-      let recruiterName = "-";
-      if (app.recruiter_id) {
-        const { data: recruiter } = await supabase
-          .from("recruiters")
-          .select("name")
-          .eq("recruiter_id", app.recruiter_id)
-          .single();
-        recruiterName = recruiter?.name || "-";
-      }
-      let resumeUrl = "";
-      let resumeName = "Resume";
-      if (app.resume_id) {
-        const { data: resume } = await supabase
-          .from("resumes")
-          .select("storage_key, name")
-          .eq("resume_id", app.resume_id)
-          .single();
-        resumeUrl = resume?.storage_key || "";
-        resumeName = resume?.name || "Resume";
-      }
-      return {
-        ...app,
-        recruiterName,
-        resumeUrl,
-        resumeName,
-      };
-    }));
+    const enriched = await Promise.all(
+      (apps || []).map(async (app) => {
+        let recruiterName = "-";
+        if (app.recruiter_id) {
+          const { data: recruiter } = await supabase
+            .from("recruiters")
+            .select("name")
+            .eq("recruiter_id", app.recruiter_id)
+            .single();
+          recruiterName = recruiter?.name || "-";
+        }
+        let resumeUrl = "";
+        let resumeName = "Resume";
+        if (app.resume_id) {
+          const { data: resume } = await supabase
+            .from("resumes")
+            .select("storage_key, name")
+            .eq("resume_id", app.resume_id)
+            .single();
+          resumeUrl = resume?.storage_key || "";
+          resumeName = resume?.name || "Resume";
+        }
+        return {
+          ...app,
+          recruiterName,
+          resumeUrl,
+          resumeName,
+        };
+      })
+    );
     setApplications(enriched);
     setApplicationsLoading(false);
   }, [userDb?.user_id]);
@@ -163,7 +185,7 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
   };
 
   // Banner for on_hold status
-  const showHoldBanner = userDb?.status === 'on_hold';
+  const showHoldBanner = userDb?.status === "on_hold";
   const [bannerClosed, setBannerClosed] = useState(false);
 
   // Reopen banner after 5 seconds if closed
@@ -177,18 +199,18 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      
       {/* Notification Banner for Hold Status */}
       {showHoldBanner && !bannerClosed && (
         <div className="fixed top-0 left-0 w-full z-50 flex justify-center px-2 sm:px-0 pointer-events-none mt-2">
           <div className="max-w-2xl w-full flex items-center gap-3 bg-gradient-to-r from-yellow-100 via-yellow-50 to-white border border-yellow-300 rounded-xl shadow-md py-3 px-4 sm:py-3 sm:px-6 pointer-events-auto relative">
             <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
             <span className="flex-1 text-sm sm:text-base text-yellow-900 font-medium">
-              Your account is on hold. Please complete your payment to activate your dashboard.
+              Your account is on hold. Please complete your payment to activate
+              your dashboard.
             </span>
             <button
               className="ml-2 px-3 py-1.5 sm:py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-xs sm:text-sm font-semibold rounded-md shadow transition-all duration-150"
-              onClick={() => handleTabChange('profile')}
+              onClick={() => handleTabChange("profile")}
             >
               Go to Profile
             </button>
@@ -203,14 +225,20 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
         </div>
       )}
       {/* Header */}
-      <header className={`sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-purple-200/50 shadow-sm ${showHoldBanner ? 'mt-[60px] sm:mt-[70px]' : ''}`}>
+      <header
+        className={`sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-purple-200/50 shadow-sm ${showHoldBanner ? "mt-[60px] sm:mt-[70px]" : ""}`}
+      >
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">User Dashboard</h1>
             <p className="text-purple-600">Track Your Career Progress</p>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={onLogout} className="border-purple-200 text-purple-700 hover:bg-purple-50">
+            <Button
+              variant="outline"
+              onClick={onLogout}
+              className="border-purple-200 text-purple-700 hover:bg-purple-50"
+            >
               <LogOut className="w-4 h-4 mr-2" />
               Logout
             </Button>
@@ -227,12 +255,36 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
             </div>
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
+          <Tabs
+            value={activeTab}
+            onValueChange={handleTabChange}
+            className="space-y-6"
+          >
             <TabsList className="bg-white/60 backdrop-blur-xl border border-purple-200/50">
-              <TabsTrigger value="overview" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Overview</TabsTrigger>
-              <TabsTrigger value="applications" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Applications</TabsTrigger>
-              <TabsTrigger value="interviews" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Interviews</TabsTrigger>
-              <TabsTrigger value="profile" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Profile</TabsTrigger>
+              <TabsTrigger
+                value="overview"
+                className="data-[state=active]:bg-purple-500 data-[state=active]:text-white"
+              >
+                Overview
+              </TabsTrigger>
+              <TabsTrigger
+                value="applications"
+                className="data-[state=active]:bg-purple-500 data-[state=active]:text-white"
+              >
+                Applications
+              </TabsTrigger>
+              <TabsTrigger
+                value="interviews"
+                className="data-[state=active]:bg-purple-500 data-[state=active]:text-white"
+              >
+                Interviews
+              </TabsTrigger>
+              <TabsTrigger
+                value="profile"
+                className="data-[state=active]:bg-purple-500 data-[state=active]:text-white"
+              >
+                Profile
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview">
@@ -263,7 +315,12 @@ const StudentDashboard = ({ onLogout }: StudentDashboardProps) => {
             </TabsContent>
 
             <TabsContent value="profile">
-              <ProfileTab user={user} userDb={userDb} setUserDb={setUserDb} refetchUserDb={fetchUserAndDb} />
+              <ProfileTab
+                user={user}
+                userDb={userDb}
+                setUserDb={setUserDb}
+                refetchUserDb={fetchUserAndDb}
+              />
             </TabsContent>
           </Tabs>
         )}

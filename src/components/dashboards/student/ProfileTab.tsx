@@ -123,11 +123,31 @@ const ProfileTab = ({
   // Helper to update cancellation_requested in DB
   const updateCancellationRequested = async (value: boolean) => {
     if (!localUserDb?.user_id) return;
+
+    // If requesting cancellation, set the current timestamp; if revoking, clear it
+    const updateData = value
+      ? {
+          cancellation_requested: value,
+          cancellation_requested_date: new Date().toISOString(),
+        }
+      : { cancellation_requested: value, cancellation_requested_date: null };
+
     await supabase
       .from("users")
-      .update({ cancellation_requested: value })
+      .update(updateData)
       .eq("user_id", localUserDb.user_id);
-    setUserDb((prev: any) => ({ ...prev, cancellation_requested: value }));
+
+    setUserDb((prev: any) => ({
+      ...prev,
+      cancellation_requested: value,
+      cancellation_requested_date: value ? new Date().toISOString() : null,
+    }));
+
+    setLocalUserDb((prev: any) => ({
+      ...prev,
+      cancellation_requested: value,
+      cancellation_requested_date: value ? new Date().toISOString() : null,
+    }));
   };
 
   // Send email to user and admin separately

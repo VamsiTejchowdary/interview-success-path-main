@@ -119,9 +119,9 @@ export const getRecruitersList = async (): Promise<RecruiterData[]> => {
           return { ...recruiter, user_count: 0 }
         }
 
-        return { 
-          ...recruiter, 
-          user_count: userCount?.length || 0 
+        return {
+          ...recruiter,
+          user_count: userCount?.length || 0
         }
       })
     )
@@ -180,13 +180,13 @@ export const getUsersList = async (): Promise<UserData[]> => {
 }
 
 export const updateRecruiterStatus = async (
-  recruiterId: string, 
+  recruiterId: string,
   status: 'pending' | 'approved' | 'rejected'
 ): Promise<void> => {
   try {
     const { error } = await supabase
       .from('recruiters')
-      .update({ 
+      .update({
         status,
         approved_at: status === 'approved' ? new Date().toISOString() : null
       })
@@ -200,7 +200,7 @@ export const updateRecruiterStatus = async (
 }
 
 export const updateUserStatus = async (
-  userId: string, 
+  userId: string,
   status: 'pending' | 'approved' | 'rejected' | 'on_hold'
 ): Promise<void> => {
   try {
@@ -222,13 +222,13 @@ export const updateUserStatus = async (
 
       if (subscriptionError) throw subscriptionError;
 
-      const nextBillingDate = subscription?.current_period_end 
+      const nextBillingDate = subscription?.current_period_end
         ? new Date(subscription.current_period_end).toISOString()
         : (() => {
-            const nextMonth = new Date(now);
-            nextMonth.setMonth(now.getMonth() + 1);
-            return nextMonth.toISOString();
-          })();
+          const nextMonth = new Date(now);
+          nextMonth.setMonth(now.getMonth() + 1);
+          return nextMonth.toISOString();
+        })();
 
       updatePayload = {
         status,
@@ -257,7 +257,7 @@ export const updateUserStatus = async (
 };
 
 export const assignRecruiterToUser = async (
-  userId: string, 
+  userId: string,
   recruiterId: string
 ): Promise<void> => {
   try {
@@ -357,13 +357,13 @@ export const getAffiliatesList = async (): Promise<AffiliateData[]> => {
 }
 
 export const updateAffiliateStatus = async (
-  affiliateId: string, 
+  affiliateId: string,
   status: 'pending' | 'approved' | 'rejected'
 ): Promise<void> => {
   try {
     const { error } = await supabase
       .from('affiliates')
-      .update({ 
+      .update({
         status,
       })
       .eq('affiliate_user_id', affiliateId)
@@ -376,7 +376,7 @@ export const updateAffiliateStatus = async (
 }
 
 export const createCouponForAffiliate = async (
-  affiliateId: string, 
+  affiliateId: string,
   couponCode: string
 ): Promise<void> => {
   try {
@@ -430,4 +430,115 @@ export const getAffiliateCoupons = async (affiliateId: string): Promise<{
     console.error('Error fetching affiliate coupons:', error)
     throw error
   }
-} 
+}
+// Email Marketer Management Functions
+
+export interface EmailMarketerData {
+  email_marketer_id: string
+  name: string
+  email: string
+  phone: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+}
+
+export const getEmailMarketersList = async (): Promise<EmailMarketerData[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('email_marketers')
+      .select('email_marketer_id, name, email, phone, status, created_at')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data || []
+  } catch (error) {
+    console.error('Error fetching email marketers:', error)
+    throw error
+  }
+}
+
+export const createEmailMarketer = async (
+  email: string,
+  name: string,
+  phone?: string
+): Promise<void> => {
+  try {
+    // Check if email already exists in email_marketers table
+    const { data: existing } = await supabase
+      .from('email_marketers')
+      .select('email')
+      .eq('email', email)
+      .limit(1)
+
+    if (existing && existing.length > 0) {
+      throw new Error('Email already registered as email marketer')
+    }
+
+    // Just insert into email_marketers table with pending status
+    // The email marketer will need to sign up themselves using the signup page
+    const { error: insertError } = await supabase
+      .from('email_marketers')
+      .insert({
+        email,
+        name,
+        phone,
+        status: 'pending' // Will be approved by admin after they sign up
+      })
+
+    if (insertError) {
+      console.error('Insert error:', insertError);
+      throw insertError;
+    }
+    
+    console.log('✅ Email marketer record created:', email);
+  } catch (error) {
+    console.error('Error creating email marketer:', error)
+    throw error
+  }
+}
+
+export const updateEmailMarketerStatus = async (
+  emailMarketerId: string,
+  status: 'pending' | 'approved' | 'rejected'
+): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('email_marketers')
+      .update({ status })
+      .eq('email_marketer_id', emailMarketerId)
+
+    if (error) throw error
+  } catch (error) {
+    console.error('Error updating email marketer status:', error)
+    throw error
+  }
+}
+
+export const deleteEmailMarketer = async (emailMarketerId: string): Promise<void> => {
+  try {
+    // Get email marketer email first
+    const { data: emailMarketer, error: fetchError } = await supabase
+      .from('email_marketers')
+      .select('email')
+      .eq('email_marketer_id', emailMarketerId)
+      .single()
+
+    if (fetchError) throw fetchError
+    if (!emailMarketer) throw new Error('Email marketer not found')
+
+    // Delete from email_marketers table (this will cascade to related records)
+    const { error: deleteError } = await supabase
+      .from('email_marketers')
+      .delete()
+      .eq('email_marketer_id', emailMarketerId)
+
+    if (deleteError) throw deleteError
+
+    // Note: Supabase auth user deletion requires admin API
+    // For now, we just delete from our table
+    // The auth user will remain but won't be able to access anything
+  } catch (error) {
+    console.error('Error deleting email marketer:', error)
+    throw error
+  }
+}

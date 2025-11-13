@@ -14,7 +14,6 @@ async function emailExists(email: string): Promise<boolean> {
     .eq('email', email)
     .single();
 
-
   const { data: recruiter, error: recruiterError } = await supabase
     .from('recruiters')
     .select('email')
@@ -27,13 +26,22 @@ async function emailExists(email: string): Promise<boolean> {
     .eq('email', email)
     .single();
 
+  const { data: emailMarketer, error: emailMarketerError } = await supabase
+    .from('email_marketers')
+    .select('email')
+    .eq('email', email)
+    .single();
+
   // We can ignore "single row not found" errors, that's expected.
-  if ((userError && userError.code !== 'PGRST116') || (recruiterError && recruiterError.code !== 'PGRST116') || (adminError && adminError.code !== 'PGRST116')) {
-    console.error("Error checking email:", userError || recruiterError || adminError);
+  if ((userError && userError.code !== 'PGRST116') || 
+      (recruiterError && recruiterError.code !== 'PGRST116') || 
+      (adminError && adminError.code !== 'PGRST116') ||
+      (emailMarketerError && emailMarketerError.code !== 'PGRST116')) {
+    console.error("Error checking email:", userError || recruiterError || adminError || emailMarketerError);
     return false; // Fail safe
   }
   
-  return !!user || !!recruiter || !!admin;
+  return !!user || !!recruiter || !!admin || !!emailMarketer;
 }
 
 export default function ForgotPasswordDialog({ open, onClose }: { open: boolean, onClose: () => void }) {

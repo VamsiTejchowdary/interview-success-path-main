@@ -1,16 +1,35 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { 
-  Users, 
-  UserCheck, 
-  DollarSign, 
-  TrendingUp, 
-  Clock, 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Users,
+  UserCheck,
+  DollarSign,
+  TrendingUp,
+  Clock,
   Target,
   AlertTriangle,
   Download,
@@ -21,33 +40,47 @@ import {
   XCircle,
   Pause,
   Edit,
-  Loader2
+  Loader2,
 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+} from "recharts";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  getDashboardStats, 
-  getRecruitersList, 
-  getUsersList, 
-  updateRecruiterStatus, 
-  updateUserStatus, 
+import {
+  getDashboardStats,
+  getRecruitersList,
+  getUsersList,
+  updateRecruiterStatus,
+  updateUserStatus,
   assignRecruiterToUser,
   getApprovedRecruiters,
   getAffiliatesList,
   updateAffiliateStatus,
   createCouponForAffiliate,
+  getEmailMarketersList,
+  updateEmailMarketerStatus,
   type DashboardStats,
   type RecruiterData,
   type UserData,
   type AffiliateData,
+  type EmailMarketerData,
   updateUserPaid,
-  updateUserNextBilling
+  updateUserNextBilling,
 } from "@/lib/admin";
 import AdminUsersTab from "./admin/AdminUsersTab";
 import AdminOverviewTab from "./admin/AdminOverviewTab";
 import AdminAnalyticsTab from "./admin/AdminAnalyticsTab";
 import AdminRecruitersTab from "./admin/AdminRecruitersTab";
 import AdminAffiliatesTab from "./admin/AdminAffiliatesTab";
+import AdminEmailMarketersTab from "./admin/AdminEmailMarketersTab";
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -58,7 +91,10 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const [recruiters, setRecruiters] = useState<RecruiterData[]>([]);
   const [users, setUsers] = useState<UserData[]>([]);
   const [affiliates, setAffiliates] = useState<AffiliateData[]>([]);
-  const [approvedRecruiters, setApprovedRecruiters] = useState<{ recruiter_id: string; name: string }[]>([]);
+  const [emailMarketers, setEmailMarketers] = useState<EmailMarketerData[]>([]);
+  const [approvedRecruiters, setApprovedRecruiters] = useState<
+    { recruiter_id: string; name: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
@@ -66,19 +102,19 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 
   // Mock data for charts
   const revenueData = [
-    { month: 'Jan', revenue: 12000 },
-    { month: 'Feb', revenue: 15000 },
-    { month: 'Mar', revenue: 18000 },
-    { month: 'Apr', revenue: 22000 },
-    { month: 'May', revenue: 25000 },
-    { month: 'Jun', revenue: 28000 },
+    { month: "Jan", revenue: 12000 },
+    { month: "Feb", revenue: 15000 },
+    { month: "Mar", revenue: 18000 },
+    { month: "Apr", revenue: 22000 },
+    { month: "May", revenue: 25000 },
+    { month: "Jun", revenue: 28000 },
   ];
 
   const funnelData = [
-    { stage: 'Trial Sign-ups', count: 450 },
-    { stage: 'Active Students', count: 320 },
-    { stage: 'Interviewed', count: 180 },
-    { stage: 'Job Offers', count: 85 },
+    { stage: "Trial Sign-ups", count: 450 },
+    { stage: "Active Students", count: 320 },
+    { stage: "Interviewed", count: 180 },
+    { stage: "Job Offers", count: 85 },
   ];
 
   useEffect(() => {
@@ -88,21 +124,30 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [statsData, recruitersData, usersData, affiliatesData, approvedRecruitersData] = await Promise.all([
+      const [
+        statsData,
+        recruitersData,
+        usersData,
+        affiliatesData,
+        emailMarketersData,
+        approvedRecruitersData,
+      ] = await Promise.all([
         getDashboardStats(),
         getRecruitersList(),
         getUsersList(),
         getAffiliatesList(),
-        getApprovedRecruiters()
+        getEmailMarketersList(),
+        getApprovedRecruiters(),
       ]);
-      
+
       setStats(statsData);
       setRecruiters(recruitersData);
       setUsers(usersData);
       setAffiliates(affiliatesData);
+      setEmailMarketers(emailMarketersData);
       setApprovedRecruiters(approvedRecruitersData);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error("Error loading data:", error);
       toast({
         title: "Error",
         description: "Failed to load dashboard data",
@@ -113,7 +158,10 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     }
   };
 
-  const handleRecruiterStatusUpdate = async (recruiterId: string, status: 'pending' | 'approved' | 'rejected') => {
+  const handleRecruiterStatusUpdate = async (
+    recruiterId: string,
+    status: "pending" | "approved" | "rejected"
+  ) => {
     try {
       setUpdating(recruiterId);
       await updateRecruiterStatus(recruiterId, status);
@@ -123,7 +171,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         description: `Recruiter status updated to ${status}`,
       });
     } catch (error) {
-      console.error('Error updating recruiter status:', error);
+      console.error("Error updating recruiter status:", error);
       toast({
         title: "Error",
         description: "Failed to update recruiter status",
@@ -134,7 +182,10 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     }
   };
 
-  const handleUserStatusUpdate = async (userId: string, status: 'pending' | 'approved' | 'rejected' | 'on_hold') => {
+  const handleUserStatusUpdate = async (
+    userId: string,
+    status: "pending" | "approved" | "rejected" | "on_hold"
+  ) => {
     try {
       setUpdating(userId);
       await updateUserStatus(userId, status);
@@ -144,7 +195,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         description: `User status updated to ${status}`,
       });
     } catch (error) {
-      console.error('Error updating user status:', error);
+      console.error("Error updating user status:", error);
       toast({
         title: "Error",
         description: "Failed to update user status",
@@ -165,7 +216,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         description: "Recruiter assigned successfully",
       });
     } catch (error) {
-      console.error('Error assigning recruiter:', error);
+      console.error("Error assigning recruiter:", error);
       toast({
         title: "Error",
         description: "Failed to assign recruiter",
@@ -176,7 +227,10 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     }
   };
 
-  const handleAffiliateStatusUpdate = async (affiliateId: string, status: 'pending' | 'approved' | 'rejected') => {
+  const handleAffiliateStatusUpdate = async (
+    affiliateId: string,
+    status: "pending" | "approved" | "rejected"
+  ) => {
     try {
       setUpdating(affiliateId);
       await updateAffiliateStatus(affiliateId, status);
@@ -186,7 +240,7 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         description: `Affiliate status updated to ${status}`,
       });
     } catch (error) {
-      console.error('Error updating affiliate status:', error);
+      console.error("Error updating affiliate status:", error);
       toast({
         title: "Error",
         description: "Failed to update affiliate status",
@@ -197,7 +251,10 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
     }
   };
 
-  const handleCreateCoupon = async (affiliateId: string, couponCode: string) => {
+  const handleCreateCoupon = async (
+    affiliateId: string,
+    couponCode: string
+  ) => {
     try {
       await createCouponForAffiliate(affiliateId, couponCode);
       toast({
@@ -205,40 +262,85 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         description: "Coupon created successfully",
       });
     } catch (error) {
-      console.error('Error creating coupon:', error);
+      console.error("Error creating coupon:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create coupon",
+        description:
+          error instanceof Error ? error.message : "Failed to create coupon",
         variant: "destructive",
       });
       throw error; // Re-throw to let the component handle it
     }
   };
 
+  const handleEmailMarketerStatusUpdate = async (
+    emailMarketerId: string,
+    status: "pending" | "approved" | "rejected"
+  ) => {
+    try {
+      setUpdating(emailMarketerId);
+      await updateEmailMarketerStatus(emailMarketerId, status);
+      await loadData(); // Reload data to reflect changes
+      toast({
+        title: "Success",
+        description: `Email marketer status updated to ${status}`,
+      });
+    } catch (error) {
+      console.error("Error updating email marketer status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update email marketer status",
+        variant: "destructive",
+      });
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'approved':
-        return <Badge className="bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600">Approved</Badge>;
-      case 'pending':
-        return <Badge className="bg-amber-500 text-white border-amber-500 hover:bg-amber-600">Pending</Badge>;
-      case 'rejected':
-        return <Badge className="bg-red-500 text-white border-red-500 hover:bg-red-600">Rejected</Badge>;
-      case 'on_hold':
-        return <Badge className="bg-orange-500 text-white border-orange-500 hover:bg-orange-600">On Hold</Badge>;
+      case "approved":
+        return (
+          <Badge className="bg-emerald-500 text-white border-emerald-500 hover:bg-emerald-600">
+            Approved
+          </Badge>
+        );
+      case "pending":
+        return (
+          <Badge className="bg-amber-500 text-white border-amber-500 hover:bg-amber-600">
+            Pending
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge className="bg-red-500 text-white border-red-500 hover:bg-red-600">
+            Rejected
+          </Badge>
+        );
+      case "on_hold":
+        return (
+          <Badge className="bg-orange-500 text-white border-orange-500 hover:bg-orange-600">
+            On Hold
+          </Badge>
+        );
       default:
-        return <Badge variant="outline" className="border-slate-400 text-slate-300">{status}</Badge>;
+        return (
+          <Badge variant="outline" className="border-slate-400 text-slate-300">
+            {status}
+          </Badge>
+        );
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'approved':
+      case "approved":
         return <CheckCircle className="w-4 h-4 text-emerald-500" />;
-      case 'pending':
+      case "pending":
         return <Clock className="w-4 h-4 text-amber-500" />;
-      case 'rejected':
+      case "rejected":
         return <XCircle className="w-4 h-4 text-red-500" />;
-      case 'on_hold':
+      case "on_hold":
         return <Pause className="w-4 h-4 text-orange-500" />;
       default:
         return <AlertTriangle className="w-4 h-4 text-slate-400" />;
@@ -263,12 +365,14 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
         <div className="container mx-auto px-4 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-            <p className="text-slate-300 text-sm">Platform Management & Analytics</p>
+            <p className="text-slate-300 text-sm">
+              Platform Management & Analytics
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              onClick={onLogout} 
+            <Button
+              variant="outline"
+              onClick={onLogout}
               className="border-red-500 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
             >
               <LogOut className="w-4 h-4 mr-2" />
@@ -279,21 +383,46 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
       </header>
 
       <div className="container mx-auto px-4 py-6 sm:py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-slate-800/50 border border-slate-700 p-1 grid w-full grid-cols-2 sm:grid-cols-5 gap-1">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors">
+        <Tabs
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="space-y-6"
+        >
+          <TabsList className="bg-slate-800/50 border border-slate-700 p-1 grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1">
+            <TabsTrigger
+              value="overview"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors"
+            >
               Overview
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors">
+            <TabsTrigger
+              value="analytics"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors"
+            >
               Analytics
             </TabsTrigger>
-            <TabsTrigger value="recruiters" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors">
+            <TabsTrigger
+              value="recruiters"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors"
+            >
               Recruiters
             </TabsTrigger>
-            <TabsTrigger value="affiliates" className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors">
+            <TabsTrigger
+              value="affiliates"
+              className="data-[state=active]:bg-green-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors"
+            >
               Affiliates
             </TabsTrigger>
-            <TabsTrigger value="users" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors">
+            <TabsTrigger
+              value="email-marketers"
+              className="data-[state=active]:bg-purple-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors"
+            >
+              Email Marketers
+            </TabsTrigger>
+            <TabsTrigger
+              value="users"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-300 hover:text-white transition-colors"
+            >
               Users
             </TabsTrigger>
           </TabsList>
@@ -307,15 +436,40 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
           </TabsContent>
 
           <TabsContent value="recruiters">
-            <AdminRecruitersTab recruiters={recruiters} updating={updating} handleRecruiterStatusUpdate={handleRecruiterStatusUpdate} />
+            <AdminRecruitersTab
+              recruiters={recruiters}
+              updating={updating}
+              handleRecruiterStatusUpdate={handleRecruiterStatusUpdate}
+            />
           </TabsContent>
 
           <TabsContent value="affiliates">
-            <AdminAffiliatesTab affiliates={affiliates} updating={updating} handleAffiliateStatusUpdate={handleAffiliateStatusUpdate} handleCreateCoupon={handleCreateCoupon} />
+            <AdminAffiliatesTab
+              affiliates={affiliates}
+              updating={updating}
+              handleAffiliateStatusUpdate={handleAffiliateStatusUpdate}
+              handleCreateCoupon={handleCreateCoupon}
+            />
+          </TabsContent>
+
+          <TabsContent value="email-marketers">
+            <AdminEmailMarketersTab
+              emailMarketers={emailMarketers}
+              updating={updating}
+              handleEmailMarketerStatusUpdate={handleEmailMarketerStatusUpdate}
+              loadData={loadData}
+            />
           </TabsContent>
 
           <TabsContent value="users">
-            <AdminUsersTab users={users} updating={updating} handleUserStatusUpdate={handleUserStatusUpdate} handleAssignRecruiter={handleAssignRecruiter} approvedRecruiters={approvedRecruiters} loadData={loadData} />
+            <AdminUsersTab
+              users={users}
+              updating={updating}
+              handleUserStatusUpdate={handleUserStatusUpdate}
+              handleAssignRecruiter={handleAssignRecruiter}
+              approvedRecruiters={approvedRecruiters}
+              loadData={loadData}
+            />
           </TabsContent>
         </Tabs>
       </div>
@@ -324,4 +478,3 @@ const AdminDashboard = ({ onLogout }: AdminDashboardProps) => {
 };
 
 export default AdminDashboard;
-

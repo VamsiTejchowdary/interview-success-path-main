@@ -1,20 +1,19 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, User, Mail, Briefcase, Calendar, ChevronRight } from "lucide-react";
 import { type StudentWithApplications } from "@/lib/emailMarketer";
-import StudentApplicationsModal from "./StudentApplicationsModal";
 
 interface ActiveStudentsTabProps {
   students: StudentWithApplications[];
   loadData: () => Promise<void>;
 }
 
-const ActiveStudentsTab = ({ students, loadData }: ActiveStudentsTabProps) => {
+const ActiveStudentsTab = ({ students }: ActiveStudentsTabProps) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStudent, setSelectedStudent] = useState<StudentWithApplications | null>(null);
-  const [showModal, setShowModal] = useState(false);
+  const navigate = useNavigate();
 
   const filteredStudents = students.filter(student => {
     const query = searchQuery.toLowerCase();
@@ -27,8 +26,7 @@ const ActiveStudentsTab = ({ students, loadData }: ActiveStudentsTabProps) => {
   });
 
   const handleStudentClick = (student: StudentWithApplications) => {
-    setSelectedStudent(student);
-    setShowModal(true);
+    navigate(`/email-marketer/student/${student.user_id}/applications`);
   };
 
   const getStatusColor = (status: string) => {
@@ -133,17 +131,6 @@ const ActiveStudentsTab = ({ students, loadData }: ActiveStudentsTabProps) => {
         </CardContent>
       </Card>
 
-      {selectedStudent && (
-        <StudentApplicationsModal
-          student={selectedStudent}
-          open={showModal}
-          onClose={() => {
-            setShowModal(false);
-            setSelectedStudent(null);
-          }}
-          onUpdate={loadData}
-        />
-      )}
     </>
   );
 };

@@ -24,6 +24,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import CancelPage from "./pages/cancel";
 import AffiliateSignup from "./pages/AffiliateSignup";
 import EmailMarketerSignup from "./pages/EmailMarketerSignup";
+import StudentApplicationsPage from "./pages/StudentApplicationsPage";
 
 const queryClient = new QueryClient();
 
@@ -104,6 +105,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute requiredRole="email_marketer">
             <EmailMarketerDashboard onLogout={handleDashboardLogout} />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/email-marketer/student/:userId/applications" 
+        element={
+          <ProtectedRoute requiredRole="email_marketer">
+            <StudentApplicationsPage />
           </ProtectedRoute>
         } 
       />

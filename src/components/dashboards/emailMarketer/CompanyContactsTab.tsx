@@ -576,7 +576,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
                 setCompanySearchResults([]);
               }}
               disabled={creating}
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              className="border-slate-600 bg-slate-700 text-white hover:bg-slate-600 hover:text-white"
             >
               Cancel
             </Button>
@@ -623,7 +623,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
               variant="outline"
               onClick={() => setShowCompanyConfirm(false)}
               disabled={creating}
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              className="border-slate-600 bg-slate-700 text-white hover:bg-slate-600 hover:text-white"
             >
               Cancel
             </Button>
@@ -703,7 +703,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
                 setEditRole("");
               }}
               disabled={updating}
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              className="border-slate-600 bg-slate-700 text-white hover:bg-slate-600 hover:text-white"
             >
               Cancel
             </Button>

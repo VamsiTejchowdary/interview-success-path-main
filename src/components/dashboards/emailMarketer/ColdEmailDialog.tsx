@@ -68,10 +68,29 @@ const ColdEmailDialog = ({
       // Reset state
       setCompanySearchQuery(application.company_name);
       setNotes(application.contact_info?.notes || "");
-      setStep(application.has_contact ? "select" : "search");
+      setSelectedCompany(null);
+      setSelectedContact(null);
+      setCompanyContacts([]);
 
-      // Auto-search on open
-      handleSearch(application.company_name);
+      // If updating existing contact, we need to load the company data first
+      if (application.has_contact && application.contact_info) {
+        // Search for the company to get its data
+        const loadExistingData = async () => {
+          const results = await searchCompanies(application.company_name);
+          if (results.length > 0) {
+            // Find exact match or use first result
+            const company =
+              results.find(
+                (c) => c.company_name === application.company_name
+              ) || results[0];
+            await handleSelectCompany(company);
+          }
+        };
+        loadExistingData();
+      } else {
+        setStep("search");
+        handleSearch(application.company_name);
+      }
     }
   }, [open, application]);
 
@@ -119,12 +138,6 @@ const ColdEmailDialog = ({
       }));
 
       setCompanyContacts(contacts);
-      setStep("select");
-
-      // Auto-select if only one contact
-      if (contacts.length === 1) {
-        setSelectedContact(contacts[0]);
-      }
 
       // Pre-select existing contact if updating
       if (application.contact_info) {
@@ -133,6 +146,16 @@ const ColdEmailDialog = ({
         );
         if (existing) {
           setSelectedContact(existing);
+          // Stay on confirm step if we're updating
+          setStep("confirm");
+        } else {
+          setStep("select");
+        }
+      } else {
+        setStep("select");
+        // Auto-select if only one contact
+        if (contacts.length === 1) {
+          setSelectedContact(contacts[0]);
         }
       }
     } catch (error) {
@@ -149,7 +172,7 @@ const ColdEmailDialog = ({
 
   const handleSelectContact = (contact: CompanyContactData) => {
     setSelectedContact(contact);
-    setStep("confirm");
+    // Don't auto-advance to confirm step - let user click Next button
   };
 
   const handleSubmit = async () => {
@@ -417,13 +440,23 @@ const ColdEmailDialog = ({
           )}
         </div>
 
-        <DialogFooter>
-          {step !== "search" && (
+        <DialogFooter className="gap-2">
+          {step === "confirm" && application.has_contact && (
+            <Button
+              variant="outline"
+              onClick={() => setStep("select")}
+              disabled={loading}
+              className="border-slate-600 bg-slate-700 text-white hover:bg-slate-600 hover:text-white"
+            >
+              Change Contact
+            </Button>
+          )}
+          {step !== "search" && step !== "confirm" && (
             <Button
               variant="outline"
               onClick={handleBack}
               disabled={loading}
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+              className="border-slate-600 bg-slate-700 text-white hover:bg-slate-600 hover:text-white"
             >
               Back
             </Button>
@@ -432,10 +465,19 @@ const ColdEmailDialog = ({
             variant="outline"
             onClick={onClose}
             disabled={loading}
-            className="border-slate-600 text-slate-300 hover:bg-slate-700"
+            className="border-slate-600 bg-slate-700 text-white hover:bg-slate-600 hover:text-white"
           >
             Cancel
           </Button>
+          {step === "select" && selectedContact && (
+            <Button
+              onClick={() => setStep("confirm")}
+              disabled={loading}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+            >
+              Next
+            </Button>
+          )}
           {step === "confirm" && (
             <Button
               onClick={handleSubmit}

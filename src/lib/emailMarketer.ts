@@ -482,6 +482,8 @@ export interface DetailedApplication {
     company_name: string
     notes: string | null
     added_at: string
+    has_responded: boolean
+    responded_at: string | null
   }
 }
 
@@ -518,6 +520,8 @@ export const getStudentDetailedApplications = async (userId: string): Promise<De
             contact_id,
             notes,
             created_at,
+            has_responded,
+            responded_at,
             company_contacts(
               contact_id,
               email,
@@ -545,7 +549,9 @@ export const getStudentDetailedApplications = async (userId: string): Promise<De
             role: contact.role,
             company_name: companyName,
             notes: appContact.notes,
-            added_at: appContact.created_at
+            added_at: appContact.created_at,
+            has_responded: appContact.has_responded || false,
+            responded_at: appContact.responded_at || null
           }
         }
 
@@ -671,6 +677,30 @@ export const deleteCompanyContact = async (contactId: string): Promise<void> => 
     if (error) throw error
   } catch (error) {
     console.error('Error deleting company contact:', error)
+    throw error
+  }
+}
+
+// Update application contact response status
+export const updateApplicationContactResponse = async (
+  applicationId: string,
+  contactId: string,
+  hasResponded: boolean,
+  respondedAt: string | null
+): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('application_contacts')
+      .update({ 
+        has_responded: hasResponded,
+        responded_at: respondedAt
+      })
+      .eq('application_id', applicationId)
+      .eq('contact_id', contactId)
+
+    if (error) throw error
+  } catch (error) {
+    console.error('Error updating response status:', error)
     throw error
   }
 }

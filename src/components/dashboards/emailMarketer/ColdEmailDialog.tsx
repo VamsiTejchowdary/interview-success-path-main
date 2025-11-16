@@ -18,6 +18,7 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle,
+  Briefcase,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -123,13 +124,14 @@ const ColdEmailDialog = ({
       setLoading(true);
       const { data, error } = await supabase
         .from("company_contacts")
-        .select("contact_id, email, role, company_id, created_at, updated_at")
+        .select("contact_id, name, email, role, company_id, created_at, updated_at")
         .eq("company_id", company.company_id);
 
       if (error) throw error;
 
       const contacts: CompanyContactData[] = (data || []).map((c) => ({
         contact_id: c.contact_id,
+        name: c.name,
         email: c.email,
         role: c.role,
         company_id: c.company_id,
@@ -370,13 +372,19 @@ const ColdEmailDialog = ({
                             : ""
                         }`}
                       >
+                        {contact.name && (
+                          <div className="flex items-center space-x-2 mb-1">
+                            <User className="w-4 h-4 text-emerald-400" />
+                            <span className="text-white font-medium">{contact.name}</span>
+                          </div>
+                        )}
                         <div className="flex items-center space-x-2">
-                          <Mail className="w-4 h-4 text-slate-500" />
+                          <Mail className="w-4 h-4 text-indigo-400" />
                           <span className="text-white">{contact.email}</span>
                         </div>
                         {contact.role && (
                           <div className="flex items-center space-x-2 mt-1 ml-6">
-                            <User className="w-3 h-3 text-slate-600" />
+                            <Briefcase className="w-3 h-3 text-amber-400" />
                             <span className="text-slate-400 text-sm">
                               {contact.role}
                             </span>
@@ -406,15 +414,23 @@ const ColdEmailDialog = ({
                         {selectedCompany?.company_name}
                       </span>
                     </div>
+                    {selectedContact.name && (
+                      <div className="flex items-center space-x-2">
+                        <User className="w-4 h-4 text-emerald-400" />
+                        <span className="text-white font-medium">
+                          {selectedContact.name}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex items-center space-x-2">
-                      <Mail className="w-4 h-4 text-slate-500" />
+                      <Mail className="w-4 h-4 text-indigo-400" />
                       <span className="text-white">
                         {selectedContact.email}
                       </span>
                     </div>
                     {selectedContact.role && (
                       <div className="flex items-center space-x-2">
-                        <User className="w-4 h-4 text-slate-500" />
+                        <Briefcase className="w-4 h-4 text-amber-400" />
                         <span className="text-slate-300">
                           {selectedContact.role}
                         </span>

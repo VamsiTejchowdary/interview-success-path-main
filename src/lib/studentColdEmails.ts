@@ -4,6 +4,7 @@ export interface ApplicationWithColdEmail {
     application_id: string
     has_cold_email: boolean
     cold_email_info?: {
+        name: string | null
         email: string
         role: string | null
         company_name: string
@@ -65,6 +66,7 @@ export const getColdEmailsForApplications = async (
         has_responded,
         responded_at,
         company_contacts(
+          name,
           email,
           role,
           companies(company_name)
@@ -82,6 +84,7 @@ export const getColdEmailsForApplications = async (
                 const companyName = contact.companies?.company_name || 'Unknown Company'
 
                 map.set(item.application_id, {
+                    name: contact.name,
                     email: contact.email,
                     role: contact.role,
                     company_name: companyName,

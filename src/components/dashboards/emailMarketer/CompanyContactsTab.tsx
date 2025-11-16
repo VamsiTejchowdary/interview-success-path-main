@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Building2, Mail, User, Plus, Loader2, ChevronRight, ChevronDown, AlertCircle, Search, Edit } from "lucide-react";
+import { Building2, Mail, User, Plus, Loader2, ChevronRight, ChevronDown, AlertCircle, Search, Edit, Briefcase } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   getCompaniesWithContacts,
@@ -38,6 +38,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
   const [companySearchResults, setCompanySearchResults] = useState<any[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<any | null>(null);
   const [showCompanyConfirm, setShowCompanyConfirm] = useState(false);
+  const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactRole, setContactRole] = useState("");
   const [creating, setCreating] = useState(false);
@@ -46,6 +47,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
   // Edit Contact Dialog
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingContact, setEditingContact] = useState<CompanyContactData | null>(null);
+  const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editRole, setEditRole] = useState("");
   const [updating, setUpdating] = useState(false);
@@ -70,8 +72,9 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
       if (company.company_name.toLowerCase().includes(query)) {
         return true;
       }
-      // Search in contact emails and roles
+      // Search in contact names, emails and roles
       return company.contacts.some(contact => 
+        contact.name?.toLowerCase().includes(query) ||
         contact.email.toLowerCase().includes(query) ||
         contact.role?.toLowerCase().includes(query)
       );
@@ -213,6 +216,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
       await createCompanyContact(
         selectedCompany.company_id,
         contactEmail,
+        contactName || undefined,
         contactRole || undefined
       );
 
@@ -225,6 +229,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
       setShowAddDialog(false);
       setCompanySearchQuery("");
       setSelectedCompany(null);
+      setContactName("");
       setContactEmail("");
       setContactRole("");
       setCompanySearchResults([]);
@@ -250,6 +255,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
       company_name: companyName
     };
     setEditingContact(contactWithCompany);
+    setEditName(contact.name || "");
     setEditEmail(contact.email);
     setEditRole(contact.role || "");
     setShowEditDialog(true);
@@ -281,6 +287,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
     try {
       setUpdating(true);
       await updateCompanyContact(editingContact.contact_id, {
+        name: editName || undefined,
         email: editEmail,
         role: editRole || undefined,
       });
@@ -292,6 +299,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
 
       setShowEditDialog(false);
       setEditingContact(null);
+      setEditName("");
       setEditEmail("");
       setEditRole("");
 
@@ -403,13 +411,19 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
                               className="p-4 flex items-center justify-between hover:bg-slate-800/30 transition-colors"
                             >
                               <div className="flex-1 space-y-1">
+                                {contact.name && (
+                                  <div className="flex items-center space-x-2">
+                                    <User className="w-4 h-4 text-emerald-400" />
+                                    <span className="text-white font-medium">{contact.name}</span>
+                                  </div>
+                                )}
                                 <div className="flex items-center space-x-2">
-                                  <Mail className="w-4 h-4 text-slate-500" />
+                                  <Mail className="w-4 h-4 text-indigo-400" />
                                   <span className="text-white">{contact.email}</span>
                                 </div>
                                 {contact.role && (
                                   <div className="flex items-center space-x-2 ml-6">
-                                    <User className="w-3 h-3 text-slate-600" />
+                                    <Briefcase className="w-3 h-3 text-amber-400" />
                                     <span className="text-slate-400 text-sm">{contact.role}</span>
                                   </div>
                                 )}
@@ -529,9 +543,23 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
               )}
             </div>
 
-            {/* Email Field (shown after company selected) */}
+            {/* Contact Fields (shown after company selected) */}
             {selectedCompany && (
               <>
+                <div className="space-y-2">
+                  <Label htmlFor="name" className="text-slate-300">
+                    Contact Name (Optional)
+                  </Label>
+                  <Input
+                    id="name"
+                    placeholder="e.g., John Doe"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    className="bg-slate-900 border-slate-700 text-white"
+                    disabled={creating}
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-slate-300">
                     Contact Email <span className="text-red-400">*</span>
@@ -571,6 +599,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
                 setShowAddDialog(false);
                 setCompanySearchQuery("");
                 setSelectedCompany(null);
+                setContactName("");
                 setContactEmail("");
                 setContactRole("");
                 setCompanySearchResults([]);
@@ -664,6 +693,20 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="edit-name" className="text-slate-300">
+                Contact Name (Optional)
+              </Label>
+              <Input
+                id="edit-name"
+                placeholder="e.g., John Doe"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="bg-slate-900 border-slate-700 text-white"
+                disabled={updating}
+              />
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="edit-email" className="text-slate-300">
                 Contact Email <span className="text-red-400">*</span>
               </Label>
@@ -699,6 +742,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
               onClick={() => {
                 setShowEditDialog(false);
                 setEditingContact(null);
+                setEditName("");
                 setEditEmail("");
                 setEditRole("");
               }}

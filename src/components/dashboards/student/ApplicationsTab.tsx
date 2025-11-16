@@ -710,9 +710,24 @@ export default function ApplicationsTab({
                                   </div>
 
                                   <div className="space-y-2.5">
+                                    {coldEmailData.get(app.application_id)
+                                      ?.name && (
+                                      <div className="flex items-start gap-2">
+                                        <span className="text-sm text-gray-600 min-w-[70px] font-medium">
+                                          Name:
+                                        </span>
+                                        <span className="text-sm font-bold text-emerald-700 break-all">
+                                          {
+                                            coldEmailData.get(app.application_id)
+                                              ?.name
+                                          }
+                                        </span>
+                                      </div>
+                                    )}
+
                                     <div className="flex items-start gap-2">
                                       <span className="text-sm text-gray-600 min-w-[70px] font-medium">
-                                        Contact:
+                                        Email:
                                       </span>
                                       <span className="text-sm font-semibold text-gray-900 break-all">
                                         {

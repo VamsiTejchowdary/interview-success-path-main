@@ -16,6 +16,7 @@ export interface CompanyContactData {
   contact_id: string
   company_id: string
   company_name?: string
+  name?: string
   email: string
   role?: string
   created_at: string
@@ -107,6 +108,7 @@ export const getStudentApplications = async (userId: string): Promise<Applicatio
             company_contacts(
               contact_id,
               company_id,
+              name,
               email,
               role,
               created_at,
@@ -126,6 +128,7 @@ export const getStudentApplications = async (userId: string): Promise<Applicatio
             contact_id: contact.contact_id,
             company_id: contact.company_id,
             company_name: companyName,
+            name: contact.name,
             email: contact.email,
             role: contact.role,
             created_at: contact.created_at,
@@ -162,6 +165,7 @@ export const getAllCompanyContacts = async (): Promise<CompanyContactData[]> => 
       .select(`
         contact_id,
         company_id,
+        name,
         email,
         role,
         created_at,
@@ -181,6 +185,7 @@ export const getAllCompanyContacts = async (): Promise<CompanyContactData[]> => 
         contact_id: contact.contact_id,
         company_id: contact.company_id,
         company_name: companyName,
+        name: contact.name,
         email: contact.email,
         role: contact.role,
         created_at: contact.created_at,
@@ -224,7 +229,7 @@ export const getCompaniesWithContacts = async (page: number = 1, pageSize: numbe
       (companies || []).map(async (company) => {
         const { data: contacts, error: contactsError } = await supabase
           .from('company_contacts')
-          .select('contact_id, company_id, email, role, created_at, updated_at')
+          .select('contact_id, company_id, name, email, role, created_at, updated_at')
           .eq('company_id', company.company_id)
           .order('created_at', { ascending: false })
 
@@ -263,13 +268,14 @@ export const searchCompanyContacts = async (query: string): Promise<CompanyConta
       .select(`
         contact_id,
         company_id,
+        name,
         email,
         role,
         created_at,
         updated_at,
         companies(company_name)
       `)
-      .or(`email.ilike.%${query}%,companies.company_name.ilike.%${query}%`)
+      .or(`name.ilike.%${query}%,email.ilike.%${query}%,companies.company_name.ilike.%${query}%`)
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -283,6 +289,7 @@ export const searchCompanyContacts = async (query: string): Promise<CompanyConta
         contact_id: contact.contact_id,
         company_id: contact.company_id,
         company_name: companyName,
+        name: contact.name,
         email: contact.email,
         role: contact.role,
         created_at: contact.created_at,
@@ -380,6 +387,7 @@ export const getOrCreateCompany = async (companyName: string) => {
 export const createCompanyContact = async (
   companyId: string,
   email: string,
+  name?: string,
   role?: string
 ) => {
   try {
@@ -387,12 +395,14 @@ export const createCompanyContact = async (
       .from('company_contacts')
       .insert({
         company_id: companyId,
+        name,
         email,
         role
       })
       .select(`
         contact_id,
         company_id,
+        name,
         email,
         role,
         created_at,
@@ -411,6 +421,7 @@ export const createCompanyContact = async (
       contact_id: data.contact_id,
       company_id: data.company_id,
       company_name: companyName,
+      name: data.name,
       email: data.email,
       role: data.role,
       created_at: data.created_at,
@@ -477,6 +488,7 @@ export interface DetailedApplication {
   has_contact: boolean
   contact_info?: {
     contact_id: string
+    name: string | null
     email: string
     role: string | null
     company_name: string
@@ -492,7 +504,7 @@ export const getStudentDetailedApplications = async (userId: string): Promise<De
     // Get user info with recruiter
     const { data: user, error: userError } = await supabase
       .from('users')
-      .select('user_id, resume_url, recruiter_id, recruiters(name)')
+      .select('user_id, recruiter_id, recruiters(name)')
       .eq('user_id', userId)
       .single()
 
@@ -502,10 +514,10 @@ export const getStudentDetailedApplications = async (userId: string): Promise<De
       ? user.recruiters[0].name
       : null
 
-    // Get all applications
+    // Get all applications with resume info
     const { data: applications, error: appsError } = await supabase
       .from('job_applications')
-      .select('application_id, job_title, company_name, job_link, status, applied_at, user_id')
+      .select('application_id, job_title, company_name, job_link, status, applied_at, user_id, resume_id, resumes(storage_key)')
       .eq('user_id', userId)
       .order('applied_at', { ascending: false })
 
@@ -513,7 +525,7 @@ export const getStudentDetailedApplications = async (userId: string): Promise<De
 
     // Get contacts for each application
     const detailedApps = await Promise.all(
-      (applications || []).map(async (app) => {
+      (applications || []).map(async (app: any) => {
         const { data: appContact, error: contactError } = await supabase
           .from('application_contacts')
           .select(`
@@ -524,6 +536,7 @@ export const getStudentDetailedApplications = async (userId: string): Promise<De
             responded_at,
             company_contacts(
               contact_id,
+              name,
               email,
               role,
               companies(company_name)
@@ -545,6 +558,7 @@ export const getStudentDetailedApplications = async (userId: string): Promise<De
 
           contactInfo = {
             contact_id: contact.contact_id,
+            name: contact.name,
             email: contact.email,
             role: contact.role,
             company_name: companyName,
@@ -555,9 +569,20 @@ export const getStudentDetailedApplications = async (userId: string): Promise<De
           }
         }
 
+        // Get resume storage_key from the resumes table via resume_id
+        const resumeStorageKey = app.resumes && Array.isArray(app.resumes) && app.resumes.length > 0
+          ? app.resumes[0].storage_key
+          : app.resumes?.storage_key
+
         return {
-          ...app,
-          resume_url: user.resume_url,
+          application_id: app.application_id,
+          job_title: app.job_title,
+          company_name: app.company_name,
+          job_link: app.job_link,
+          status: app.status,
+          applied_at: app.applied_at,
+          user_id: app.user_id,
+          resume_url: resumeStorageKey || null,
           recruiter_name: recruiterName,
           has_contact: !!contactInfo,
           contact_info: contactInfo
@@ -625,7 +650,7 @@ export const updateApplicationContact = async (
 
 export const updateCompanyContact = async (
   contactId: string,
-  updates: { email?: string; role?: string }
+  updates: { name?: string; email?: string; role?: string }
 ): Promise<CompanyContactData> => {
   try {
     const { data, error } = await supabase
@@ -638,6 +663,7 @@ export const updateCompanyContact = async (
       .select(`
         contact_id,
         company_id,
+        name,
         email,
         role,
         created_at,
@@ -656,6 +682,7 @@ export const updateCompanyContact = async (
       contact_id: data.contact_id,
       company_id: data.company_id,
       company_name: companyName,
+      name: data.name,
       email: data.email,
       role: data.role,
       created_at: data.created_at,
@@ -691,7 +718,7 @@ export const updateApplicationContactResponse = async (
   try {
     const { error } = await supabase
       .from('application_contacts')
-      .update({ 
+      .update({
         has_responded: hasResponded,
         responded_at: respondedAt
       })

@@ -770,15 +770,23 @@ const StudentApplicationsPage = () => {
                                           )}
                                         </div>
                                         <div className="space-y-2 text-sm">
+                                          {app.contact_info.name && (
+                                            <div className="flex items-center space-x-2">
+                                              <User className="w-4 h-4 text-emerald-400" />
+                                              <span className="text-white font-medium">
+                                                {app.contact_info.name}
+                                              </span>
+                                            </div>
+                                          )}
                                           <div className="flex items-center space-x-2">
-                                            <Mail className="w-4 h-4 text-slate-500" />
+                                            <Mail className="w-4 h-4 text-indigo-400" />
                                             <span className="text-white">
                                               {app.contact_info.email}
                                             </span>
                                           </div>
                                           {app.contact_info.role && (
                                             <div className="flex items-center space-x-2">
-                                              <User className="w-4 h-4 text-slate-500" />
+                                              <Briefcase className="w-4 h-4 text-amber-400" />
                                               <span className="text-slate-300">
                                                 {app.contact_info.role}
                                               </span>

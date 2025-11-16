@@ -714,7 +714,7 @@ export default function ApplicationsTab({
                                       <span className="text-sm text-gray-600 min-w-[70px] font-medium">
                                         Contact:
                                       </span>
-                                      <span className="text-sm font-semibold text-gray-900">
+                                      <span className="text-sm font-semibold text-gray-900 break-all">
                                         {
                                           coldEmailData.get(app.application_id)
                                             ?.email

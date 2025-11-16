@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'admin' | 'recruiter' | 'user' | 'affiliate';
+  requiredRole?: 'admin' | 'recruiter' | 'user' | 'affiliate' | 'email_marketer';
 }
 
 const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
@@ -30,6 +30,8 @@ const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
           navigate('/student');
         } else if (user.role === 'affiliate') {
           navigate('/affiliate/dashboard');
+        } else if (user.role === 'email_marketer') {
+          navigate('/email-marketer/dashboard');
         } else {
           navigate('/');
         }

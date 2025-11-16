@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export type UserRole = 'admin' | 'recruiter' | 'user' | 'affiliate' | null
+export type UserRole = 'admin' | 'recruiter' | 'user' | 'affiliate' | 'email_marketer' | null
 
 export interface AuthUser {
   id: string
@@ -84,6 +84,16 @@ export const signInWithEmail = async (email: string, password: string): Promise<
               throw new Error('Your affiliate account is not active. Please contact support.')
             }
           }
+        } else if (userInfo.role === 'email_marketer') {
+          if (userInfo.status !== 'approved') {
+            if (userInfo.status === 'pending') {
+              throw new Error('Your email marketer account is pending admin approval. Please wait for approval before signing in.')
+            } else if (userInfo.status === 'rejected') {
+              throw new Error('Your email marketer account has been rejected. Please contact support for more information.')
+            } else {
+              throw new Error('Your email marketer account is not active. Please contact support.')
+            }
+          }
         }
         return {
           id: data.user.id,
@@ -112,8 +122,8 @@ export const signInWithEmail = async (email: string, password: string): Promise<
 }
 
 export const signUpWithEmail = async (
-  email: string, 
-  password: string, 
+  email: string,
+  password: string,
   signupData: SignupData,
   role: 'admin' | 'recruiter' | 'user' | 'affiliate',
   adminKey?: string
@@ -199,7 +209,7 @@ export const signUpWithEmail = async (
           console.error('Error inserting affiliate:', insertError)
           throw insertError
         }
-      }else {
+      } else {
         const { error: insertError } = await supabase
           .from('users')
           .insert([
@@ -254,16 +264,19 @@ export const signOut = async (): Promise<void> => {
     const { error } = await supabase.auth.signOut()
     if (error) {
       console.error('Sign out error:', error)
+      throw error
     }
+    console.log('✅ Successfully signed out')
   } catch (error) {
     console.error('Sign out error:', error)
+    throw error
   }
 }
 
 export const getCurrentUser = async (): Promise<AuthUser | null> => {
   try {
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (user) {
       const userInfo = await getUserInfo(user.email!)
       if (userInfo) {
@@ -276,7 +289,7 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
           await supabase.auth.signOut()
           return null
         }
-        
+
         return {
           id: user.id,
           email: user.email!,
@@ -293,7 +306,7 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
         }
       }
     }
-    
+
     return null
   } catch (error) {
     console.error('Get current user error:', error)
@@ -301,11 +314,11 @@ export const getCurrentUser = async (): Promise<AuthUser | null> => {
   }
 }
 
-export const getUserInfo = async (email: string): Promise<{ 
+export const getUserInfo = async (email: string): Promise<{
   user_id?: string;
-  role: UserRole; 
-  first_name: string; 
-  last_name: string; 
+  role: UserRole;
+  first_name: string;
+  last_name: string;
   status?: string;
   phone?: string;
   address?: string;
@@ -334,10 +347,10 @@ export const getUserInfo = async (email: string): Promise<{
       .single()
 
     if (recruiterData) {
-      return { 
-        role: 'recruiter', 
-        first_name: recruiterData.name, 
-        last_name: '', 
+      return {
+        role: 'recruiter',
+        first_name: recruiterData.name,
+        last_name: '',
         status: recruiterData.status,
         phone: recruiterData.phone,
         address: recruiterData.address,
@@ -354,13 +367,34 @@ export const getUserInfo = async (email: string): Promise<{
       .single()
 
     if (affiliateData) {
-      return { 
+      return {
         user_id: affiliateData.affiliate_user_id,
-        role: 'affiliate', 
-        first_name: affiliateData.name, 
-        last_name: '', 
+        role: 'affiliate',
+        first_name: affiliateData.name,
+        last_name: '',
         status: affiliateData.status,
         phone: affiliateData.phone,
+        address: '',
+        resume_url: '',
+        subscription_fee: 0
+      }
+    }
+
+    // Check email_marketers table
+    const { data: emailMarketerData } = await supabase
+      .from('email_marketers')
+      .select('email_marketer_id, name, status, phone')
+      .eq('email', email)
+      .single()
+
+    if (emailMarketerData) {
+      return {
+        user_id: emailMarketerData.email_marketer_id,
+        role: 'email_marketer',
+        first_name: emailMarketerData.name,
+        last_name: '',
+        status: emailMarketerData.status,
+        phone: emailMarketerData.phone,
         address: '',
         resume_url: '',
         subscription_fee: 0
@@ -375,11 +409,11 @@ export const getUserInfo = async (email: string): Promise<{
       .single()
 
     if (userData) {
-      return { 
+      return {
         user_id: userData.user_id,
-        role: 'user', 
-        first_name: userData.first_name, 
-        last_name: userData.last_name, 
+        role: 'user',
+        first_name: userData.first_name,
+        last_name: userData.last_name,
         status: userData.status,
         phone: userData.phone,
         address: userData.address,

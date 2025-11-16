@@ -2,24 +2,72 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, ChevronUp, ExternalLink, FileText, User, Calendar, Loader2, Building2, Clock, Edit3 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  FileText,
+  User,
+  Calendar,
+  Loader2,
+  Building2,
+  Clock,
+  Edit3,
+  Mail,
+  CheckCircle2,
+} from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import { getColdEmailsForApplications } from "@/lib/studentColdEmails";
 
 const STATUS_OPTIONS = [
-  { value: "applied", label: "Applied", color: "bg-blue-50 text-blue-700 border-blue-200", dot: "bg-blue-500" },
-  { value: "on_hold", label: "On Hold", color: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500" },
-  { value: "interviewed", label: "Interviewed", color: "bg-purple-50 text-purple-700 border-purple-200", dot: "bg-purple-500" },
-  { value: "hired", label: "Hired", color: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-500" },
-  { value: "rejected", label: "Rejected", color: "bg-red-50 text-red-700 border-red-200", dot: "bg-red-500" },
+  {
+    value: "applied",
+    label: "Applied",
+    color: "bg-blue-50 text-blue-700 border-blue-200",
+    dot: "bg-blue-500",
+  },
+  {
+    value: "on_hold",
+    label: "On Hold",
+    color: "bg-amber-50 text-amber-700 border-amber-200",
+    dot: "bg-amber-500",
+  },
+  {
+    value: "interviewed",
+    label: "Interviewed",
+    color: "bg-purple-50 text-purple-700 border-purple-200",
+    dot: "bg-purple-500",
+  },
+  {
+    value: "hired",
+    label: "Hired",
+    color: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    dot: "bg-emerald-500",
+  },
+  {
+    value: "rejected",
+    label: "Rejected",
+    color: "bg-red-50 text-red-700 border-red-200",
+    dot: "bg-red-500",
+  },
 ];
 
 function getStatusStyle(status) {
-  const statusConfig = STATUS_OPTIONS.find(opt => opt.value === status);
-  return statusConfig || { color: "bg-gray-50 text-gray-700 border-gray-200", dot: "bg-gray-500" };
+  const statusConfig = STATUS_OPTIONS.find((opt) => opt.value === status);
+  return (
+    statusConfig || {
+      color: "bg-gray-50 text-gray-700 border-gray-200",
+      dot: "bg-gray-500",
+    }
+  );
 }
 
 const PAGE_SIZE = 10;
@@ -33,7 +81,15 @@ interface ApplicationsTabProps {
   loading: boolean;
   refetchApplications: () => Promise<void>;
 }
-export default function ApplicationsTab({ user, userDb, userId, applications, setApplications, loading, refetchApplications }: ApplicationsTabProps) {
+export default function ApplicationsTab({
+  user,
+  userDb,
+  userId,
+  applications,
+  setApplications,
+  loading,
+  refetchApplications,
+}: ApplicationsTabProps) {
   const { toast } = useToast();
   // Remove internal applications state and fetching logic
   // const [applications, setApplications] = useState([]);
@@ -47,6 +103,11 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Cold email filter
+  const [coldFilter, setColdFilter] = useState(false);
+  const [coldEmailData, setColdEmailData] = useState(new Map());
+  const [coldEmailCount, setColdEmailCount] = useState(0);
 
   // Debounce search input
   useEffect(() => {
@@ -84,14 +145,37 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
     fetchStatusCounts();
   }, [fetchStatusCounts]);
 
+  // Fetch cold email data for current applications
+  useEffect(() => {
+    const fetchColdEmails = async () => {
+      if (!applications || applications.length === 0) {
+        setColdEmailData(new Map());
+        setColdEmailCount(0);
+        return;
+      }
+
+      const appIds = applications.map((app) => app.application_id);
+      const coldData = await getColdEmailsForApplications(appIds);
+      setColdEmailData(coldData);
+      setColdEmailCount(coldData.size);
+    };
+
+    fetchColdEmails();
+  }, [applications]);
+
   // Realtime subscription: refetch applications on new INSERT for this user
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
-      .channel('job_applications_realtime')
+      .channel("job_applications_realtime")
       .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'job_applications', filter: `user_id=eq.${userId}` },
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "job_applications",
+          filter: `user_id=eq.${userId}`,
+        },
         (payload) => {
           refetchApplications();
           fetchStatusCounts && fetchStatusCounts();
@@ -108,17 +192,49 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
     if (!debouncedSearch.trim()) {
       setTotal(applications.length);
     } else {
-      setTotal(applications.filter(app => app.company_name?.toLowerCase().includes(debouncedSearch.trim().toLowerCase())).length);
+      setTotal(
+        applications.filter((app) =>
+          app.company_name
+            ?.toLowerCase()
+            .includes(debouncedSearch.trim().toLowerCase())
+        ).length
+      );
     }
     setPage(1);
   }, [applications, debouncedSearch]);
 
   // Filtered and paginated applications
   const PAGE_SIZE = 10;
-  const filteredApps = debouncedSearch.trim()
-    ? applications.filter(app => app.company_name?.toLowerCase().includes(debouncedSearch.trim().toLowerCase()))
+  // Filter by search
+  let filteredApps = debouncedSearch.trim()
+    ? applications.filter((app) =>
+        app.company_name
+          ?.toLowerCase()
+          .includes(debouncedSearch.trim().toLowerCase())
+      )
     : applications;
-  const paginatedApps = filteredApps.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Filter by cold email if active
+  if (coldFilter) {
+    filteredApps = filteredApps.filter((app) =>
+      coldEmailData.has(app.application_id)
+    );
+
+    // Sort by latest cold email sent (most recent first)
+    filteredApps = [...filteredApps].sort((a, b) => {
+      const dateA = coldEmailData.get(a.application_id)?.added_at;
+      const dateB = coldEmailData.get(b.application_id)?.added_at;
+
+      if (!dateA || !dateB) return 0;
+
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    });
+  }
+
+  const paginatedApps = filteredApps.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  );
 
   const handleStatusChange = async (applicationId, newStatus) => {
     setUpdatingStatus(applicationId);
@@ -126,9 +242,13 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
       .from("job_applications")
       .update({ status: newStatus })
       .eq("application_id", applicationId);
-    setApplications(applications => applications.map(app =>
-      app.application_id === applicationId ? { ...app, status: newStatus } : app
-    ));
+    setApplications((applications) =>
+      applications.map((app) =>
+        app.application_id === applicationId
+          ? { ...app, status: newStatus }
+          : app
+      )
+    );
     setUpdatingStatus(null);
     await fetchStatusCounts();
     toast({
@@ -147,7 +267,7 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
             type="text"
             placeholder="Search by company name..."
             value={search}
-            onChange={e => {
+            onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
             }}
@@ -165,27 +285,44 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
                 {refreshing || loading ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582M20 20v-5h-.581M5.582 9A7.003 7.003 0 0112 5c3.314 0 6.13 2.165 6.818 5M18.418 15A7.003 7.003 0 0112 19c-3.314 0-6.13-2.165-6.818-5" /></svg>
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 4v5h.582M20 20v-5h-.581M5.582 9A7.003 7.003 0 0112 5c3.314 0 6.13 2.165 6.818 5M18.418 15A7.003 7.003 0 0112 19c-3.314 0-6.13-2.165-6.818-5"
+                    />
+                  </svg>
                 )}
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              Refresh applications
-            </TooltipContent>
+            <TooltipContent>Refresh applications</TooltipContent>
           </Tooltip>
         </div>
       </div>
 
       {/* Header Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
-        {STATUS_OPTIONS.map(status => {
+        {STATUS_OPTIONS.map((status) => {
           const count = statusCounts[status.value] || 0;
           return (
-            <div key={status.value} className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <div
+              key={status.value}
+              className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm"
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs sm:text-sm font-medium text-gray-600">{status.label}</p>
-                  <p className="text-xl sm:text-2xl font-bold text-gray-900">{count}</p>
+                  <p className="text-xs sm:text-sm font-medium text-gray-600">
+                    {status.label}
+                  </p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900">
+                    {count}
+                  </p>
                 </div>
                 <div className={`w-3 h-3 rounded-full ${status.dot}`}></div>
               </div>
@@ -193,6 +330,49 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
           );
         })}
       </div>
+
+      {/* Cold Email Filter - Compact Premium Design */}
+      {coldEmailCount > 0 && (
+        <div className="mb-6">
+          <button
+            onClick={() => {
+              setColdFilter(!coldFilter);
+              setPage(1);
+            }}
+            className={`group relative inline-flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all duration-300 ${
+              coldFilter
+                ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40"
+                : "bg-white border-2 border-emerald-200 text-emerald-700 hover:border-emerald-400 hover:bg-emerald-50 shadow-sm hover:shadow-md"
+            }`}
+          >
+            {/* Icon */}
+            <Mail
+              className={`w-4 h-4 transition-all duration-300 ${
+                coldFilter ? "text-white" : "text-emerald-600"
+              }`}
+            />
+
+            {/* Text */}
+            <span>Cold</span>
+
+            {/* Count Badge */}
+            <span
+              className={`px-2 py-0.5 rounded-md text-xs font-bold ${
+                coldFilter
+                  ? "bg-white/20 text-white"
+                  : "bg-emerald-100 text-emerald-700"
+              }`}
+            >
+              {coldEmailCount}
+            </span>
+
+            {/* Active indicator */}
+            {coldFilter && (
+              <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-yellow-400 rounded-full border-2 border-white animate-pulse"></div>
+            )}
+          </button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
@@ -209,13 +389,22 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
             </div>
             {search.trim() ? (
               <>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">No Matching Company</h3>
-                <p className="text-gray-600 leading-relaxed">Please contact your recruiter if you have any doubt.</p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                  No Matching Company
+                </h3>
+                <p className="text-gray-600 leading-relaxed">
+                  Please contact your recruiter if you have any doubt.
+                </p>
               </>
             ) : (
               <>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">No Applications Yet</h3>
-                <p className="text-gray-600 leading-relaxed">Start tracking your job applications to stay organized during your job search journey.</p>
+                <h3 className="text-xl font-semibold text-gray-900 mb-3">
+                  No Applications Yet
+                </h3>
+                <p className="text-gray-600 leading-relaxed">
+                  Start tracking your job applications to stay organized during
+                  your job search journey.
+                </p>
               </>
             )}
           </div>
@@ -223,17 +412,22 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
       ) : (
         <>
           <div className="space-y-3">
-            {paginatedApps.map(app => {
+            {paginatedApps.map((app) => {
               const statusStyle = getStatusStyle(app.status);
               const isExpanded = expanded === app.application_id;
-              
+
               return (
-                <Card key={app.application_id} className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+                <Card
+                  key={app.application_id}
+                  className="bg-white border border-gray-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
+                >
                   <CardContent className="p-0">
                     {/* Main Content */}
-                    <div 
+                    <div
                       className="p-4 sm:p-6 cursor-pointer"
-                      onClick={() => setExpanded(isExpanded ? null : app.application_id)}
+                      onClick={() =>
+                        setExpanded(isExpanded ? null : app.application_id)
+                      }
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -246,31 +440,106 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
                               <div className="flex items-center gap-2 text-sm text-gray-700 mb-1">
                                 <Building2 className="w-4 h-4 text-blue-500" />
                                 <span className="truncate font-medium">
-                                  {app.company_name ? app.company_name : 'Company Name Not Provided'}
+                                  {app.company_name
+                                    ? app.company_name
+                                    : "Company Name Not Provided"}
                                 </span>
                               </div>
                               <div className="flex items-center gap-2 text-xs text-gray-500">
                                 <Clock className="w-4 h-4" />
-                                <span>Applied {app.applied_at ? new Date(app.applied_at).toLocaleDateString('en-US', { 
-                                  month: 'short', 
-                                  day: 'numeric',
-                                  year: 'numeric'
-                                }) : '-'}</span>
+                                <span>
+                                  Applied{" "}
+                                  {app.applied_at
+                                    ? new Date(
+                                        app.applied_at
+                                      ).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      })
+                                    : "-"}
+                                </span>
                               </div>
                             </div>
-                            <div className="sm:hidden">
-                              {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                            <div className="flex items-center gap-2">
+                              {coldEmailData.has(app.application_id) && (
+                                <div className="relative group">
+                                  {coldEmailData.get(app.application_id)
+                                    ?.has_responded ? (
+                                    <>
+                                      {/* Glowing background for responded */}
+                                      <div className="absolute inset-0 bg-gradient-to-r from-green-400 via-emerald-400 to-teal-400 rounded-lg blur-md opacity-75 group-hover:opacity-100 transition-opacity animate-pulse"></div>
+
+                                      {/* Icon container - Responded */}
+                                      <div className="relative flex items-center justify-center w-9 h-9 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 rounded-lg shadow-lg">
+                                        <Mail className="w-5 h-5 text-white" />
+
+                                        {/* Double checkmark badge for responded */}
+                                        <div className="absolute -top-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-md">
+                                          <svg
+                                            className="w-3.5 h-3.5 text-green-600"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="3"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              d="M5 13l4 4L19 7"
+                                            />
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              d="M9 13l4 4L23 7"
+                                              opacity="0.6"
+                                            />
+                                          </svg>
+                                        </div>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {/* Glowing background */}
+                                      <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-teal-400 rounded-lg blur-sm opacity-75 group-hover:opacity-100 transition-opacity"></div>
+
+                                      {/* Icon container */}
+                                      <div className="relative flex items-center justify-center w-9 h-9 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-lg shadow-lg">
+                                        <Mail className="w-5 h-5 text-white" />
+
+                                        {/* Checkmark badge */}
+                                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-md">
+                                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                              <div className="sm:hidden">
+                                {isExpanded ? (
+                                  <ChevronUp className="w-5 h-5 text-gray-400" />
+                                ) : (
+                                  <ChevronDown className="w-5 h-5 text-gray-400" />
+                                )}
+                              </div>
                             </div>
                           </div>
 
                           {/* Status & Actions Row */}
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div className="flex items-center gap-3 flex-wrap">
-                              <Badge className={`${statusStyle.color} border font-medium px-3 py-1`}>
-                                <div className={`w-2 h-2 rounded-full ${statusStyle.dot} mr-2`}></div>
-                                {STATUS_OPTIONS.find(opt => opt.value === app.status)?.label || app.status}
+                              <Badge
+                                className={`${statusStyle.color} border font-medium px-3 py-1`}
+                              >
+                                <div
+                                  className={`w-2 h-2 rounded-full ${statusStyle.dot} mr-2`}
+                                ></div>
+                                {STATUS_OPTIONS.find(
+                                  (opt) => opt.value === app.status
+                                )?.label || app.status}
                               </Badge>
-                              
+
                               <div className="flex items-center gap-2">
                                 <Button
                                   variant="ghost"
@@ -278,17 +547,19 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
                                   className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-8 px-3"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    let url = app.job_link || '';
+                                    let url = app.job_link || "";
                                     if (url && !/^https?:\/\//i.test(url)) {
-                                      url = 'https://' + url;
+                                      url = "https://" + url;
                                     }
-                                    window.open(url, '_blank');
+                                    window.open(url, "_blank");
                                   }}
                                 >
                                   <ExternalLink className="w-4 h-4 mr-1" />
-                                  <span className="hidden sm:inline">View Job</span>
+                                  <span className="hidden sm:inline">
+                                    View Job
+                                  </span>
                                 </Button>
-                                
+
                                 {app.resumeUrl && (
                                   <Button
                                     variant="ghost"
@@ -296,18 +567,24 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
                                     className="text-purple-600 hover:text-purple-700 hover:bg-purple-50 h-8 px-3"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      window.open(app.resumeUrl, '_blank');
+                                      window.open(app.resumeUrl, "_blank");
                                     }}
                                   >
                                     <FileText className="w-4 h-4 mr-1" />
-                                    <span className="hidden sm:inline">Resume</span>
+                                    <span className="hidden sm:inline">
+                                      Resume
+                                    </span>
                                   </Button>
                                 )}
                               </div>
                             </div>
-                            
+
                             <div className="hidden sm:block">
-                              {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                              {isExpanded ? (
+                                <ChevronUp className="w-5 h-5 text-gray-400" />
+                              ) : (
+                                <ChevronDown className="w-5 h-5 text-gray-400" />
+                              )}
                             </div>
                           </div>
                         </div>
@@ -326,24 +603,34 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
                                   <User className="w-4 h-4 text-blue-600" />
                                 </div>
                                 <div>
-                                  <p className="text-sm text-gray-600">Recruiter</p>
-                                  <p className="font-medium text-gray-900">{app.recruiterName}</p>
+                                  <p className="text-sm text-gray-600">
+                                    Recruiter
+                                  </p>
+                                  <p className="font-medium text-gray-900">
+                                    {app.recruiterName}
+                                  </p>
                                 </div>
                               </div>
-                              
+
                               <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                                   <Calendar className="w-4 h-4 text-green-600" />
                                 </div>
                                 <div>
-                                  <p className="text-sm text-gray-600">Application Date</p>
+                                  <p className="text-sm text-gray-600">
+                                    Application Date
+                                  </p>
                                   <p className="font-medium text-gray-900">
-                                    {app.applied_at ? new Date(app.applied_at).toLocaleDateString('en-US', { 
-                                      weekday: 'long',
-                                      year: 'numeric',
-                                      month: 'long',
-                                      day: 'numeric'
-                                    }) : '-'}
+                                    {app.applied_at
+                                      ? new Date(
+                                          app.applied_at
+                                        ).toLocaleDateString("en-US", {
+                                          weekday: "long",
+                                          year: "numeric",
+                                          month: "long",
+                                          day: "numeric",
+                                        })
+                                      : "-"}
                                   </p>
                                 </div>
                               </div>
@@ -355,8 +642,155 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
                                     <FileText className="w-4 h-4 text-purple-600" />
                                   </div>
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm text-gray-600">Resume</p>
-                                    <p className="font-medium text-gray-900 truncate">{app.resumeName}</p>
+                                    <p className="text-sm text-gray-600">
+                                      Resume
+                                    </p>
+                                    <p className="font-medium text-gray-900 truncate">
+                                      {app.resumeName}
+                                    </p>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Cold Email Info */}
+                              {coldEmailData.has(app.application_id) && (
+                                <div
+                                  className={`mt-4 p-4 rounded-lg border-2 ${
+                                    coldEmailData.get(app.application_id)
+                                      ?.has_responded
+                                      ? "bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border-green-300 shadow-lg shadow-green-100"
+                                      : "bg-emerald-50 border-emerald-200"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                      <div
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                          coldEmailData.get(app.application_id)
+                                            ?.has_responded
+                                            ? "bg-gradient-to-br from-green-500 to-emerald-500"
+                                            : "bg-emerald-600"
+                                        }`}
+                                      >
+                                        <Mail className="w-4 h-4 text-white" />
+                                      </div>
+                                      <span
+                                        className={`text-sm font-bold ${
+                                          coldEmailData.get(app.application_id)
+                                            ?.has_responded
+                                            ? "text-green-800"
+                                            : "text-emerald-800"
+                                        }`}
+                                      >
+                                        Cold Email Sent
+                                      </span>
+                                    </div>
+
+                                    {coldEmailData.get(app.application_id)
+                                      ?.has_responded && (
+                                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full shadow-md">
+                                        <svg
+                                          className="w-4 h-4 text-white"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="3"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M5 13l4 4L19 7"
+                                          />
+                                        </svg>
+                                        <span className="text-xs font-bold text-white">
+                                          RESPONDED
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="space-y-2.5">
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-sm text-gray-600 min-w-[70px] font-medium">
+                                        Contact:
+                                      </span>
+                                      <span className="text-sm font-semibold text-gray-900">
+                                        {
+                                          coldEmailData.get(app.application_id)
+                                            ?.email
+                                        }
+                                      </span>
+                                    </div>
+
+                                    {coldEmailData.get(app.application_id)
+                                      ?.role && (
+                                      <div className="flex items-start gap-2">
+                                        <span className="text-sm text-gray-600 min-w-[70px] font-medium">
+                                          Role:
+                                        </span>
+                                        <span className="text-sm text-gray-900">
+                                          {
+                                            coldEmailData.get(
+                                              app.application_id
+                                            )?.role
+                                          }
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {coldEmailData.get(app.application_id)
+                                      ?.has_responded &&
+                                      coldEmailData.get(app.application_id)
+                                        ?.responded_at && (
+                                        <div className="flex items-start gap-2 p-3 bg-white/60 rounded-lg border border-green-200">
+                                          <span className="text-sm text-green-700 min-w-[70px] font-bold">
+                                            Responded:
+                                          </span>
+                                          <span className="text-sm font-semibold text-green-800">
+                                            {new Date(
+                                              coldEmailData.get(
+                                                app.application_id
+                                              )?.responded_at!
+                                            ).toLocaleDateString("en-US", {
+                                              weekday: "short",
+                                              month: "short",
+                                              day: "numeric",
+                                              year: "numeric",
+                                              hour: "numeric",
+                                              minute: "2-digit",
+                                            })}
+                                          </span>
+                                        </div>
+                                      )}
+
+                                    {coldEmailData.get(app.application_id)
+                                      ?.notes && (
+                                      <div className="flex items-start gap-2 mt-3 pt-3 border-t border-emerald-200">
+                                        <span className="text-sm text-gray-600 min-w-[70px] font-medium">
+                                          Notes:
+                                        </span>
+                                        <span className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap">
+                                          {
+                                            coldEmailData.get(
+                                              app.application_id
+                                            )?.notes
+                                          }
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    <div className="text-xs text-gray-500 mt-3 pt-2 border-t border-emerald-200">
+                                      Email sent on{" "}
+                                      {new Date(
+                                        coldEmailData.get(
+                                          app.application_id
+                                        )?.added_at
+                                      ).toLocaleDateString("en-US", {
+                                        month: "long",
+                                        day: "numeric",
+                                        year: "numeric",
+                                      })}
+                                    </div>
                                   </div>
                                 </div>
                               )}
@@ -366,27 +800,41 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
                             <div className="space-y-3">
                               <div className="flex items-center gap-2 mb-3">
                                 <Edit3 className="w-4 h-4 text-gray-600" />
-                                <span className="text-sm font-medium text-gray-700">Update Status</span>
+                                <span className="text-sm font-medium text-gray-700">
+                                  Update Status
+                                </span>
                               </div>
-                              
+
                               <div className="space-y-2">
-                                {STATUS_OPTIONS.map(option => (
+                                {STATUS_OPTIONS.map((option) => (
                                   <button
                                     key={option.value}
-                                    onClick={() => handleStatusChange(app.application_id, option.value)}
-                                    disabled={updatingStatus === app.application_id}
+                                    onClick={() =>
+                                      handleStatusChange(
+                                        app.application_id,
+                                        option.value
+                                      )
+                                    }
+                                    disabled={
+                                      updatingStatus === app.application_id
+                                    }
                                     className={`w-full text-left p-3 rounded-lg border transition-all duration-200 ${
-                                      app.status === option.value 
+                                      app.status === option.value
                                         ? `${option.color} border-2`
-                                        : 'bg-white border-gray-200 hover:border-gray-300 text-gray-700'
-                                    } ${updatingStatus === app.application_id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                        : "bg-white border-gray-200 hover:border-gray-300 text-gray-700"
+                                    } ${updatingStatus === app.application_id ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                                   >
                                     <div className="flex items-center gap-3">
-                                      <div className={`w-3 h-3 rounded-full ${option.dot} ${app.status === option.value ? '' : 'opacity-30'}`}></div>
-                                      <span className="font-medium">{option.label}</span>
-                                      {updatingStatus === app.application_id && app.status === option.value && (
-                                        <Loader2 className="w-4 h-4 animate-spin ml-auto" />
-                                      )}
+                                      <div
+                                        className={`w-3 h-3 rounded-full ${option.dot} ${app.status === option.value ? "" : "opacity-30"}`}
+                                      ></div>
+                                      <span className="font-medium">
+                                        {option.label}
+                                      </span>
+                                      {updatingStatus === app.application_id &&
+                                        app.status === option.value && (
+                                          <Loader2 className="w-4 h-4 animate-spin ml-auto" />
+                                        )}
                                     </div>
                                   </button>
                                 ))}
@@ -395,7 +843,7 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
                           </div>
 
                           {/* Resume Preview */}
-                          {app.resumeUrl && app.resumeUrl.endsWith('.pdf') && (
+                          {app.resumeUrl && app.resumeUrl.endsWith(".pdf") && (
                             <div className="mt-4 w-full">
                               <div className="rounded-lg overflow-hidden border border-purple-200 bg-white shadow-sm">
                                 <iframe
@@ -420,9 +868,10 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
           {total > PAGE_SIZE && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6">
               <p className="text-sm text-gray-600">
-                Showing {((page - 1) * PAGE_SIZE) + 1} to {Math.min(page * PAGE_SIZE, total)} of {total} applications
+                Showing {(page - 1) * PAGE_SIZE + 1} to{" "}
+                {Math.min(page * PAGE_SIZE, total)} of {total} applications
               </p>
-              
+
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -432,9 +881,11 @@ export default function ApplicationsTab({ user, userDb, userId, applications, se
                 >
                   Previous
                 </Button>
-                
-                <span className="text-sm text-gray-600 px-3">Page {page} of {Math.ceil(total / PAGE_SIZE) || 1}</span>
-                
+
+                <span className="text-sm text-gray-600 px-3">
+                  Page {page} of {Math.ceil(total / PAGE_SIZE) || 1}
+                </span>
+
                 <Button
                   variant="outline"
                   disabled={page * PAGE_SIZE >= total}

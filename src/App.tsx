@@ -14,6 +14,7 @@ import StudentDashboard from "@/components/dashboards/StudentDashboard";
 import AdminDashboard from "@/components/dashboards/AdminDashboard";
 import AgentDashboard from "@/components/dashboards/AgentDashboard";
 import AffiliateDashboard from "@/components/dashboards/AffiliateDashboard";
+import EmailMarketerDashboard from "@/components/dashboards/EmailMarketerDashboard";
 import { useNavigate } from "react-router-dom";
 import RegisterForm from "@/components/auth/RegisterForm"
 import ContactForm from "./pages/contact.tsx"
@@ -22,6 +23,8 @@ import PaymentSuccess from "./pages/PaymentSuccess";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CancelPage from "./pages/cancel";
 import AffiliateSignup from "./pages/AffiliateSignup";
+import EmailMarketerSignup from "./pages/EmailMarketerSignup";
+import StudentApplicationsPage from "./pages/StudentApplicationsPage";
 
 const queryClient = new QueryClient();
 
@@ -31,8 +34,30 @@ function AppRoutes() {
 
   // Common logout handler for all dashboards
   const handleDashboardLogout = async () => {
-    await logout();
-    navigate("/");
+    try {
+      // Check if email marketer session exists
+      const { logoutEmailMarketer, isEmailMarketerLoggedIn } = await import('@/lib/emailMarketerAuth');
+      const isEmailMarketer = await isEmailMarketerLoggedIn();
+      
+      if (isEmailMarketer) {
+        await logoutEmailMarketer();
+      } else {
+        await logout();
+      }
+      
+      // Clear any remaining session data
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      navigate("/");
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force logout anyway
+      await logout();
+      localStorage.clear();
+      sessionStorage.clear();
+      navigate("/");
+    }
   };
 
   return (
@@ -75,6 +100,22 @@ function AppRoutes() {
           </ProtectedRoute>
         } 
       />
+      <Route 
+        path="/email-marketer/dashboard" 
+        element={
+          <ProtectedRoute requiredRole="email_marketer">
+            <EmailMarketerDashboard onLogout={handleDashboardLogout} />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/email-marketer/student/:userId/applications" 
+        element={
+          <ProtectedRoute requiredRole="email_marketer">
+            <StudentApplicationsPage />
+          </ProtectedRoute>
+        } 
+      />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/admin/signup" element={<AdminSignup />} />
@@ -85,6 +126,7 @@ function AppRoutes() {
       <Route path="/agent/signup" element={<RecruiterSignup />} />
       <Route path="/cancel" element={<CancelPage />} />
       <Route path="/affiliate/signup" element={<AffiliateSignup />} />
+      <Route path="/email-marketer/signup" element={<EmailMarketerSignup />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

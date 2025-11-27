@@ -18,18 +18,54 @@ export interface ApplicationWithColdEmail {
 // Get cold email count for a user
 export const getColdEmailCount = async (userId: string): Promise<number> => {
     try {
-        // Query application_contacts directly by joining with job_applications
-        const { count, error } = await supabase
-            .from('application_contacts')
-            .select('id', { count: 'exact', head: true })
-            .eq('job_applications.user_id', userId)
+        // First get the user's application IDs
+        const { data: apps, error: appsError } = await supabase
+            .from('job_applications')
+            .select('application_id')
+            .eq('user_id', userId)
 
-        if (error) {
-            console.error('Error getting cold email count:', error)
+        if (appsError || !apps || apps.length === 0) {
             return 0
         }
 
-        return count || 0
+        // For small number of apps, query directly
+        if (apps.length <= 100) {
+            const appIds = apps.map(a => a.application_id)
+            const { count, error } = await supabase
+                .from('application_contacts')
+                .select('id', { count: 'exact', head: true })
+                .in('application_id', appIds)
+
+            if (error) {
+                console.error('Error getting cold email count:', error)
+                return 0
+            }
+
+            return count || 0
+        }
+
+        // For large number of apps, batch the queries
+        const appIds = apps.map(a => a.application_id)
+        const BATCH_SIZE = 100
+        let totalCount = 0
+
+        for (let i = 0; i < appIds.length; i += BATCH_SIZE) {
+            const batch = appIds.slice(i, i + BATCH_SIZE)
+            
+            const { count, error } = await supabase
+                .from('application_contacts')
+                .select('id', { count: 'exact', head: true })
+                .in('application_id', batch)
+
+            if (error) {
+                console.error('Error in batch count:', error)
+                continue
+            }
+
+            totalCount += count || 0
+        }
+
+        return totalCount
     } catch (error) {
         console.error('Error getting cold email count:', error)
         return 0
@@ -48,53 +84,70 @@ export const getColdEmailsForUser = async (
 
         console.log('getColdEmailsForUser: Fetching cold emails for user', userId)
 
-        // Query application_contacts directly by joining with job_applications
-        const { data, error } = await supabase
-            .from('application_contacts')
-            .select(`
-                application_id,
-                created_at,
-                notes,
-                has_responded,
-                responded_at,
-                company_contacts!inner(
-                    name,
-                    email,
-                    role,
-                    companies!inner(company_name)
-                ),
-                job_applications!inner(user_id)
-            `)
-            .eq('job_applications.user_id', userId)
+        // First get the user's application IDs
+        const { data: apps, error: appsError } = await supabase
+            .from('job_applications')
+            .select('application_id')
+            .eq('user_id', userId)
 
-        if (error) {
-            console.error('getColdEmailsForUser: Supabase error:', error)
-            throw error
+        if (appsError || !apps || apps.length === 0) {
+            console.log('getColdEmailsForUser: No applications found for user')
+            return new Map()
         }
 
-        console.log('getColdEmailsForUser: Received', data?.length || 0, 'records')
+        const appIds = apps.map(a => a.application_id)
+        console.log('getColdEmailsForUser: Found', appIds.length, 'applications')
 
         const map = new Map<string, ApplicationWithColdEmail['cold_email_info']>()
 
-        data?.forEach((item: any) => {
-            if (item.company_contacts) {
-                const contact = item.company_contacts
-                const companyName = contact.companies?.company_name || 'Unknown Company'
+        // Batch requests to avoid URL length limits
+        const BATCH_SIZE = 100
 
-                map.set(item.application_id, {
-                    name: contact.name,
-                    email: contact.email,
-                    role: contact.role,
-                    company_name: companyName,
-                    added_at: item.created_at,
-                    notes: item.notes,
-                    has_responded: item.has_responded || false,
-                    responded_at: item.responded_at || null
-                })
-            } else {
-                console.warn('getColdEmailsForUser: Missing company_contacts for application', item.application_id)
+        for (let i = 0; i < appIds.length; i += BATCH_SIZE) {
+            const batch = appIds.slice(i, i + BATCH_SIZE)
+            
+            const { data, error } = await supabase
+                .from('application_contacts')
+                .select(`
+                    application_id,
+                    created_at,
+                    notes,
+                    has_responded,
+                    responded_at,
+                    company_contacts!inner(
+                        name,
+                        email,
+                        role,
+                        companies!inner(company_name)
+                    )
+                `)
+                .in('application_id', batch)
+
+            if (error) {
+                console.error('getColdEmailsForUser: Error in batch:', error)
+                continue
             }
-        })
+
+            data?.forEach((item: any) => {
+                if (item.company_contacts) {
+                    const contact = item.company_contacts
+                    const companyName = contact.companies?.company_name || 'Unknown Company'
+
+                    map.set(item.application_id, {
+                        name: contact.name,
+                        email: contact.email,
+                        role: contact.role,
+                        company_name: companyName,
+                        added_at: item.created_at,
+                        notes: item.notes,
+                        has_responded: item.has_responded || false,
+                        responded_at: item.responded_at || null
+                    })
+                } else {
+                    console.warn('getColdEmailsForUser: Missing company_contacts for application', item.application_id)
+                }
+            })
+        }
 
         console.log('getColdEmailsForUser: Returning', map.size, 'cold email records')
         return map

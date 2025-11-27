@@ -152,21 +152,62 @@ const OverviewTab = ({
         return;
       }
 
-      // Get cold email count using the efficient query with join
-      const { count: totalCount } = await supabase
-        .from("application_contacts")
-        .select("id", { count: "exact", head: true })
-        .eq("job_applications.user_id", userDb.user_id);
+      // Get user's application IDs first
+      const { data: apps } = await supabase
+        .from("job_applications")
+        .select("application_id")
+        .eq("user_id", userDb.user_id);
 
-      // Get responded count using the same efficient approach
-      const { count: respondedCount } = await supabase
-        .from("application_contacts")
-        .select("id", { count: "exact", head: true })
-        .eq("job_applications.user_id", userDb.user_id)
-        .eq("has_responded", true);
+      if (!apps || apps.length === 0) {
+        setColdEmailCount(0);
+        setRespondedCount(0);
+        return;
+      }
 
-      setColdEmailCount(totalCount || 0);
-      setRespondedCount(respondedCount || 0);
+      const appIds = apps.map((a) => a.application_id);
+
+      // For small datasets, query directly
+      if (appIds.length <= 100) {
+        const { count: totalCount } = await supabase
+          .from("application_contacts")
+          .select("id", { count: "exact", head: true })
+          .in("application_id", appIds);
+
+        const { count: respondedCount } = await supabase
+          .from("application_contacts")
+          .select("id", { count: "exact", head: true })
+          .in("application_id", appIds)
+          .eq("has_responded", true);
+
+        setColdEmailCount(totalCount || 0);
+        setRespondedCount(respondedCount || 0);
+      } else {
+        // For large datasets, batch the queries
+        const BATCH_SIZE = 100;
+        let totalCount = 0;
+        let totalResponded = 0;
+
+        for (let i = 0; i < appIds.length; i += BATCH_SIZE) {
+          const batch = appIds.slice(i, i + BATCH_SIZE);
+
+          const { count: batchCount } = await supabase
+            .from("application_contacts")
+            .select("id", { count: "exact", head: true })
+            .in("application_id", batch);
+
+          const { count: batchResponded } = await supabase
+            .from("application_contacts")
+            .select("id", { count: "exact", head: true })
+            .in("application_id", batch)
+            .eq("has_responded", true);
+
+          totalCount += batchCount || 0;
+          totalResponded += batchResponded || 0;
+        }
+
+        setColdEmailCount(totalCount);
+        setRespondedCount(totalResponded);
+      }
     };
     fetchColdEmails();
   }, [userDb?.user_id]);

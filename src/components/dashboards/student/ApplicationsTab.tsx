@@ -25,7 +25,7 @@ import {
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
-import { getColdEmailsForApplications } from "@/lib/studentColdEmails";
+import { getColdEmailsForUser } from "@/lib/studentColdEmails";
 
 const STATUS_OPTIONS = [
   {
@@ -145,23 +145,29 @@ export default function ApplicationsTab({
     fetchStatusCounts();
   }, [fetchStatusCounts]);
 
-  // Fetch cold email data for current applications
+  // Fetch cold email data for current user
   useEffect(() => {
     const fetchColdEmails = async () => {
-      if (!applications || applications.length === 0) {
+      if (!userId) {
+        console.log("ApplicationsTab: No user ID available");
         setColdEmailData(new Map());
         setColdEmailCount(0);
         return;
       }
 
-      const appIds = applications.map((app) => app.application_id);
-      const coldData = await getColdEmailsForApplications(appIds);
+      console.log("ApplicationsTab: Fetching cold emails for user", userId);
+      const coldData = await getColdEmailsForUser(userId);
+      console.log(
+        "ApplicationsTab: Received cold email data for",
+        coldData.size,
+        "applications"
+      );
       setColdEmailData(coldData);
       setColdEmailCount(coldData.size);
     };
 
     fetchColdEmails();
-  }, [applications]);
+  }, [userId]);
 
   // Realtime subscription: refetch applications on new INSERT for this user
   useEffect(() => {
@@ -718,8 +724,9 @@ export default function ApplicationsTab({
                                         </span>
                                         <span className="text-sm font-bold text-emerald-700 break-all">
                                           {
-                                            coldEmailData.get(app.application_id)
-                                              ?.name
+                                            coldEmailData.get(
+                                              app.application_id
+                                            )?.name
                                           }
                                         </span>
                                       </div>

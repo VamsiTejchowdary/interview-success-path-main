@@ -152,38 +152,24 @@ const OverviewTab = ({
         return;
       }
 
-      // Get all applications
-      const { data: apps } = await supabase
-        .from("job_applications")
-        .select("application_id")
-        .eq("user_id", userDb.user_id);
-
-      if (!apps || apps.length === 0) {
-        setColdEmailCount(0);
-        setRespondedCount(0);
-        return;
-      }
-
-      const appIds = apps.map((a) => a.application_id);
-
-      // Get cold email count
+      // Get cold email count using the efficient query with join
       const { count: totalCount } = await supabase
         .from("application_contacts")
         .select("id", { count: "exact", head: true })
-        .in("application_id", appIds);
+        .eq("job_applications.user_id", userDb.user_id);
 
-      // Get responded count
+      // Get responded count using the same efficient approach
       const { count: respondedCount } = await supabase
         .from("application_contacts")
         .select("id", { count: "exact", head: true })
-        .in("application_id", appIds)
+        .eq("job_applications.user_id", userDb.user_id)
         .eq("has_responded", true);
 
       setColdEmailCount(totalCount || 0);
       setRespondedCount(respondedCount || 0);
     };
     fetchColdEmails();
-  }, [userDb?.user_id, applications]);
+  }, [userDb?.user_id]);
   return (
     <>
       {/* Welcome Section */}

@@ -1,13 +1,39 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Building2, Mail, User, Plus, Loader2, ChevronRight, ChevronDown, AlertCircle, Search, Edit, Briefcase } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Building2,
+  Mail,
+  User,
+  Plus,
+  Loader2,
+  ChevronRight,
+  ChevronDown,
+  AlertCircle,
+  Search,
+  Edit,
+  Briefcase,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   getCompaniesWithContacts,
+  searchCompaniesWithContacts,
   searchCompanies,
   checkCompanyExists,
   createCompany,
@@ -24,14 +50,19 @@ interface CompanyContactsTabProps {
 
 const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
   const [companies, setCompanies] = useState<CompanyWithContacts[]>([]);
-  const [filteredCompanies, setFilteredCompanies] = useState<CompanyWithContacts[]>([]);
-  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
+  const [filteredCompanies, setFilteredCompanies] = useState<
+    CompanyWithContacts[]
+  >([]);
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(
+    new Set()
+  );
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  
+  const [isSearching, setIsSearching] = useState(false);
+
   // Add Contact Dialog
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [companySearchQuery, setCompanySearchQuery] = useState("");
@@ -43,48 +74,41 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
   const [contactRole, setContactRole] = useState("");
   const [creating, setCreating] = useState(false);
   const [searchingCompanies, setSearchingCompanies] = useState(false);
-  
+
   // Edit Contact Dialog
   const [showEditDialog, setShowEditDialog] = useState(false);
-  const [editingContact, setEditingContact] = useState<CompanyContactData | null>(null);
+  const [editingContact, setEditingContact] =
+    useState<CompanyContactData | null>(null);
   const [editName, setEditName] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editRole, setEditRole] = useState("");
   const [updating, setUpdating] = useState(false);
-  
+
   const { toast } = useToast();
   const pageSize = 10;
 
   useEffect(() => {
-    loadCompanies();
+    if (!searchQuery.trim()) {
+      loadCompanies();
+    }
   }, [currentPage]);
 
   useEffect(() => {
-    // Filter companies based on search query
-    if (!searchQuery.trim()) {
-      setFilteredCompanies(companies);
-      return;
-    }
-
-    const query = searchQuery.toLowerCase();
-    const filtered = companies.filter(company => {
-      // Search in company name
-      if (company.company_name.toLowerCase().includes(query)) {
-        return true;
+    const searchTimer = setTimeout(() => {
+      if (searchQuery.trim()) {
+        handleSearch();
+      } else {
+        loadCompanies();
       }
-      // Search in contact names, emails and roles
-      return company.contacts.some(contact => 
-        contact.name?.toLowerCase().includes(query) ||
-        contact.email.toLowerCase().includes(query) ||
-        contact.role?.toLowerCase().includes(query)
-      );
-    });
-    setFilteredCompanies(filtered);
-  }, [searchQuery, companies]);
+    }, 300); // Debounce search by 300ms
+
+    return () => clearTimeout(searchTimer);
+  }, [searchQuery]);
 
   const loadCompanies = async () => {
     try {
       setLoading(true);
+      setIsSearching(false);
       const result = await getCompaniesWithContacts(currentPage, pageSize);
       setCompanies(result.companies);
       setFilteredCompanies(result.companies);
@@ -95,6 +119,28 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
       toast({
         title: "Error",
         description: "Failed to load companies",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async () => {
+    try {
+      setLoading(true);
+      setIsSearching(true);
+      const result = await searchCompaniesWithContacts(searchQuery);
+      setFilteredCompanies(result.companies);
+      setTotal(result.total);
+      // Reset pagination when searching
+      setCurrentPage(1);
+      setTotalPages(1);
+    } catch (error) {
+      console.error("Error searching companies:", error);
+      toast({
+        title: "Error",
+        description: "Failed to search companies",
         variant: "destructive",
       });
     } finally {
@@ -115,7 +161,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
   const handleCompanySearch = async (query: string) => {
     setCompanySearchQuery(query);
     setSelectedCompany(null);
-    
+
     if (!query || query.trim().length < 2) {
       setCompanySearchResults([]);
       return;
@@ -169,7 +215,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
       setSelectedCompany(newCompany);
       setCompanySearchQuery(newCompany.company_name);
       setShowCompanyConfirm(false);
-      
+
       toast({
         title: "Success",
         description: `Company "${newCompany.company_name}" created`,
@@ -248,11 +294,14 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
     }
   };
 
-  const handleEditContact = (contact: CompanyContactData, companyName: string) => {
+  const handleEditContact = (
+    contact: CompanyContactData,
+    companyName: string
+  ) => {
     // Add company name to contact object
     const contactWithCompany = {
       ...contact,
-      company_name: companyName
+      company_name: companyName,
     };
     setEditingContact(contactWithCompany);
     setEditName(contact.name || "");
@@ -322,12 +371,14 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <CardTitle className="text-white text-2xl">Company Contacts</CardTitle>
+              <CardTitle className="text-white text-2xl">
+                Company Contacts
+              </CardTitle>
               <CardDescription className="text-slate-400">
-                {total} {total === 1 ? 'company' : 'companies'} in database
+                {total} {total === 1 ? "company" : "companies"} in database
               </CardDescription>
             </div>
-            
+
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <div className="relative flex-1 sm:w-80">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -338,7 +389,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
                   className="pl-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 focus:border-indigo-500"
                 />
               </div>
-              
+
               <Button
                 onClick={() => setShowAddDialog(true)}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white whitespace-nowrap"
@@ -349,7 +400,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
             </div>
           </div>
         </CardHeader>
-        
+
         <CardContent>
           {loading ? (
             <div className="text-center py-12">
@@ -363,7 +414,9 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
                 {searchQuery ? "No matches found" : "No companies yet"}
               </p>
               <p className="text-slate-500 text-sm">
-                {searchQuery ? "Try a different search term" : "Add your first company contact to get started"}
+                {searchQuery
+                  ? "Try a different search term"
+                  : "Add your first company contact to get started"}
               </p>
             </div>
           ) : (
@@ -391,7 +444,8 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
                     </div>
                     <div className="flex items-center space-x-4">
                       <span className="text-slate-400 text-sm">
-                        {company.contact_count} {company.contact_count === 1 ? 'contact' : 'contacts'}
+                        {company.contact_count}{" "}
+                        {company.contact_count === 1 ? "contact" : "contacts"}
                       </span>
                     </div>
                   </button>
@@ -414,24 +468,35 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
                                 {contact.name && (
                                   <div className="flex items-center space-x-2">
                                     <User className="w-4 h-4 text-emerald-400" />
-                                    <span className="text-white font-medium">{contact.name}</span>
+                                    <span className="text-white font-medium">
+                                      {contact.name}
+                                    </span>
                                   </div>
                                 )}
                                 <div className="flex items-center space-x-2">
                                   <Mail className="w-4 h-4 text-indigo-400" />
-                                  <span className="text-white">{contact.email}</span>
+                                  <span className="text-white">
+                                    {contact.email}
+                                  </span>
                                 </div>
                                 {contact.role && (
                                   <div className="flex items-center space-x-2 ml-6">
                                     <Briefcase className="w-3 h-3 text-amber-400" />
-                                    <span className="text-slate-400 text-sm">{contact.role}</span>
+                                    <span className="text-slate-400 text-sm">
+                                      {contact.role}
+                                    </span>
                                   </div>
                                 )}
                               </div>
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={() => handleEditContact(contact, company.company_name)}
+                                onClick={() =>
+                                  handleEditContact(
+                                    contact,
+                                    company.company_name
+                                  )
+                                }
                                 className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10"
                               >
                                 <Edit className="w-4 h-4" />
@@ -447,8 +512,8 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
             </div>
           )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
+          {/* Pagination - only show when not searching */}
+          {!isSearching && totalPages > 1 && (
             <div className="flex items-center justify-between mt-6 pt-6 border-t border-slate-700">
               <p className="text-slate-400 text-sm">
                 Page {currentPage} of {totalPages}
@@ -457,7 +522,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1 || loading}
                   className="border-slate-600 text-slate-300 hover:bg-slate-700"
                 >
@@ -466,7 +531,9 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(totalPages, p + 1))
+                  }
                   disabled={currentPage === totalPages || loading}
                   className="border-slate-600 text-slate-300 hover:bg-slate-700"
                 >
@@ -528,19 +595,24 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
               {selectedCompany && (
                 <div className="flex items-center space-x-2 p-3 bg-indigo-500/10 border border-indigo-500/30 rounded-lg">
                   <Building2 className="w-4 h-4 text-indigo-400" />
-                  <span className="text-indigo-300 font-medium">{selectedCompany.company_name}</span>
+                  <span className="text-indigo-300 font-medium">
+                    {selectedCompany.company_name}
+                  </span>
                 </div>
               )}
 
               {/* No Results - Create New */}
-              {companySearchQuery.length >= 2 && companySearchResults.length === 0 && !selectedCompany && !searchingCompanies && (
-                <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                  <p className="text-amber-300 text-sm flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4" />
-                    Company not found. Click "Next" to create it.
-                  </p>
-                </div>
-              )}
+              {companySearchQuery.length >= 2 &&
+                companySearchResults.length === 0 &&
+                !selectedCompany &&
+                !searchingCompanies && (
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                    <p className="text-amber-300 text-sm flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      Company not found. Click "Next" to create it.
+                    </p>
+                  </div>
+                )}
             </div>
 
             {/* Contact Fields (shown after company selected) */}
@@ -617,10 +689,12 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
               {creating ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {selectedCompany ? 'Adding...' : 'Creating...'}
+                  {selectedCompany ? "Adding..." : "Creating..."}
                 </>
+              ) : selectedCompany ? (
+                "Add Contact"
               ) : (
-                selectedCompany ? 'Add Contact' : 'Next'
+                "Next"
               )}
             </Button>
           </DialogFooter>
@@ -640,10 +714,13 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
           <div className="py-4">
             <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-lg">
               <p className="text-white font-medium mb-1">Company Name:</p>
-              <p className="text-indigo-300 text-lg font-semibold">{companySearchQuery}</p>
+              <p className="text-indigo-300 text-lg font-semibold">
+                {companySearchQuery}
+              </p>
             </div>
             <p className="text-slate-400 text-sm mt-4">
-              Click "Create Company" to add it to the database, then you can add contact details.
+              Click "Create Company" to add it to the database, then you can add
+              contact details.
             </p>
           </div>
 
@@ -667,7 +744,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
                   Creating...
                 </>
               ) : (
-                'Create Company'
+                "Create Company"
               )}
             </Button>
           </DialogFooter>
@@ -688,7 +765,9 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
             <div className="p-3 bg-slate-900 border border-slate-700 rounded-lg">
               <div className="flex items-center space-x-2">
                 <Building2 className="w-4 h-4 text-indigo-400" />
-                <span className="text-slate-300 font-medium">{editingContact?.company_name}</span>
+                <span className="text-slate-300 font-medium">
+                  {editingContact?.company_name}
+                </span>
               </div>
             </div>
 
@@ -762,7 +841,7 @@ const CompanyContactsTab = ({ loadData }: CompanyContactsTabProps) => {
                   Updating...
                 </>
               ) : (
-                'Update Contact'
+                "Update Contact"
               )}
             </Button>
           </DialogFooter>

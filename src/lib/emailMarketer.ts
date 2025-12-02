@@ -261,6 +261,93 @@ export const getCompaniesWithContacts = async (page: number = 1, pageSize: numbe
   }
 }
 
+// Search companies with their contacts (searches entire DB)
+export const searchCompaniesWithContacts = async (query: string): Promise<{
+  companies: CompanyWithContacts[]
+  total: number
+}> => {
+  try {
+    if (!query || query.trim().length === 0) {
+      return { companies: [], total: 0 }
+    }
+
+    const searchTerm = `%${query}%`
+
+    // Search companies by name
+    const { data: companiesByName, error: companiesError } = await supabase
+      .from('companies')
+      .select('company_id, company_name, created_at')
+      .ilike('company_name', searchTerm)
+      .order('company_name')
+
+    if (companiesError) throw companiesError
+
+    // Search contacts by name, email, or role
+    const { data: contactMatches, error: contactsError } = await supabase
+      .from('company_contacts')
+      .select('company_id')
+      .or(`name.ilike.${searchTerm},email.ilike.${searchTerm},role.ilike.${searchTerm}`)
+
+    if (contactsError) throw contactsError
+
+    // Get unique company IDs from contact matches
+    const companyIdsFromContacts = [...new Set((contactMatches || []).map(c => c.company_id))]
+
+    // Get companies that weren't already found by name search
+    const existingCompanyIds = new Set((companiesByName || []).map(c => c.company_id))
+    const additionalCompanyIds = companyIdsFromContacts.filter(id => !existingCompanyIds.has(id))
+
+    let additionalCompanies: any[] = []
+    if (additionalCompanyIds.length > 0) {
+      const { data, error } = await supabase
+        .from('companies')
+        .select('company_id, company_name, created_at')
+        .in('company_id', additionalCompanyIds)
+        .order('company_name')
+
+      if (error) throw error
+      additionalCompanies = data || []
+    }
+
+    // Combine all companies
+    const allCompanies = [...(companiesByName || []), ...additionalCompanies]
+
+    // Get contacts for each company
+    const companiesWithContacts = await Promise.all(
+      allCompanies.map(async (company) => {
+        const { data: contacts, error: contactsError } = await supabase
+          .from('company_contacts')
+          .select('contact_id, company_id, name, email, role, created_at, updated_at')
+          .eq('company_id', company.company_id)
+          .order('created_at', { ascending: false })
+
+        if (contactsError) {
+          console.error('Error fetching contacts for company:', contactsError)
+          return {
+            ...company,
+            contacts: [],
+            contact_count: 0
+          }
+        }
+
+        return {
+          ...company,
+          contacts: contacts || [],
+          contact_count: contacts?.length || 0
+        }
+      })
+    )
+
+    return {
+      companies: companiesWithContacts,
+      total: companiesWithContacts.length
+    }
+  } catch (error) {
+    console.error('Error searching companies with contacts:', error)
+    throw error
+  }
+}
+
 export const searchCompanyContacts = async (query: string): Promise<CompanyContactData[]> => {
   try {
     const { data, error } = await supabase
